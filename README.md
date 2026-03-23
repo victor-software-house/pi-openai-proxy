@@ -2,6 +2,13 @@
 
 A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/pi-mono)'s SDK. Routes requests through pi's multi-provider model registry and credential management, exposing a single `http://localhost:<port>/v1/...` endpoint that any OpenAI-compatible client can connect to.
 
+## Project docs
+
+Public project documentation lives in:
+
+- `README.md` -- project overview and intended API surface
+- `ROADMAP.md` -- short phase summary and delivery order
+
 ## Why
 
 - **Single gateway** to 20+ LLM providers (Anthropic, OpenAI, Google, Bedrock, Mistral, xAI, Groq, OpenRouter, Vertex, etc.) via one OpenAI-compatible API
@@ -15,7 +22,7 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 | Endpoint | Status | Description |
 |---|---|---|
 | `GET /v1/models` | Planned | List all available models from pi's ModelRegistry |
-| `GET /v1/models/:model` | Planned | Model details (context window, costs, capabilities) |
+| `GET /v1/models/{model}` | Planned | Model details for a canonical model ID. Path values must support URL-encoded IDs because model IDs can contain `/`. |
 | `POST /v1/chat/completions` | Planned | Chat completions (streaming and non-streaming) |
 
 ## Supported Chat Completions Features
@@ -75,7 +82,7 @@ xai/grok-3
 openrouter/anthropic/claude-sonnet-4-20250514
 ```
 
-Shorthand (bare model ID) is resolved by scanning all providers for a unique match.
+Shorthand (bare model ID) is resolved by scanning all providers for a unique match. Ambiguous shorthand requests should fail with a clear error instead of picking a provider implicitly.
 
 ## Configuration
 
@@ -83,7 +90,7 @@ Uses pi's existing configuration:
 
 - **API keys**: `~/.pi/agent/auth.json` (managed by `pi /login`)
 - **Custom models**: `~/.pi/agent/models.json`
-- **Per-request override**: `Authorization: Bearer <key>` header (optional, overrides stored credentials for the target provider)
+- **Per-request override**: planned via a proxy-specific header such as `X-Pi-Upstream-Api-Key` so `Authorization` remains available for proxy authentication compatibility
 
 ## Dev Workflow
 
