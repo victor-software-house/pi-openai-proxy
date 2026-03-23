@@ -1,25 +1,27 @@
 /**
- * Hono middleware: request ID injection, proxy auth, structured logging.
+ * Hono middleware: request ID injection, proxy auth, body size limits, structured logging.
  */
 
 import type { ProxyConfig } from "@proxy/config/env";
-import { authenticationError } from "@proxy/server/errors";
+import { authenticationError, invalidRequest } from "@proxy/server/errors";
 import { logDisconnect, logRequest, logResponse } from "@proxy/server/logging";
 import { generateRequestId } from "@proxy/server/request-id";
 import type { ProxyEnv } from "@proxy/server/types";
 import type { MiddlewareHandler } from "hono";
 
 /**
- * Inject request ID and logging context into every request.
+ * Inject request ID, upstream API key, and logging context into every request.
  */
 export function requestIdMiddleware(): MiddlewareHandler<ProxyEnv> {
 	return async (c, next) => {
 		const requestId = generateRequestId();
 		const clientRequestId = c.req.header("x-client-request-id");
+		const upstreamApiKey = c.req.header("x-pi-upstream-api-key");
 		const start = performance.now();
 
 		c.set("requestId", requestId);
 		c.set("clientRequestId", clientRequestId);
+		c.set("upstreamApiKey", upstreamApiKey);
 
 		logRequest({
 			requestId,
@@ -101,5 +103,36 @@ export function disconnectMiddleware(): MiddlewareHandler<ProxyEnv> {
 		}
 
 		await next();
+	};
+}
+
+/**
+ * Request body size limit middleware.
+ * Rejects requests with Content-Length exceeding the configured maximum.
+ * Only applies to POST/PUT/PATCH methods.
+ */
+export function bodySizeLimitMiddleware(config: ProxyConfig): MiddlewareHandler<ProxyEnv> {
+	return async (c, next) => {
+		const method = c.req.method;
+		if (method !== "POST" && method !== "PUT" && method !== "PATCH") {
+			await next();
+			return;
+		}
+
+		const contentLength = c.req.header("content-length");
+		if (contentLength !== undefined) {
+			const length = Number.parseInt(contentLength, 10);
+			if (Number.isFinite(length) && length > config.maxBodySize) {
+				return c.json(
+					invalidRequest(
+						`Request body too large. Maximum size: ${String(config.maxBodySize)} bytes`,
+					),
+					413,
+				);
+			}
+		}
+
+		await next();
+		return undefined;
 	};
 }

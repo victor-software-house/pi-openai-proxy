@@ -73,3 +73,13 @@ export function logStartup(host: string, port: number, modelCount: number): void
 	};
 	console.error(JSON.stringify(entry));
 }
+
+export function logShutdown(signal: string): void {
+	const entry = {
+		ts: timestamp(),
+		level: "info",
+		event: "shutdown",
+		signal,
+	};
+	console.error(JSON.stringify(entry));
+}

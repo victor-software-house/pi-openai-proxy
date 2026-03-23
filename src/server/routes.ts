@@ -7,6 +7,7 @@
  * - POST /v1/chat/completions
  */
 
+import type { ProxyConfig } from "@proxy/config/env";
 import { convertMessages } from "@proxy/openai/messages";
 import { buildModelList, toOpenAIModel } from "@proxy/openai/models";
 import { buildChatCompletion } from "@proxy/openai/responses";
@@ -27,7 +28,7 @@ import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
 
-export function createRoutes(): Hono<ProxyEnv> {
+export function createRoutes(config: ProxyConfig): Hono<ProxyEnv> {
 	const routes = new Hono<ProxyEnv>();
 
 	// --- GET /v1/models ---
@@ -67,6 +68,7 @@ export function createRoutes(): Hono<ProxyEnv> {
 	routes.post("/v1/chat/completions", async (c) => {
 		const requestId = c.get("requestId");
 		const abortController = c.get("abortController");
+		const upstreamApiKey = c.get("upstreamApiKey");
 
 		// Parse body
 		let body: unknown;
@@ -116,6 +118,12 @@ export function createRoutes(): Hono<ProxyEnv> {
 			context.tools = toolConversion.tools;
 		}
 
+		const completionOptions = {
+			upstreamApiKey,
+			signal: abortController.signal,
+			upstreamTimeoutMs: config.upstreamTimeoutMs,
+		};
+
 		// --- Streaming ---
 		if (request.stream === true) {
 			const includeUsage =
@@ -129,7 +137,7 @@ export function createRoutes(): Hono<ProxyEnv> {
 
 			return honoStream(c, async (stream) => {
 				try {
-					const eventStream = await piStream(model, context, request, abortController.signal);
+					const eventStream = await piStream(model, context, request, completionOptions);
 
 					for await (const frame of streamToSSE(
 						eventStream,
@@ -162,7 +170,7 @@ export function createRoutes(): Hono<ProxyEnv> {
 
 		// --- Non-streaming ---
 		try {
-			const message = await piComplete(model, context, request, abortController.signal);
+			const message = await piComplete(model, context, request, completionOptions);
 
 			return c.json(buildChatCompletion(requestId, canonicalModelId, message));
 		} catch (err: unknown) {

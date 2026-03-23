@@ -122,4 +122,60 @@ describe("convertMessages", () => {
 			}
 		}
 	});
+
+	test("rejects unsupported image MIME types", () => {
+		const messages: OpenAIMessage[] = [
+			{
+				role: "user",
+				content: [
+					{
+						type: "image_url",
+						image_url: { url: "data:image/bmp;base64,iVBORw0KGgo=" },
+					},
+				],
+			},
+		];
+		const result = convertMessages(messages);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.message).toContain("Unsupported image MIME type");
+		expect(result.message).toContain("image/bmp");
+	});
+
+	test("rejects invalid base64 data URI format", () => {
+		const messages: OpenAIMessage[] = [
+			{
+				role: "user",
+				content: [
+					{
+						type: "image_url",
+						image_url: { url: "data:notbase64content" },
+					},
+				],
+			},
+		];
+		const result = convertMessages(messages);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.message).toContain("Invalid base64 data URI format");
+	});
+
+	test("accepts all supported image MIME types", () => {
+		const mimeTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+		for (const mime of mimeTypes) {
+			const messages: OpenAIMessage[] = [
+				{
+					role: "user",
+					content: [
+						{
+							type: "image_url",
+							image_url: { url: `data:${mime};base64,iVBORw0KGgo=` },
+						},
+					],
+				},
+			];
+			const result = convertMessages(messages);
+			expect(result.ok).toBe(true);
+		}
+	});
 });

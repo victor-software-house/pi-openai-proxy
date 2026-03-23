@@ -31,7 +31,7 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 | `model` | Implemented | Resolved via `ModelRegistry.find()`, canonical or shorthand |
 | `messages` (text) | Implemented | System, developer, user, assistant, tool messages |
 | `messages` (base64 images) | Implemented | Base64 data URI image content parts |
-| `messages` (remote images) | Not yet | Disabled by default; planned with SSRF protections |
+| `messages` (remote images) | Rejected | Disabled by default; returns clear error |
 | `stream` | Implemented | SSE with `text_delta` / `toolcall_delta` mapping |
 | `temperature` | Implemented | Direct passthrough to `StreamOptions` |
 | `max_tokens` / `max_completion_tokens` | Implemented | Normalized to `StreamOptions.maxTokens` |
@@ -95,7 +95,7 @@ Uses pi's existing configuration:
 
 - **API keys**: `~/.pi/agent/auth.json` (managed by `pi /login`)
 - **Custom models**: `~/.pi/agent/models.json`
-- **Per-request override**: planned via `X-Pi-Upstream-Api-Key` header so `Authorization` remains available for proxy authentication
+- **Per-request override**: `X-Pi-Upstream-Api-Key` header overrides the registry-resolved API key for a single request, keeping `Authorization` available for proxy authentication
 
 ### Environment Variables
 
@@ -106,6 +106,8 @@ Uses pi's existing configuration:
 | `PI_PROXY_AUTH_TOKEN` | (disabled) | Bearer token for proxy authentication |
 | `PI_PROXY_AGENTIC` | `false` | Enable experimental agentic mode |
 | `PI_PROXY_REMOTE_IMAGES` | `false` | Enable remote image URL fetching |
+| `PI_PROXY_MAX_BODY_SIZE` | `52428800` (50 MB) | Maximum request body size in bytes |
+| `PI_PROXY_UPSTREAM_TIMEOUT_MS` | `120000` (120s) | Upstream request timeout in milliseconds |
 
 ## Dev Workflow
 

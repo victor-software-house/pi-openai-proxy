@@ -75,7 +75,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Surface model-registry load errors clearly at startup and in logs
 - [x] Implement model lookup by canonical ID
 - [x] Implement shorthand lookup with ambiguity detection
-- [ ] Implement per-request upstream key override without using `Authorization`
+- [x] Implement per-request upstream key override without using `Authorization`
 
 ### Models endpoints
 
@@ -126,7 +126,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Implement normalized OpenAI-style error response helper
 - [x] Generate per-request proxy request IDs
 - [x] Accept and log `X-Client-Request-Id` if present
-- [ ] Capture upstream request IDs where available
+- [x] Capture upstream request IDs where available
 - [x] Add structured request logging
 - [x] Log aborts, disconnects, and upstream timeouts distinctly
 
@@ -142,7 +142,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [ ] Golden test non-streaming text completion (requires API credentials)
 - [ ] Golden test streaming text completion (requires API credentials)
 - [x] Integration test model-not-found flow
-- [ ] Integration test upstream-auth-missing flow
+- [x] Integration test upstream-auth-missing flow
 - [x] Integration test client-disconnect cancellation (abort controller wired)
 
 ## Phase 2 -- Tools and richer compatibility
@@ -183,9 +183,9 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 ### Images
 
 - [x] Support base64 image data in user message parts
-- [ ] Decide whether remote image URL fetching is enabled
-- [ ] If enabled, implement SSRF protections, timeout, redirect, and size limits
-- [ ] Validate image MIME types and payload sizes
+- [x] Decide whether remote image URL fetching is enabled
+- [x] If enabled, implement SSRF protections, timeout, redirect, and size limits
+- [x] Validate image MIME types and payload sizes
 
 ### Phase 2 tests
 
@@ -203,19 +203,19 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Runtime hardening
 
-- [ ] Add request body size limits
-- [ ] Add upstream timeout defaults
-- [ ] Add graceful shutdown
-- [ ] Ensure in-flight streams are handled cleanly on shutdown
-- [ ] Decide whether any retries are appropriate and where they are forbidden
+- [x] Add request body size limits
+- [x] Add upstream timeout defaults
+- [x] Add graceful shutdown
+- [x] Ensure in-flight streams are handled cleanly on shutdown
+- [x] Decide whether any retries are appropriate and where they are forbidden
 
 ### Release engineering
 
-- [ ] Add CI typecheck
-- [ ] Add CI lint
-- [ ] Add CI tests
-- [ ] Add npm packaging validation
-- [ ] Verify README examples against the implemented API
+- [x] Add CI typecheck
+- [x] Add CI lint
+- [x] Add CI tests
+- [x] Add npm packaging validation
+- [x] Verify README examples against the implemented API
 
 ### Compatibility testing
 

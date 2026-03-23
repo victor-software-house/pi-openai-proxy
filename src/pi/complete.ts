@@ -75,12 +75,45 @@ function collectPayloadFields(request: ChatCompletionRequest): Record<string, un
 }
 
 /**
+ * Options for building pi stream options, beyond the parsed request itself.
+ */
+export interface CompletionOptions {
+	/** Per-request upstream API key override via X-Pi-Upstream-Api-Key header. */
+	readonly upstreamApiKey?: string | undefined;
+	/** Abort signal for cancellation. */
+	readonly signal?: AbortSignal | undefined;
+	/** Upstream timeout in milliseconds. Creates a timeout-aware abort signal. */
+	readonly upstreamTimeoutMs?: number | undefined;
+}
+
+/**
+ * Combine a client disconnect signal with an upstream timeout into a single signal.
+ * Returns the combined signal, or undefined if neither is provided.
+ */
+function buildCombinedSignal(
+	clientSignal: AbortSignal | undefined,
+	timeoutMs: number | undefined,
+): AbortSignal | undefined {
+	if (clientSignal === undefined && timeoutMs === undefined) {
+		return undefined;
+	}
+	if (timeoutMs === undefined) {
+		return clientSignal;
+	}
+	const timeoutSignal = AbortSignal.timeout(timeoutMs);
+	if (clientSignal === undefined) {
+		return timeoutSignal;
+	}
+	return AbortSignal.any([clientSignal, timeoutSignal]);
+}
+
+/**
  * Build pi SimpleStreamOptions from an OpenAI request.
  */
 async function buildStreamOptions(
 	model: Model<Api>,
 	request: ChatCompletionRequest,
-	signal?: AbortSignal,
+	options: CompletionOptions,
 ): Promise<SimpleStreamOptions> {
 	const opts: SimpleStreamOptions = {};
 
@@ -102,14 +135,20 @@ async function buildStreamOptions(
 		}
 	}
 
-	if (signal !== undefined) {
-		opts.signal = signal;
+	// Combine client disconnect signal with upstream timeout
+	const combinedSignal = buildCombinedSignal(options.signal, options.upstreamTimeoutMs);
+	if (combinedSignal !== undefined) {
+		opts.signal = combinedSignal;
 	}
 
-	// Resolve API key through the registry
-	const apiKey = await getRegistry().getApiKey(model);
-	if (apiKey !== undefined) {
-		opts.apiKey = apiKey;
+	// Per-request upstream key takes precedence over registry-resolved key
+	if (options.upstreamApiKey !== undefined) {
+		opts.apiKey = options.upstreamApiKey;
+	} else {
+		const apiKey = await getRegistry().getApiKey(model);
+		if (apiKey !== undefined) {
+			opts.apiKey = apiKey;
+		}
 	}
 
 	// Inject passthrough fields via onPayload
@@ -135,9 +174,9 @@ export async function piComplete(
 	model: Model<Api>,
 	context: Context,
 	request: ChatCompletionRequest,
-	signal?: AbortSignal,
+	options: CompletionOptions,
 ): Promise<AssistantMessage> {
-	const opts = await buildStreamOptions(model, request, signal);
+	const opts = await buildStreamOptions(model, request, options);
 	return completeSimple(model, context, opts);
 }
 
@@ -148,8 +187,8 @@ export async function piStream(
 	model: Model<Api>,
 	context: Context,
 	request: ChatCompletionRequest,
-	signal?: AbortSignal,
+	options: CompletionOptions,
 ): Promise<AsyncIterable<AssistantMessageEvent>> {
-	const opts = await buildStreamOptions(model, request, signal);
+	const opts = await buildStreamOptions(model, request, options);
 	return streamSimple(model, context, opts);
 }

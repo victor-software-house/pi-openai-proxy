@@ -220,6 +220,79 @@ describe("POST /v1/chat/completions - proxy auth", () => {
 	});
 });
 
+describe("POST /v1/chat/completions - body size limit", () => {
+	test("rejects requests exceeding body size limit", async () => {
+		const smallLimitApp = createApp({
+			...loadConfig(),
+			maxBodySize: 100,
+		});
+
+		const res = await smallLimitApp.request("/v1/chat/completions", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Content-Length": "200",
+			},
+			body: JSON.stringify({
+				model: "openai/gpt-4o",
+				messages: [{ role: "user", content: "a".repeat(150) }],
+			}),
+		});
+		expect(res.status).toBe(413);
+		const body = await res.json();
+		expect(body.error.message).toContain("too large");
+	});
+
+	test("allows requests within body size limit", async () => {
+		const res = await app.request("/v1/chat/completions", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Content-Length": "100",
+			},
+			body: JSON.stringify({
+				model: "fakeprovider/fake-model",
+				messages: [{ role: "user", content: "Hello" }],
+			}),
+		});
+		// Should not be 413
+		expect(res.status).not.toBe(413);
+	});
+
+	test("does not apply body size limit to GET requests", async () => {
+		const smallLimitApp = createApp({
+			...loadConfig(),
+			maxBodySize: 10,
+		});
+
+		const res = await smallLimitApp.request("/v1/models", {
+			method: "GET",
+			headers: {
+				"Content-Length": "999999",
+			},
+		});
+		expect(res.status).toBe(200);
+	});
+});
+
+describe("POST /v1/chat/completions - upstream API key override", () => {
+	test("accepts X-Pi-Upstream-Api-Key header without error", async () => {
+		const res = await app.request("/v1/chat/completions", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Pi-Upstream-Api-Key": "sk-override-key",
+			},
+			body: JSON.stringify({
+				model: "fakeprovider/fake-model",
+				messages: [{ role: "user", content: "Hello" }],
+			}),
+		});
+		// Model not found is expected (no such provider), but not 400/422 from the header
+		expect(res.status).toBe(404);
+	});
+});
+
 describe("unsupported endpoints", () => {
 	const endpoints = ["/v1/completions", "/v1/embeddings", "/v1/assistants"];
 

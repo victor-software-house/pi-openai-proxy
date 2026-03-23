@@ -42,14 +42,17 @@ Add the supported compatibility surface deliberately.
 - [x] Add JSON Schema conversion and tool acceptance/rejection tests
 - [ ] Remote image URL support (deferred -- requires SSRF protections)
 
-## Phase 3 -- Hardening and packaging
+## Phase 3 -- Hardening and packaging [DONE]
 
 Prepare the stable proxy for release.
 
-- [ ] Add request size limits and timeout defaults
-- [ ] Add graceful shutdown and connection cleanup
+- [x] Add request size limits (50 MB default, configurable)
+- [x] Add upstream timeout defaults (120s, configurable)
+- [x] Add graceful shutdown (SIGTERM/SIGINT with 10s drain)
+- [x] Add per-request upstream API key override (`X-Pi-Upstream-Api-Key`)
+- [x] Add image MIME type and payload size validation
+- [x] Add CI gates (GitHub Actions: typecheck, lint, test, build, package)
 - [ ] Run compatibility smoke tests with target clients
-- [ ] Add CI gates for typecheck, lint, and tests
 - [ ] Package for npm release
 
 ## Phase 4 -- Experimental agentic mode

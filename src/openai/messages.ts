@@ -109,27 +109,26 @@ function convertUserMessage(content: UserContent, index: number): UserConversion
 			parts.push({ type: "text", text: part.text ?? "" });
 		} else if (part.type === "image_url") {
 			const url = part.image_url?.url ?? "";
-			// Phase 1: only base64 data URIs are supported
+			// Only base64 data URIs are supported (remote URLs disabled by default)
 			if (url.startsWith("data:")) {
-				const parsed = parseDataUri(url);
-				if (parsed === null) {
+				const result = parseAndValidateDataUri(url);
+				if (!result.ok) {
 					return {
 						ok: false,
-						message: `Invalid base64 image data URI at messages[${String(index)}].content[${String(j)}]`,
+						message: `${result.message} at messages[${String(index)}].content[${String(j)}]`,
 						param: `messages[${String(index)}].content[${String(j)}].image_url.url`,
 					};
 				}
 				parts.push({
 					type: "image",
-					data: parsed.data,
-					mimeType: parsed.mimeType,
+					data: result.parsed.data,
+					mimeType: result.parsed.mimeType,
 				});
 			} else {
-				// Remote URLs disabled in Phase 1
+				// Remote URLs disabled by default
 				return {
 					ok: false,
-					message:
-						"Remote image URLs are not supported in this version. Use base64 data URIs instead.",
+					message: "Remote image URLs are not supported. Use base64 data URIs instead.",
 					param: `messages[${String(index)}].content[${String(j)}].image_url.url`,
 				};
 			}
@@ -220,12 +219,60 @@ function convertToolMessage(content: string, toolCallId: string): ToolResultMess
 
 // --- Helpers ---
 
-function parseDataUri(uri: string): { data: string; mimeType: string } | null {
+/**
+ * Supported image MIME types for base64 data URIs.
+ */
+const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+/**
+ * Maximum base64 payload size (20 MB of base64 text, ~15 MB decoded).
+ */
+const MAX_BASE64_PAYLOAD_SIZE = 20 * 1024 * 1024;
+
+export interface ParsedDataUri {
+	readonly data: string;
+	readonly mimeType: string;
+}
+
+export interface DataUriError {
+	readonly ok: false;
+	readonly message: string;
+}
+
+export interface DataUriSuccess {
+	readonly ok: true;
+	readonly parsed: ParsedDataUri;
+}
+
+type DataUriResult = DataUriSuccess | DataUriError;
+
+function parseAndValidateDataUri(uri: string): DataUriResult {
 	// data:[<mediatype>][;base64],<data>
 	const match = /^data:([^;]+);base64,(.+)$/.exec(uri);
-	if (match === null) return null;
+	if (match === null) {
+		return { ok: false, message: "Invalid base64 data URI format" };
+	}
 	const mimeType = match[1];
 	const data = match[2];
-	if (mimeType === undefined || data === undefined) return null;
-	return { data, mimeType };
+	if (mimeType === undefined || data === undefined) {
+		return { ok: false, message: "Invalid base64 data URI format" };
+	}
+
+	// Validate MIME type
+	if (!SUPPORTED_IMAGE_MIME_TYPES.has(mimeType)) {
+		return {
+			ok: false,
+			message: `Unsupported image MIME type '${mimeType}'. Supported: ${[...SUPPORTED_IMAGE_MIME_TYPES].join(", ")}`,
+		};
+	}
+
+	// Validate payload size
+	if (data.length > MAX_BASE64_PAYLOAD_SIZE) {
+		return {
+			ok: false,
+			message: `Image payload exceeds maximum size of ${String(MAX_BASE64_PAYLOAD_SIZE)} bytes`,
+		};
+	}
+
+	return { ok: true, parsed: { data, mimeType } };
 }
