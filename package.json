@@ -6,7 +6,7 @@
 	"author": "Victor Software House",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/victor-software-house/pi-openai-proxy.git"
+		"url": "git+https://github.com/victor-software-house/pi-openai-proxy.git"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -33,7 +33,7 @@
 	"scripts": {
 		"dev": "bun src/index.ts",
 		"build": "tsdown",
-		"start": "node dist/index.js",
+		"start": "node dist/index.mjs",
 		"typecheck": "tsc --noEmit",
 		"lint": "bun run lint:biome && bun run lint:oxlint",
 		"lint:biome": "biome check .",
