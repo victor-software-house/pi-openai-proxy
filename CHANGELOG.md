@@ -1,3 +1,10 @@
+## [0.0.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.0.2...v0.0.3) (2026-03-23)
+
+
+### Bug Fixes
+
+* add pi-package keyword ([693aeea](https://github.com/victor-software-house/pi-openai-proxy/commit/693aeea406fe0048d101946e1a8adca5146fb08e))
+
 ## [0.0.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.0.1...v0.0.2) (2026-03-23)
 
 
