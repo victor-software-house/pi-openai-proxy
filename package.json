@@ -1,6 +1,6 @@
 {
 	"name": "@victor-software-house/pi-openai-proxy",
-	"version": "0.0.3",
+	"version": "0.1.0",
 	"description": "Local OpenAI-compatible HTTP proxy built on pi's SDK",
 	"license": "MIT",
 	"author": "Victor Software House",
@@ -21,7 +21,9 @@
 		"gateway"
 	],
 	"pi": {
-		"extensions": ["./extensions"]
+		"extensions": [
+			"./extensions"
+		]
 	},
 	"engines": {
 		"node": ">=20"
