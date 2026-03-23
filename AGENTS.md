@@ -28,7 +28,7 @@ Experimental later work:
 
 ### Core translation layers
 
-- **Request parsing**: Zod schemas for the supported OpenAI chat-completions subset
+- **Request parsing**: Zod v4 schemas for the supported OpenAI chat-completions subset
 - **Message conversion**: OpenAI messages -> pi-ai `Context`
 - **Model resolution**: canonical `provider/model-id` -> pi `Model<Api>`
 - **Streaming bridge**: `AssistantMessageEvent` -> OpenAI chat-completions SSE chunks
@@ -64,17 +64,37 @@ Experimental later work:
 - Run in dev: `bun run dev`
 - Build: `bun run build`
 - Typecheck: `bun run typecheck`
-- Lint: `bun run lint` (biome + oxlint)
+- Lint: `bun run lint` (biome + oxlint with `.oxlintrc.json`)
 - Test: `bun test`
+- Pre-commit hooks: lefthook (oxlint-fix, biome format, lint, typecheck)
+- Conventional commits: enforced via commitlint
 
 ## Coding guidelines
 
-- Toolchain: Bun (dev/test), tsup (npm build), Biome (format/lint), oxlint (type-aware lint)
+- Toolchain: Bun (dev/test), tsdown (npm build), Biome (format/lint), oxlint (type-aware lint with `.oxlintrc.json`)
 - Tabs, double quotes, semicolons, `import type` enforced, `node:` protocol
+- Import aliases: `@proxy/*` mapped to `src/*` -- no relative imports, no `.js` extensions
+- Zod v4 for parsing untrusted/external data (HTTP request bodies, JSON.parse boundaries)
+- Zod namespace import: `import * as z from "zod"` -- never named import
 - No `any`, no unsafe type assertions (`as Type`), no `@ts-ignore`
-- Zod for parsing untrusted/external data (HTTP request bodies, pi SDK `any` boundaries)
+- No `typeof x === 'string'` -- use proper type guard functions
+- Type guards: `isRecord()` for narrowing `unknown` to `Record<string, unknown>`
+- Zod `safeParse()` for validating parsed JSON instead of `as` casts
 - Strict TS: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`
+- Typed `process.env` via `src/env.d.ts` -- dot notation, no bracket access on env vars
 - Explicit null/undefined comparisons -- no truthy coercion on nullable strings
+- `exactOptionalPropertyTypes`: optional properties must include `| undefined` in their type
+
+## oxlint strict rules
+
+The `.oxlintrc.json` enforces (matching pi-acp):
+
+- `typescript/no-unsafe-*` (assignment, call, member-access, return, argument, type-assertion)
+- `typescript/strict-boolean-expressions`
+- `typescript/consistent-type-assertions`
+- `typescript/no-floating-promises`, `no-misused-promises`
+- `zod/*` rules (consistent-import, no-any-schema, require-error-message, etc.)
+- `@limegrass/import-alias` (enforces `@proxy/*` path aliases)
 
 ## Source control
 
@@ -86,4 +106,4 @@ Experimental later work:
 - Pi SDK: `@mariozechner/pi-coding-agent` exports from `dist/index.d.ts`
 - Pi AI: `@mariozechner/pi-ai` exports from `dist/index.d.ts`
 - Pi mono repo: https://github.com/badlogic/pi-mono
-- Sister project: `pi-acp` (ACP adapter) -- similar translation patterns
+- Sister project: `pi-acp` (ACP adapter) -- similar translation patterns, identical tooling config

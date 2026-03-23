@@ -4,10 +4,9 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 
 ## Project docs
 
-Public project documentation lives in:
-
-- `README.md` -- project overview and intended API surface
+- `README.md` -- project overview and API surface
 - `ROADMAP.md` -- short phase summary and delivery order
+- `PLAN.md` -- detailed implementation contract (internal)
 
 ## Why
 
@@ -15,33 +14,35 @@ Public project documentation lives in:
 - **No duplicate config** -- reuses pi's `~/.pi/agent/auth.json` and `models.json` for credentials and model definitions
 - **Self-hosted** -- runs locally, no third-party proxy services
 - **Streaming** -- full SSE streaming with token usage and cost tracking
-- **Agentic mode** (planned) -- expose pi's full agent loop (tools, sessions, compaction) behind the completions endpoint
+- **Agentic mode** (planned) -- expose pi's full agent loop (tools, sessions, compaction) behind a separate experimental endpoint
 
 ## Supported Endpoints
 
 | Endpoint | Status | Description |
 |---|---|---|
-| `GET /v1/models` | Planned | List all available models from pi's ModelRegistry |
-| `GET /v1/models/{model}` | Planned | Model details for a canonical model ID. Path values must support URL-encoded IDs because model IDs can contain `/`. |
-| `POST /v1/chat/completions` | Planned | Chat completions (streaming and non-streaming) |
+| `GET /v1/models` | Implemented | List all available models from pi's ModelRegistry |
+| `GET /v1/models/{model}` | Implemented | Model details for a canonical model ID (supports URL-encoded IDs with `/`) |
+| `POST /v1/chat/completions` | Implemented | Chat completions (streaming and non-streaming) |
 
 ## Supported Chat Completions Features
 
 | Feature | Status | Notes |
 |---|---|---|
-| `model` | Planned | Resolved via `ModelRegistry.find()` |
-| `messages` (text) | Planned | System, user, assistant, tool messages |
-| `messages` (images) | Planned | Base64 and URL image content |
-| `stream` | Planned | SSE with `text_delta` / `toolcall_delta` mapping |
-| `temperature` | Planned | Direct passthrough to `StreamOptions` |
-| `max_tokens` / `max_completion_tokens` | Planned | Direct passthrough |
-| `tools` / `tool_choice` | Planned | JSON Schema tool definitions |
-| `tool_calls` in messages | Planned | Assistant tool call + tool result messages |
-| `reasoning_effort` | Planned | Maps to pi's `ThinkingLevel` |
-| `usage` in response | Planned | Input, output, cache read/write tokens + cost |
-| `stop` sequences | Planned | Via `onPayload` passthrough |
-| `response_format` | Planned | Via `onPayload` passthrough |
-| `top_p`, penalties | Planned | Via `onPayload` passthrough |
+| `model` | Implemented | Resolved via `ModelRegistry.find()`, canonical or shorthand |
+| `messages` (text) | Implemented | System, developer, user, assistant, tool messages |
+| `messages` (base64 images) | Implemented | Base64 data URI image content parts |
+| `messages` (remote images) | Not yet | Disabled by default; planned with SSRF protections |
+| `stream` | Implemented | SSE with `text_delta` / `toolcall_delta` mapping |
+| `temperature` | Implemented | Direct passthrough to `StreamOptions` |
+| `max_tokens` / `max_completion_tokens` | Implemented | Normalized to `StreamOptions.maxTokens` |
+| `stop` sequences | Implemented | Via `onPayload` passthrough |
+| `user` | Implemented | Via `onPayload` passthrough |
+| `stream_options.include_usage` | Implemented | Final usage chunk in SSE stream |
+| `tools` / `tool_choice` | Phase 2 | JSON Schema tool definitions |
+| `tool_calls` in messages | Phase 2 | Assistant tool call + tool result roundtrip |
+| `reasoning_effort` | Phase 2 | Maps to pi's `ThinkingLevel` |
+| `response_format` | Phase 2 | Via `onPayload` passthrough |
+| `top_p`, penalties | Phase 2 | Via `onPayload` passthrough |
 | `n > 1` | Not planned | Pi streams one completion at a time |
 | `logprobs` | Not planned | Not in pi-ai's abstraction layer |
 
@@ -61,14 +62,14 @@ HTTP Client                       pi-openai-proxy
          |  SSE / JSON        |  +-- ModelRegistry        |
          |<------------------+  +-- AuthStorage          |
                               |  +-- streamSimple()       |
-                              |  +-- AgentSession (P3)    |
+                              |  +-- AgentSession (P4)    |
                               +--------------------------+
 ```
 
 ### Pi SDK Layers Used
 
 - **`@mariozechner/pi-ai`** -- `streamSimple()`, `completeSimple()`, `Model`, `Usage`, `AssistantMessageEvent`
-- **`@mariozechner/pi-coding-agent`** -- `ModelRegistry`, `AuthStorage`, `createAgentSession()`, `SessionManager`
+- **`@mariozechner/pi-coding-agent`** -- `ModelRegistry`, `AuthStorage`
 
 ## Model Naming
 
@@ -82,7 +83,7 @@ xai/grok-3
 openrouter/anthropic/claude-sonnet-4-20250514
 ```
 
-Shorthand (bare model ID) is resolved by scanning all providers for a unique match. Ambiguous shorthand requests should fail with a clear error instead of picking a provider implicitly.
+Shorthand (bare model ID) is resolved by scanning all providers for a unique match. Ambiguous shorthand requests fail with a clear error listing the matching canonical IDs.
 
 ## Configuration
 
@@ -90,16 +91,39 @@ Uses pi's existing configuration:
 
 - **API keys**: `~/.pi/agent/auth.json` (managed by `pi /login`)
 - **Custom models**: `~/.pi/agent/models.json`
-- **Per-request override**: planned via a proxy-specific header such as `X-Pi-Upstream-Api-Key` so `Authorization` remains available for proxy authentication compatibility
+- **Per-request override**: planned via `X-Pi-Upstream-Api-Key` header so `Authorization` remains available for proxy authentication
+
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PI_PROXY_HOST` | `127.0.0.1` | Bind address |
+| `PI_PROXY_PORT` | `4141` | Listen port |
+| `PI_PROXY_AUTH_TOKEN` | (disabled) | Bearer token for proxy authentication |
+| `PI_PROXY_AGENTIC` | `false` | Enable experimental agentic mode |
+| `PI_PROXY_REMOTE_IMAGES` | `false` | Enable remote image URL fetching |
 
 ## Dev Workflow
 
-- Install deps: `bun install`
-- Run in dev: `bun run dev`
-- Build: `bun run build`
-- Typecheck: `bun run typecheck`
-- Lint: `bun run lint`
-- Test: `bun test`
+```bash
+bun install           # Install dependencies
+bun run dev           # Run in development
+bun run build         # Build for npm (tsdown)
+bun run typecheck     # TypeScript strict check
+bun run lint          # Biome + oxlint (strict)
+bun test              # Run all tests
+```
+
+### Tooling
+
+- **Bun** -- runtime, test runner, package manager
+- **tsdown** -- npm build (ESM + .d.ts)
+- **Biome** -- format + lint
+- **oxlint** -- type-aware lint with strict rules (`.oxlintrc.json`)
+- **lefthook** -- pre-commit hooks (format, lint, typecheck), pre-push hooks (test)
+- **commitlint** -- conventional commits
+- **semantic-release** -- automated versioning and npm publish
+- **mise** -- tool version management (node, bun)
 
 ## License
 

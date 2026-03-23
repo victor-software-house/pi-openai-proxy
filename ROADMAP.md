@@ -2,31 +2,32 @@
 
 This file is the short phase summary. See `PLAN.md` for the detailed implementation contract and `TODO.md` for the actionable checklist.
 
-## Phase 0 -- Contract lock
+## Phase 0 -- Contract lock [DONE]
 
 Freeze the API and security decisions before implementation starts.
 
-- [ ] Finalize model ID strategy and encoded route handling
-- [ ] Finalize auth override strategy
-- [ ] Finalize supported request field matrix
-- [ ] Finalize SSE chunk contract
-- [ ] Finalize error contract
-- [ ] Finalize image-fetch security policy
-- [ ] Mark agentic mode experimental
+- [x] Finalize model ID strategy and encoded route handling
+- [x] Finalize auth override strategy
+- [x] Finalize supported request field matrix
+- [x] Finalize SSE chunk contract
+- [x] Finalize error contract
+- [x] Finalize image-fetch security policy
+- [x] Mark agentic mode experimental
 
-## Phase 1 -- Stable core proxy
+## Phase 1 -- Stable core proxy [DONE]
 
 Deliver the minimum production-capable proxy.
 
-- [ ] Scaffold the project and core modules
-- [ ] Integrate `AuthStorage` and `ModelRegistry`
-- [ ] Implement `GET /v1/models`
-- [ ] Implement `GET /v1/models/{model}`
-- [ ] Implement non-streaming `POST /v1/chat/completions`
-- [ ] Implement streaming `POST /v1/chat/completions`
-- [ ] Implement request IDs, structured logs, and disconnect cancellation
-- [ ] Implement OpenAI-style errors
-- [ ] Add unit and golden tests for the stable contract
+- [x] Scaffold the project and core modules
+- [x] Integrate `AuthStorage` and `ModelRegistry`
+- [x] Implement `GET /v1/models`
+- [x] Implement `GET /v1/models/{model}`
+- [x] Implement non-streaming `POST /v1/chat/completions`
+- [x] Implement streaming `POST /v1/chat/completions`
+- [x] Implement request IDs, structured logs, and disconnect cancellation
+- [x] Implement OpenAI-style errors
+- [x] Add unit and integration tests for the stable contract
+- [x] Align strict tooling with pi-acp (oxlintrc, biome, lefthook, commitlint, Zod v4)
 
 ## Phase 2 -- Tools and richer compatibility
 

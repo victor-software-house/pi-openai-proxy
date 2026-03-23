@@ -23,7 +23,7 @@ import type {
 import type { OpenAIMessage } from "@proxy/openai/schemas";
 import * as z from "zod";
 
-const toolArgsSchema = z.record(z.string(), z.unknown());
+const toolArgsSchema = z.record(z.string().trim(), z.unknown());
 
 export interface ConversionSuccess {
 	readonly ok: true;
