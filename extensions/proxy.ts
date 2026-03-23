@@ -137,7 +137,7 @@ export default function proxyExtension(pi: ExtensionAPI) {
 			proxyProcess.on("exit", (code) => {
 				proxyProcess = undefined;
 				if (code !== null && code !== 0) {
-					ctx.ui.notify(`Proxy exited with code ${String(code)}`, "warn");
+					ctx.ui.notify(`Proxy exited with code ${String(code)}`, "warning");
 				}
 				ctx.ui.setStatus("proxy", undefined);
 			});
@@ -156,7 +156,7 @@ export default function proxyExtension(pi: ExtensionAPI) {
 					"info",
 				);
 			} else {
-				ctx.ui.notify(`Proxy spawned but not yet reachable at ${proxyUrl}`, "warn");
+				ctx.ui.notify(`Proxy spawned but not yet reachable at ${proxyUrl}`, "warning");
 			}
 			await refreshStatus(ctx);
 		} catch (err: unknown) {
