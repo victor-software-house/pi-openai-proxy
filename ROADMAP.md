@@ -55,7 +55,17 @@ Prepare the stable proxy for release.
 - [x] Package for npm release (`@victor-software-house/pi-openai-proxy`)
 - [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
-## Phase 4 -- Experimental agentic mode
+## Phase 4 -- Unified config and pi-maestro integration
+
+Single source of truth for config and multi-account support via pi-maestro.
+
+- [ ] Make the server read `~/.pi/agent/proxy-config.json` as defaults (env vars override)
+- [ ] Eliminate config divergence between standalone and extension-spawned modes
+- [ ] Integrate with pi-maestro for multi-account provider rotation
+- [ ] Route proxy requests through pi-maestro's account engine (quota rotation, per-account usage tracking)
+- [ ] Expose pi-maestro account status in proxy responses or a `/v1/pi/status` endpoint
+
+## Phase 5 -- Experimental agentic mode
 
 Ship agentic behavior only after the stable proxy is solid.
 

@@ -50,7 +50,6 @@ interface ProxyConfig {
 interface RuntimeStatus {
 	reachable: boolean;
 	models: number;
-	managed: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +328,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		ctx.ui.setStatus("proxy", "proxy: starting...");
 
 		try {
-			const proxyEnv = { ...process.env, ...configToEnv(config) };
+			const proxyEnv = configToEnv(config);
 
 			if (config.lifetime === "detached") {
 				await startDetached(ctx, proxyEnv);
@@ -355,11 +354,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 	}
 
-	async function startDetached(ctx: ExtensionContext, env: Record<string, string>): Promise<void> {
+	async function startDetached(_ctx: ExtensionContext, env: Record<string, string>): Promise<void> {
 		const child = spawn("bun", ["run", proxyEntry], {
 			stdio: ["ignore", "ignore", "ignore"],
 			detached: true,
-			env,
+			env: { ...process.env, ...env },
 		});
 
 		if (child.pid === undefined) {
@@ -379,7 +378,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		sessionProcess = spawn("bun", ["run", proxyEntry], {
 			stdio: ["ignore", "pipe", "pipe"],
 			detached: false,
-			env,
+			env: { ...process.env, ...env },
 		});
 
 		sessionProcess.on("exit", (code) => {
