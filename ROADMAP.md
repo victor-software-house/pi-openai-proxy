@@ -98,7 +98,8 @@ CLI args > env vars > JSON config file (`~/.pi/agent/proxy-config.json`) > defau
 
 ### Workspace setup
 
-- [ ] pnpm workspace with turborepo (mirroring pi-maestro)
+- [ ] Bun workspace (bun workspaces, not pnpm)
+- [ ] Turborepo for task orchestration
 - [ ] Shared tsconfig.base.json, biome.json, oxlintrc at root
 - [ ] Per-package build, test, typecheck tasks
 - [ ] CI workflow updated for monorepo
