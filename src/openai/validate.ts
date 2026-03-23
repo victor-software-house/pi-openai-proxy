@@ -1,13 +1,13 @@
 /**
  * Request validation: parse and reject unsupported fields.
  *
- * Phase 0 contract: unknown fields -> 422
+ * Phase 2 contract: unknown fields -> 422, rejected fields -> 422
  */
 
 import {
 	type ChatCompletionRequest,
 	chatCompletionRequestSchema,
-	phase1RejectedFields,
+	rejectedFields,
 } from "@proxy/openai/schemas";
 
 export interface ValidationSuccess {
@@ -34,9 +34,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Also checks for known rejected fields to give friendly errors.
  */
 export function validateChatRequest(body: unknown): ValidationResult {
-	// Check for Phase 1 rejected fields before schema parsing
+	// Check for rejected fields before schema parsing
 	if (isRecord(body)) {
-		for (const field of phase1RejectedFields) {
+		for (const field of rejectedFields) {
 			if (body[field] !== undefined) {
 				return {
 					ok: false,

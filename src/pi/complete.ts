@@ -11,6 +11,7 @@ import type {
 	Context,
 	Model,
 	SimpleStreamOptions,
+	ThinkingLevel,
 } from "@mariozechner/pi-ai";
 import { completeSimple, streamSimple } from "@mariozechner/pi-ai";
 import type { ChatCompletionRequest } from "@proxy/openai/schemas";
@@ -18,6 +19,59 @@ import { getRegistry } from "@proxy/pi/registry";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Map OpenAI reasoning_effort to pi ThinkingLevel.
+ *
+ * OpenAI: "low" | "medium" | "high"
+ * Pi: "minimal" | "low" | "medium" | "high" | "xhigh"
+ *
+ * Direct mapping for the three shared values.
+ */
+const REASONING_EFFORT_MAP: Record<string, ThinkingLevel> = {
+	low: "low",
+	medium: "medium",
+	high: "high",
+};
+
+/**
+ * Collect fields that need to be injected via onPayload.
+ */
+function collectPayloadFields(request: ChatCompletionRequest): Record<string, unknown> | undefined {
+	const fields: Record<string, unknown> = {};
+	let hasFields = false;
+
+	if (request.stop !== undefined) {
+		fields["stop"] = request.stop;
+		hasFields = true;
+	}
+	if (request.user !== undefined) {
+		fields["user"] = request.user;
+		hasFields = true;
+	}
+	if (request.top_p !== undefined) {
+		fields["top_p"] = request.top_p;
+		hasFields = true;
+	}
+	if (request.frequency_penalty !== undefined) {
+		fields["frequency_penalty"] = request.frequency_penalty;
+		hasFields = true;
+	}
+	if (request.presence_penalty !== undefined) {
+		fields["presence_penalty"] = request.presence_penalty;
+		hasFields = true;
+	}
+	if (request.seed !== undefined) {
+		fields["seed"] = request.seed;
+		hasFields = true;
+	}
+	if (request.response_format !== undefined) {
+		fields["response_format"] = request.response_format;
+		hasFields = true;
+	}
+
+	return hasFields ? fields : undefined;
 }
 
 /**
@@ -40,6 +94,14 @@ async function buildStreamOptions(
 		opts.maxTokens = maxTokens;
 	}
 
+	// Map reasoning_effort to pi ThinkingLevel
+	if (request.reasoning_effort !== undefined) {
+		const level = REASONING_EFFORT_MAP[request.reasoning_effort];
+		if (level !== undefined) {
+			opts.reasoning = level;
+		}
+	}
+
 	if (signal !== undefined) {
 		opts.signal = signal;
 	}
@@ -50,15 +112,13 @@ async function buildStreamOptions(
 		opts.apiKey = apiKey;
 	}
 
-	// Pass `stop` and `user` through onPayload
-	if (request.stop !== undefined || request.user !== undefined) {
+	// Inject passthrough fields via onPayload
+	const payloadFields = collectPayloadFields(request);
+	if (payloadFields !== undefined) {
 		opts.onPayload = (payload: unknown) => {
 			if (isRecord(payload)) {
-				if (request.stop !== undefined) {
-					payload["stop"] = request.stop;
-				}
-				if (request.user !== undefined) {
-					payload["user"] = request.user;
+				for (const [key, value] of Object.entries(payloadFields)) {
+					payload[key] = value;
 				}
 			}
 			return payload;

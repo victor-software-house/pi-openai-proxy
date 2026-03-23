@@ -38,11 +38,14 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 | `stop` sequences | Implemented | Via `onPayload` passthrough |
 | `user` | Implemented | Via `onPayload` passthrough |
 | `stream_options.include_usage` | Implemented | Final usage chunk in SSE stream |
-| `tools` / `tool_choice` | Phase 2 | JSON Schema tool definitions |
-| `tool_calls` in messages | Phase 2 | Assistant tool call + tool result roundtrip |
-| `reasoning_effort` | Phase 2 | Maps to pi's `ThinkingLevel` |
-| `response_format` | Phase 2 | Via `onPayload` passthrough |
-| `top_p`, penalties | Phase 2 | Via `onPayload` passthrough |
+| `tools` / `tool_choice` | Implemented | JSON Schema -> TypeBox conversion (supported subset) |
+| `tool_calls` in messages | Implemented | Assistant tool call + tool result roundtrip |
+| `reasoning_effort` | Implemented | Maps to pi's `ThinkingLevel` (`low`, `medium`, `high`) |
+| `response_format` | Implemented | `text` and `json_object` via `onPayload` passthrough |
+| `top_p` | Implemented | Via `onPayload` passthrough |
+| `frequency_penalty` | Implemented | Via `onPayload` passthrough |
+| `presence_penalty` | Implemented | Via `onPayload` passthrough |
+| `seed` | Implemented | Via `onPayload` passthrough |
 | `n > 1` | Not planned | Pi streams one completion at a time |
 | `logprobs` | Not planned | Not in pi-ai's abstraction layer |
 

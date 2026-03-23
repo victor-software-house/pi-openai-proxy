@@ -37,21 +37,18 @@ describe("validateChatRequest", () => {
 		expect(result.status).toBe(400);
 	});
 
-	test("rejects Phase 1 rejected fields with 422", () => {
-		const rejectedFields = [
-			"tools",
-			"tool_choice",
-			"response_format",
-			"top_p",
-			"frequency_penalty",
-			"presence_penalty",
-			"seed",
-			"reasoning_effort",
+	test("rejects permanently rejected fields with 422", () => {
+		const permanentlyRejected = [
 			"n",
 			"logprobs",
+			"top_logprobs",
+			"logit_bias",
+			"functions",
+			"function_call",
+			"parallel_tool_calls",
 		];
 
-		for (const field of rejectedFields) {
+		for (const field of permanentlyRejected) {
 			const body = {
 				model: "openai/gpt-4o",
 				messages: [{ role: "user", content: "Hello" }],
@@ -63,6 +60,35 @@ describe("validateChatRequest", () => {
 			expect(result.status).toBe(422);
 			expect(result.param).toBe(field);
 		}
+	});
+
+	test("accepts Phase 2 fields", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			tools: [
+				{
+					type: "function",
+					function: {
+						name: "get_weather",
+						description: "Get the weather",
+						parameters: {
+							type: "object",
+							properties: { city: { type: "string" } },
+							required: ["city"],
+						},
+					},
+				},
+			],
+			tool_choice: "auto",
+			reasoning_effort: "high",
+			top_p: 0.9,
+			frequency_penalty: 0.5,
+			presence_penalty: 0.5,
+			seed: 42,
+			response_format: { type: "json_object" },
+		});
+		expect(result.ok).toBe(true);
 	});
 
 	test("rejects unknown top-level fields with 422", () => {

@@ -52,20 +52,74 @@ describe("POST /v1/chat/completions - validation", () => {
 		expect(res.status).toBe(400);
 	});
 
-	test("rejects tools with 422 in Phase 1", async () => {
+	test("accepts tools in Phase 2", async () => {
+		const res = await app.request("/v1/chat/completions", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				model: "fakeprovider/fake-model",
+				messages: [{ role: "user", content: "Hello" }],
+				tools: [
+					{
+						type: "function",
+						function: {
+							name: "get_weather",
+							description: "Get the weather",
+							parameters: {
+								type: "object",
+								properties: { city: { type: "string" } },
+								required: ["city"],
+							},
+						},
+					},
+				],
+			}),
+		});
+		// Should pass validation -- gets 404 because the model doesn't exist
+		expect(res.status).toBe(404);
+	});
+
+	test("rejects unsupported tool schemas with 422", async () => {
 		const res = await app.request("/v1/chat/completions", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				model: "openai/gpt-4o",
 				messages: [{ role: "user", content: "Hello" }],
-				tools: [{ type: "function", function: { name: "test", parameters: {} } }],
+				tools: [
+					{
+						type: "function",
+						function: {
+							name: "bad_tool",
+							parameters: {
+								type: "object",
+								properties: {
+									data: { $ref: "#/definitions/Data" },
+								},
+							},
+						},
+					},
+				],
 			}),
 		});
 		expect(res.status).toBe(422);
 		const body = await res.json();
-		expect(body.error.param).toBe("tools");
 		expect(body.error.code).toBe("unsupported_parameter");
+	});
+
+	test("rejects permanently rejected fields with 422", async () => {
+		const res = await app.request("/v1/chat/completions", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				model: "openai/gpt-4o",
+				messages: [{ role: "user", content: "Hello" }],
+				n: 2,
+			}),
+		});
+		expect(res.status).toBe(422);
+		const body = await res.json();
+		expect(body.error.param).toBe("n");
 	});
 
 	test("rejects unknown fields with 422", async () => {

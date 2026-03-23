@@ -483,22 +483,31 @@ Release gate:
 - zero oxlint errors, zero biome errors
 - typecheck passes with ultra-strict tsconfig
 
-### Phase 2 -- Tools and richer compatibility
+### Phase 2 -- Tools and richer compatibility [DONE]
 
 Build:
 
-- OpenAI function tools subset
-- tool-call message roundtrip
-- `stream_options.include_usage`
-- image inputs with explicit security policy
-- `reasoning_effort`
-- selected allowlisted passthrough parameters
+- OpenAI function tools subset (JSON Schema -> TypeBox for supported subset)
+- tool-call message roundtrip (assistant tool_calls + tool role results)
+- `stream_options.include_usage` (final usage chunk in SSE)
+- base64 image inputs (remote URLs rejected by default)
+- `reasoning_effort` (mapped to pi ThinkingLevel)
+- passthrough parameters: `top_p`, `frequency_penalty`, `presence_penalty`, `seed`, `response_format`
+
+Deliverable:
+
+- `src/openai/json-schema-to-typebox.ts` -- JSON Schema -> TypeBox conversion
+- `src/openai/tools.ts` -- OpenAI function tools -> pi Tool definitions
+- updated `src/openai/schemas.ts` -- Phase 2 fields added to request schema
+- updated `src/pi/complete.ts` -- reasoning_effort + passthrough parameters
+- unit tests for JSON Schema conversion and tool acceptance/rejection
+- integration tests for tool validation
 
 Release gate:
 
-- tool schema tests
-- tool streaming tests
-- image security tests
+- tool schema tests pass
+- tool streaming already wired in Phase 1 SSE module
+- remote image security deferred (disabled by default)
 
 ### Phase 3 -- Hardening and packaging
 

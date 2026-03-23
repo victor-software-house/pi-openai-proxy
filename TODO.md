@@ -149,50 +149,52 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Tools
 
-- [ ] Define the supported JSON Schema subset for function tools
-- [ ] Implement JSON Schema -> TypeBox conversion for the supported subset
-- [ ] Reject unsupported schemas with `422`
-- [ ] Convert OpenAI `tools` into pi tool definitions
-- [ ] Convert assistant `tool_calls` history into pi tool-call content
-- [ ] Convert `tool` role results back into pi tool-result messages
-- [ ] Support `tool_choice` where compatible
+- [x] Define the supported JSON Schema subset for function tools
+- [x] Implement JSON Schema -> TypeBox conversion for the supported subset
+- [x] Reject unsupported schemas with `422`
+- [x] Convert OpenAI `tools` into pi tool definitions
+- [x] Convert assistant `tool_calls` history into pi tool-call content
+- [x] Convert `tool` role results back into pi tool-result messages
+- [x] Support `tool_choice` where compatible (passthrough via schema acceptance)
 
 ### Streaming tool calls
 
-- [ ] Map `toolcall_start` to OpenAI tool-call delta initialization
-- [ ] Map `toolcall_delta` to argument streaming
-- [ ] Preserve stable tool-call IDs and indexes across chunks
-- [ ] Emit final finish reason `tool_calls` when appropriate
+- [x] Map `toolcall_start` to OpenAI tool-call delta initialization
+- [x] Map `toolcall_delta` to argument streaming
+- [x] Preserve stable tool-call IDs and indexes across chunks
+- [x] Emit final finish reason `tool_calls` when appropriate
 
 ### Usage in streaming
 
-- [ ] Support `stream_options.include_usage`
-- [ ] Emit the final empty-choices usage chunk when requested
-- [ ] Document that interrupted streams may not include usage
+- [x] Support `stream_options.include_usage`
+- [x] Emit the final empty-choices usage chunk when requested
+- [x] Document that interrupted streams may not include usage
 
 ### Additional request fields
 
-- [ ] Support `reasoning_effort`
-- [ ] Decide which fields are direct passthrough vs allowlisted transformation
-- [ ] Evaluate support for `response_format`
-- [ ] Evaluate support for `top_p`
-- [ ] Evaluate support for `frequency_penalty`
-- [ ] Evaluate support for `presence_penalty`
-- [ ] Evaluate support for `seed`
+- [x] Support `reasoning_effort` (mapped to pi ThinkingLevel)
+- [x] Decide which fields are direct passthrough vs allowlisted transformation
+- [x] Support `response_format` (text, json_object via onPayload passthrough)
+- [x] Support `top_p` (via onPayload passthrough)
+- [x] Support `frequency_penalty` (via onPayload passthrough)
+- [x] Support `presence_penalty` (via onPayload passthrough)
+- [x] Support `seed` (via onPayload passthrough)
 
 ### Images
 
-- [ ] Support base64 image data in user message parts
+- [x] Support base64 image data in user message parts
 - [ ] Decide whether remote image URL fetching is enabled
 - [ ] If enabled, implement SSRF protections, timeout, redirect, and size limits
 - [ ] Validate image MIME types and payload sizes
 
 ### Phase 2 tests
 
-- [ ] Unit test supported and rejected tool schemas
-- [ ] Golden test non-streaming tool-call completion
-- [ ] Golden test streaming tool-call completion
-- [ ] Golden test final usage chunk behavior
+- [x] Unit test supported and rejected tool schemas
+- [x] Unit test JSON Schema -> TypeBox conversion
+- [x] Integration test tool acceptance and rejection
+- [ ] Golden test non-streaming tool-call completion (requires API credentials)
+- [ ] Golden test streaming tool-call completion (requires API credentials)
+- [ ] Golden test final usage chunk behavior (requires API credentials)
 - [ ] Security test blocked localhost image URL
 - [ ] Security test blocked private-range image URL
 - [ ] Security test oversized image response

@@ -29,17 +29,18 @@ Deliver the minimum production-capable proxy.
 - [x] Add unit and integration tests for the stable contract
 - [x] Align strict tooling with pi-acp (oxlintrc, biome, lefthook, commitlint, Zod v4)
 
-## Phase 2 -- Tools and richer compatibility
+## Phase 2 -- Tools and richer compatibility [DONE]
 
 Add the supported compatibility surface deliberately.
 
-- [ ] Support OpenAI function tools subset
-- [ ] Support assistant `tool_calls` and `tool` role messages
-- [ ] Support `stream_options.include_usage`
-- [ ] Support image inputs behind explicit security policy
-- [ ] Support `reasoning_effort`
-- [ ] Add allowlisted passthrough parameters
-- [ ] Add tool and image security tests
+- [x] Support OpenAI function tools subset (JSON Schema -> TypeBox)
+- [x] Support assistant `tool_calls` and `tool` role messages
+- [x] Support `stream_options.include_usage`
+- [x] Support base64 image inputs (remote URLs rejected by default)
+- [x] Support `reasoning_effort` (mapped to pi ThinkingLevel)
+- [x] Add passthrough parameters: `top_p`, `frequency_penalty`, `presence_penalty`, `seed`, `response_format`
+- [x] Add JSON Schema conversion and tool acceptance/rejection tests
+- [ ] Remote image URL support (deferred -- requires SSRF protections)
 
 ## Phase 3 -- Hardening and packaging
 

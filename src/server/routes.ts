@@ -11,6 +11,7 @@ import { convertMessages } from "@proxy/openai/messages";
 import { buildModelList, toOpenAIModel } from "@proxy/openai/models";
 import { buildChatCompletion } from "@proxy/openai/responses";
 import { streamToSSE } from "@proxy/openai/sse";
+import { convertTools } from "@proxy/openai/tools";
 import { validateChatRequest } from "@proxy/openai/validate";
 import { piComplete, piStream } from "@proxy/pi/complete";
 import { getAllModels } from "@proxy/pi/registry";
@@ -105,6 +106,15 @@ export function createRoutes(): Hono<ProxyEnv> {
 		}
 
 		const context = conversion.context;
+
+		// Convert tools if provided
+		if (request.tools !== undefined && request.tools.length > 0) {
+			const toolConversion = convertTools(request.tools);
+			if (!toolConversion.ok) {
+				return c.json(unsupportedParameter(toolConversion.param, toolConversion.message), 422);
+			}
+			context.tools = toolConversion.tools;
+		}
 
 		// --- Streaming ---
 		if (request.stream === true) {
