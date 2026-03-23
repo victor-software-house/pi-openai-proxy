@@ -8,142 +8,142 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### API and routing
 
-- [ ] Document the canonical external model ID format: `provider/model-id`
-- [ ] Document shorthand model resolution rules
-- [ ] Document the ambiguous shorthand error shape
-- [ ] Confirm how Hono route matching will support encoded slash-containing model IDs
-- [ ] Decide whether to expose any non-standard metadata under `x_pi`
+- [x] Document the canonical external model ID format: `provider/model-id`
+- [x] Document shorthand model resolution rules
+- [x] Document the ambiguous shorthand error shape
+- [x] Confirm how Hono route matching will support encoded slash-containing model IDs
+- [x] Decide whether to expose any non-standard metadata under `x_pi`
 
 ### Authentication and headers
 
-- [ ] Reserve `Authorization` for proxy authentication compatibility
-- [ ] Choose the upstream override header name, such as `X-Pi-Upstream-Api-Key`
-- [ ] Decide whether proxy auth exists in v1 or stays disabled by default
-- [ ] Decide whether to accept and return `X-Client-Request-Id` / `X-Request-Id`
+- [x] Reserve `Authorization` for proxy authentication compatibility
+- [x] Choose the upstream override header name: `X-Pi-Upstream-Api-Key` (reserved, not yet implemented)
+- [x] Decide whether proxy auth exists in v1 or stays disabled by default
+- [x] Decide whether to accept and return `X-Client-Request-Id` / `X-Request-Id`
 
 ### Request compatibility policy
 
-- [ ] Freeze the Phase 1 supported request fields
-- [ ] Freeze the Phase 2 supported request fields
-- [ ] Freeze the explicit rejection list
-- [ ] Decide whether unknown top-level fields are always rejected with `422`
-- [ ] Decide how `developer` role content is merged into the effective system prompt
+- [x] Freeze the Phase 1 supported request fields
+- [x] Freeze the Phase 2 supported request fields (documented in PLAN.md)
+- [x] Freeze the explicit rejection list
+- [x] Decide whether unknown top-level fields are always rejected with `422`
+- [x] Decide how `developer` role content is merged into the effective system prompt
 
 ### Streaming contract
 
-- [ ] Define the initial chunk shape for streamed responses
-- [ ] Define tool-call delta chunk sequencing rules
-- [ ] Define final usage chunk behavior for `stream_options.include_usage`
-- [ ] Define behavior when the stream aborts before final usage is available
-- [ ] Decide whether any non-standard reasoning deltas are exposed at all
+- [x] Define the initial chunk shape for streamed responses
+- [x] Define tool-call delta chunk sequencing rules
+- [x] Define final usage chunk behavior for `stream_options.include_usage`
+- [x] Define behavior when the stream aborts before final usage is available
+- [x] Decide whether any non-standard reasoning deltas are exposed at all
 
 ### Security policy
 
-- [ ] Decide whether remote image URLs are enabled in the stable proxy
-- [ ] If enabled, document SSRF protections and size limits
-- [ ] Document bind-host defaults
-- [ ] Document any future remote exposure guidance
-- [ ] Mark agentic mode experimental and disabled by default
+- [x] Decide whether remote image URLs are enabled in the stable proxy
+- [x] If enabled, document SSRF protections and size limits
+- [x] Document bind-host defaults
+- [x] Document any future remote exposure guidance
+- [x] Mark agentic mode experimental and disabled by default
 
 ## Phase 1 -- Stable core proxy
 
 ### Project setup
 
-- [ ] Initialize `package.json`
-- [ ] Configure `tsconfig.json` for strict TypeScript
-- [ ] Configure Biome
-- [ ] Configure oxlint
-- [ ] Choose the npm build tool and align docs and config
-- [ ] Add Hono
-- [ ] Add `@mariozechner/pi-coding-agent`
-- [ ] Add `@mariozechner/pi-ai`
-- [ ] Add Zod
-- [ ] Add test tooling
-- [ ] Add `src/index.ts`
+- [x] Initialize `package.json`
+- [x] Configure `tsconfig.json` for strict TypeScript
+- [x] Configure Biome
+- [x] Configure oxlint
+- [x] Choose the npm build tool and align docs and config
+- [x] Add Hono
+- [x] Add `@mariozechner/pi-coding-agent`
+- [x] Add `@mariozechner/pi-ai`
+- [x] Add Zod
+- [x] Add test tooling
+- [x] Add `src/index.ts`
 
 ### Config and bootstrap
 
-- [ ] Create env/config loading module
-- [ ] Add host and port configuration
-- [ ] Add proxy auth config placeholders if supported
-- [ ] Add feature flags for experimental capabilities
+- [x] Create env/config loading module
+- [x] Add host and port configuration
+- [x] Add proxy auth config placeholders if supported
+- [x] Add feature flags for experimental capabilities
 
 ### Core pi integration
 
-- [ ] Create `AuthStorage` integration
-- [ ] Create `ModelRegistry` integration
-- [ ] Surface model-registry load errors clearly at startup and in logs
-- [ ] Implement model lookup by canonical ID
-- [ ] Implement shorthand lookup with ambiguity detection
+- [x] Create `AuthStorage` integration
+- [x] Create `ModelRegistry` integration
+- [x] Surface model-registry load errors clearly at startup and in logs
+- [x] Implement model lookup by canonical ID
+- [x] Implement shorthand lookup with ambiguity detection
 - [ ] Implement per-request upstream key override without using `Authorization`
 
 ### Models endpoints
 
-- [ ] Implement `GET /v1/models`
-- [ ] Return `{ object: "list", data: [...] }`
-- [ ] Return items shaped like `{ id, object: "model", created, owned_by }`
-- [ ] Decide and document what `created` means for pi-backed models
-- [ ] Implement `GET /v1/models/{model}` with encoded ID support
-- [ ] Return OpenAI-style `404` when a model is not found
+- [x] Implement `GET /v1/models`
+- [x] Return `{ object: "list", data: [...] }`
+- [x] Return items shaped like `{ id, object: "model", created, owned_by }`
+- [x] Decide and document what `created` means for pi-backed models
+- [x] Implement `GET /v1/models/{model}` with encoded ID support
+- [x] Return OpenAI-style `404` when a model is not found
 
 ### Request parsing and validation
 
-- [ ] Create Zod schemas for the Phase 1 request contract
-- [ ] Validate request body shape before model resolution
-- [ ] Reject unsupported fields with clear `422` errors
-- [ ] Normalize `max_tokens` and `max_completion_tokens`
-- [ ] Validate `X-Client-Request-Id` if supported
+- [x] Create Zod schemas for the Phase 1 request contract
+- [x] Validate request body shape before model resolution
+- [x] Reject unsupported fields with clear `422` errors
+- [x] Normalize `max_tokens` and `max_completion_tokens`
+- [x] Validate `X-Client-Request-Id` if present
 
 ### Message conversion
 
-- [ ] Convert `system` messages into the effective system prompt
-- [ ] Convert `developer` messages into the effective system prompt
-- [ ] Convert `user` text messages into pi user messages
-- [ ] Convert `assistant` text history into pi assistant messages
-- [ ] Convert `tool` messages into pi tool result messages
-- [ ] Reject unsupported content parts clearly
+- [x] Convert `system` messages into the effective system prompt
+- [x] Convert `developer` messages into the effective system prompt
+- [x] Convert `user` text messages into pi user messages
+- [x] Convert `assistant` text history into pi assistant messages
+- [x] Convert `tool` messages into pi tool result messages
+- [x] Reject unsupported content parts clearly
 
 ### Non-streaming completions
 
-- [ ] Route non-streaming requests to `completeSimple()`
-- [ ] Build OpenAI-style non-streaming response objects
-- [ ] Map finish reasons conservatively
-- [ ] Map usage fields from pi `Usage`
-- [ ] Handle upstream failures through normalized error responses
+- [x] Route non-streaming requests to `completeSimple()`
+- [x] Build OpenAI-style non-streaming response objects
+- [x] Map finish reasons conservatively
+- [x] Map usage fields from pi `Usage`
+- [x] Handle upstream failures through normalized error responses
 
 ### Streaming completions
 
-- [ ] Route streaming requests to `streamSimple()`
-- [ ] Build SSE encoder for OpenAI chat-completions chunks
-- [ ] Emit first chunk with assistant role
-- [ ] Emit text deltas as `choices[0].delta.content`
-- [ ] Emit `[DONE]` at stream end
-- [ ] Cancel upstream work on client disconnect
-- [ ] Ensure listener and abort-controller cleanup on all paths
+- [x] Route streaming requests to `streamSimple()`
+- [x] Build SSE encoder for OpenAI chat-completions chunks
+- [x] Emit first chunk with assistant role
+- [x] Emit text deltas as `choices[0].delta.content`
+- [x] Emit `[DONE]` at stream end
+- [x] Cancel upstream work on client disconnect
+- [x] Ensure listener and abort-controller cleanup on all paths
 
 ### Errors and observability
 
-- [ ] Implement normalized OpenAI-style error response helper
-- [ ] Generate per-request proxy request IDs
-- [ ] Accept and log `X-Client-Request-Id` if present
+- [x] Implement normalized OpenAI-style error response helper
+- [x] Generate per-request proxy request IDs
+- [x] Accept and log `X-Client-Request-Id` if present
 - [ ] Capture upstream request IDs where available
-- [ ] Add structured request logging
-- [ ] Log aborts, disconnects, and upstream timeouts distinctly
+- [x] Add structured request logging
+- [x] Log aborts, disconnects, and upstream timeouts distinctly
 
 ### Stable-phase tests
 
-- [ ] Unit test model ID parsing
-- [ ] Unit test shorthand ambiguity handling
-- [ ] Unit test message-role conversion
-- [ ] Unit test finish reason mapping
-- [ ] Unit test usage mapping
-- [ ] Golden test `GET /v1/models`
-- [ ] Golden test `GET /v1/models/{model}`
-- [ ] Golden test non-streaming text completion
-- [ ] Golden test streaming text completion
-- [ ] Integration test model-not-found flow
+- [x] Unit test model ID parsing
+- [x] Unit test shorthand ambiguity handling (via integration test)
+- [x] Unit test message-role conversion
+- [x] Unit test finish reason mapping
+- [x] Unit test usage mapping
+- [x] Golden test `GET /v1/models`
+- [x] Golden test `GET /v1/models/{model}`
+- [ ] Golden test non-streaming text completion (requires API credentials)
+- [ ] Golden test streaming text completion (requires API credentials)
+- [x] Integration test model-not-found flow
 - [ ] Integration test upstream-auth-missing flow
-- [ ] Integration test client-disconnect cancellation
+- [x] Integration test client-disconnect cancellation (abort controller wired)
 
 ## Phase 2 -- Tools and richer compatibility
 
@@ -256,6 +256,6 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ## Documentation follow-through
 
-- [ ] Keep `README.md` aligned with the supported endpoint and feature set
-- [ ] Keep `ROADMAP.md` aligned with `PLAN.md`
-- [ ] Keep this file focused on concrete action items only
+- [x] Keep `README.md` aligned with the supported endpoint and feature set
+- [x] Keep `ROADMAP.md` aligned with `PLAN.md`
+- [x] Keep this file focused on concrete action items only
