@@ -55,15 +55,53 @@ Prepare the stable proxy for release.
 - [x] Package for npm release (`@victor-software-house/pi-openai-proxy`)
 - [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
-## Phase 4 -- Unified config and pi-maestro integration
+## Phase 4 -- Monorepo and proper CLI
 
-Single source of truth for config and multi-account support via pi-maestro.
+Split into two packages in a pnpm/turborepo monorepo (reference: pi-maestro structure).
 
-- [ ] Make the server read `~/.pi/agent/proxy-config.json` as defaults (env vars override)
-- [ ] Eliminate config divergence between standalone and extension-spawned modes
-- [ ] Integrate with pi-maestro for multi-account provider rotation
-- [ ] Route proxy requests through pi-maestro's account engine (quota rotation, per-account usage tracking)
-- [ ] Expose pi-maestro account status in proxy responses or a `/v1/pi/status` endpoint
+### Package split
+
+```
+packages/
+  proxy/            pi-proxy -- standalone CLI + HTTP server + config schema
+  pi-extension/     @pi-openai-proxy/pi-extension -- pi package (depends on pi-proxy)
+```
+
+- `pi-proxy` is the primary deliverable: proper CLI binary with args, help, shell completions
+- Config schema (types, defaults, normalization, JSON I/O) lives in `pi-proxy` and is exported via `pi-proxy/config`
+- `@pi-openai-proxy/pi-extension` imports config from `pi-proxy/config`, spawns `pi-proxy` binary
+- People who only want the proxy install `pi-proxy`. Pi users install the extension.
+
+### CLI (`pi-proxy`)
+
+Proper CLI with a framework (citty or cleye) -- the current binary has no argument parsing.
+
+```
+pi-proxy                          Start the proxy server (foreground)
+pi-proxy --port 8080              Override port
+pi-proxy --host 0.0.0.0           Override bind address
+pi-proxy --auth-token <token>     Enable proxy auth
+pi-proxy --config                 Show effective config (JSON file + env overrides)
+pi-proxy --help                   Full help with all options
+pi-proxy --version                Version
+pi-proxy completions              Generate shell completions (bash/zsh/fish)
+```
+
+CLI args > env vars > JSON config file (`~/.pi/agent/proxy-config.json`) > defaults.
+
+### Config SSOT
+
+- [ ] Config schema defined once in `pi-proxy` (types, defaults, normalize, JSON I/O)
+- [ ] Server reads JSON config as defaults, env vars override, CLI args override both
+- [ ] Extension imports schema from `pi-proxy/config` -- no duplication
+- [ ] JSON config file is the shared persistence layer written by both CLI and extension
+
+### Workspace setup
+
+- [ ] pnpm workspace with turborepo (mirroring pi-maestro)
+- [ ] Shared tsconfig.base.json, biome.json, oxlintrc at root
+- [ ] Per-package build, test, typecheck tasks
+- [ ] CI workflow updated for monorepo
 
 ## Phase 5 -- Experimental agentic mode
 
