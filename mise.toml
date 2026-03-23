@@ -1,0 +1,5 @@
+min_version = "2025.1.0"
+
+[tools]
+node = "lts"
+bun = "latest"

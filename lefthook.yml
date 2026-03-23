@@ -1,0 +1,57 @@
+output:
+  - failure
+  - summary
+
+commit-msg:
+  commands:
+    commitlint:
+      run: bunx commitlint --edit {1}
+
+pre-commit:
+  parallel: false
+  commands:
+    oxlint-fix:
+      glob: "*.{ts,mjs,cjs}"
+      stage_fixed: true
+      run: bunx oxlint --fix --import-plugin {staged_files}
+    format:
+      stage_fixed: true
+      run: |
+        output="$(bunx biome check --write {staged_files} 2>&1)"
+        status=$?
+        printf "%s\n" "$output"
+        if [ $status -ne 0 ] && printf "%s" "$output" | grep -q "No files were processed"; then
+          exit 0
+        fi
+        exit $status
+    lint:
+      run: bun run lint
+    lint-types:
+      run: bun run typecheck
+
+pre-push:
+  parallel: false
+  commands:
+    lockfile-sync:
+      priority: 0
+      run: |
+        bun install
+        if ! git diff --quiet -- bun.lock; then
+          echo ""
+          echo "Lockfile is out of sync. Commit the updated lockfile before pushing:"
+          echo ""
+          git diff --stat -- bun.lock
+          echo ""
+          echo "  git add bun.lock && git commit -m 'chore: sync lockfile'"
+          echo ""
+          exit 1
+        fi
+    lint-types:
+      priority: 1
+      run: bun run typecheck
+    lint:
+      priority: 2
+      run: bun run lint
+    test:
+      priority: 3
+      run: bun test
