@@ -174,6 +174,33 @@ curl http://localhost:4141/v1/models \
   -H "Authorization: Bearer my-secret-token"
 ```
 
+## Pi Integration
+
+Install as a pi package to get the `/proxy` command and `--proxy` flag inside pi sessions:
+
+```bash
+pi install npm:@victor-software-house/pi-openai-proxy
+```
+
+### Start the proxy from inside pi
+
+```
+/proxy start     Start the proxy server
+/proxy stop      Stop the proxy server
+/proxy status    Show proxy status (default)
+/proxy           Show proxy status
+```
+
+### Auto-start with pi
+
+```bash
+pi --proxy
+```
+
+The proxy starts automatically on session start and stops when the session ends. A status indicator in the footer shows the proxy URL and model count.
+
+The proxy can also run standalone (see [Installation](#installation) above). The extension detects externally running instances and shows their status without trying to manage them.
+
 ## Architecture
 
 ```

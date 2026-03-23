@@ -20,6 +20,9 @@
 		"llm",
 		"gateway"
 	],
+	"pi": {
+		"extensions": ["./extensions"]
+	},
 	"engines": {
 		"node": ">=20"
 	},
@@ -29,7 +32,8 @@
 		"pi-openai-proxy": "dist/index.mjs"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"extensions"
 	],
 	"scripts": {
 		"dev": "bun src/index.ts",
