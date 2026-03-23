@@ -16,6 +16,7 @@
 		"openai",
 		"proxy",
 		"pi-coding-agent",
+		"pi-package",
 		"llm",
 		"gateway"
 	],
