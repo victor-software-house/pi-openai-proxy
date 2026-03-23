@@ -50,4 +50,4 @@ pre-push:
       run: bun run lint
     test:
       priority: 3
-      run: bun test
+      run: bun run test

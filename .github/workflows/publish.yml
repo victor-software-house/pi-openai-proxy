@@ -1,56 +1,35 @@
-name: Release
+name: CI
 
 on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  release:
+  check:
+    name: Typecheck, Lint, Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: lts/*
-          registry-url: https://registry.npmjs.org
+          bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Validate commits
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
-          else
-            RANGE="${{ github.event.before }}..${{ github.sha }}"
-          fi
-
-          if [ "$RANGE" = "0000000000000000000000000000000000000000..${{ github.sha }}" ]; then
-            echo "Initial push or new branch -- skipping commitlint range check"
-            exit 0
-          fi
-
-          bunx commitlint --from "${RANGE%%..*}" --to "${RANGE##*..}" --verbose
+      - name: Build
+        run: bun run build
 
       - name: Typecheck
         run: bun run typecheck
@@ -62,12 +41,4 @@ jobs:
         run: bun run lint:oxlint
 
       - name: Test
-        run: bun test
-
-      - name: Verify package contents
-        run: npm pack --dry-run
-
-      - name: Release
-        run: bunx semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bun run test
