@@ -7,7 +7,7 @@
  * - POST /v1/chat/completions
  */
 
-import type { ProxyConfig } from "@proxy/config/env";
+import type { ServerConfig } from "@proxy/config/env";
 import { convertMessages } from "@proxy/openai/messages";
 import { buildModelList, toOpenAIModel } from "@proxy/openai/models";
 import { buildChatCompletion } from "@proxy/openai/responses";
@@ -29,7 +29,7 @@ import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
 
-export function createRoutes(config: ProxyConfig): Hono<ProxyEnv> {
+export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
 	const routes = new Hono<ProxyEnv>();
 
 	// --- GET /v1/models ---

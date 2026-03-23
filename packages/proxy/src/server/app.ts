@@ -2,7 +2,7 @@
  * Hono application assembly: middleware + routes.
  */
 
-import type { ProxyConfig } from "@proxy/config/env";
+import type { ServerConfig } from "@proxy/config/env";
 import {
 	bodySizeLimitMiddleware,
 	disconnectMiddleware,
@@ -13,7 +13,7 @@ import { createRoutes } from "@proxy/server/routes";
 import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 
-export function createApp(config: ProxyConfig): Hono<ProxyEnv> {
+export function createApp(config: ServerConfig): Hono<ProxyEnv> {
 	const app = new Hono<ProxyEnv>();
 
 	// Global middleware

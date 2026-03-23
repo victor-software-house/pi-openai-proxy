@@ -1,0 +1,42 @@
+{
+	"name": "@pi-openai-proxy/pi-extension",
+	"version": "0.0.1",
+	"description": "Pi extension for pi-proxy: /proxy command family with config panel",
+	"license": "MIT",
+	"author": "Victor Software House",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/victor-software-house/pi-openai-proxy.git",
+		"directory": "packages/pi-extension"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"keywords": [
+		"openai",
+		"proxy",
+		"pi-coding-agent",
+		"pi-package",
+		"llm",
+		"gateway"
+	],
+	"pi": {
+		"extensions": ["./extensions"]
+	},
+	"type": "module",
+	"files": [
+		"extensions"
+	],
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"lint:oxlint": "echo 'no src to lint'"
+	},
+	"dependencies": {
+		"pi-proxy": "workspace:*"
+	},
+	"peerDependencies": {
+		"@mariozechner/pi-coding-agent": "*",
+		"@mariozechner/pi-tui": "*"
+	}
+}

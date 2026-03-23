@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"paths": {
+			"@proxy/*": ["./src/*"]
+		}
+	},
+	"include": ["src", "test"]
+}

@@ -4,48 +4,41 @@
  * Command family:
  *   /proxy            Open settings panel
  *   /proxy start      Start the proxy server
- *   /proxy stop       Stop the proxy server (session-managed only)
+ *   /proxy stop       Stop the proxy server
  *   /proxy status     Show proxy status
  *   /proxy config     Open settings panel (alias)
  *   /proxy show       Summarize current config
  *   /proxy path       Show config file location
  *   /proxy reset      Restore default settings
  *   /proxy help       Usage line
+ *
+ * Config schema imported from pi-proxy/config (single source of truth).
  */
 
+import { type ChildProcess, spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
-	getSettingsListTheme,
 	type ExtensionAPI,
 	type ExtensionCommandContext,
 	type ExtensionContext,
+	getSettingsListTheme,
 } from "@mariozechner/pi-coding-agent";
-import { Container, SettingsList, Text, type SettingItem } from "@mariozechner/pi-tui";
-import { spawn, type ChildProcess } from "node:child_process";
+import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
+
+// Config schema -- single source of truth from pi-proxy
 import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	renameSync,
-	unlinkSync,
-	writeFileSync,
-} from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+	configToEnv,
+	DEFAULT_CONFIG,
+	getConfigPath,
+	loadConfigFromFile,
+	saveConfigToFile,
+} from "pi-proxy/config";
 
 // ---------------------------------------------------------------------------
-// Types
+// Runtime status
 // ---------------------------------------------------------------------------
-
-interface ProxyConfig {
-	host: string;
-	port: number;
-	authToken: string;
-	remoteImages: boolean;
-	maxBodySizeMb: number;
-	upstreamTimeoutSec: number;
-	/** "detached" = daemon that outlives the session, "session" = dies with the session */
-	lifetime: "detached" | "session";
-}
 
 interface RuntimeStatus {
 	reachable: boolean;
@@ -53,104 +46,24 @@ interface RuntimeStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Defaults and normalization
-// ---------------------------------------------------------------------------
-
-const DEFAULT_CONFIG: ProxyConfig = {
-	host: "127.0.0.1",
-	port: 4141,
-	authToken: "",
-	remoteImages: false,
-	maxBodySizeMb: 50,
-	upstreamTimeoutSec: 120,
-	lifetime: "detached",
-};
-
-function toObject(value: unknown): Record<string, unknown> {
-	if (value === null || value === undefined || typeof value !== "object" || Array.isArray(value)) {
-		return {};
-	}
-	return value as Record<string, unknown>;
-}
-
-function clampInt(raw: unknown, min: number, max: number, fallback: number): number {
-	if (typeof raw !== "number" || !Number.isFinite(raw)) return fallback;
-	return Math.max(min, Math.min(max, Math.round(raw)));
-}
-
-function normalizeConfig(raw: unknown): ProxyConfig {
-	const v = toObject(raw);
-	return {
-		host: typeof v["host"] === "string" && v["host"].length > 0 ? (v["host"] as string) : DEFAULT_CONFIG.host,
-		port: clampInt(v["port"], 1, 65535, DEFAULT_CONFIG.port),
-		authToken: typeof v["authToken"] === "string" ? (v["authToken"] as string) : DEFAULT_CONFIG.authToken,
-		remoteImages: typeof v["remoteImages"] === "boolean" ? (v["remoteImages"] as boolean) : DEFAULT_CONFIG.remoteImages,
-		maxBodySizeMb: clampInt(v["maxBodySizeMb"], 1, 500, DEFAULT_CONFIG.maxBodySizeMb),
-		upstreamTimeoutSec: clampInt(v["upstreamTimeoutSec"], 5, 600, DEFAULT_CONFIG.upstreamTimeoutSec),
-		lifetime: v["lifetime"] === "session" ? "session" : "detached",
-	};
-}
-
-// ---------------------------------------------------------------------------
-// Config persistence
-// ---------------------------------------------------------------------------
-
-function getConfigPath(): string {
-	const piDir = process.env["PI_CODING_AGENT_DIR"] ?? resolve(process.env["HOME"] ?? "~", ".pi", "agent");
-	return resolve(piDir, "proxy-config.json");
-}
-
-function loadConfig(): ProxyConfig {
-	const p = getConfigPath();
-	if (!existsSync(p)) return { ...DEFAULT_CONFIG };
-	try {
-		return normalizeConfig(JSON.parse(readFileSync(p, "utf-8")));
-	} catch {
-		return { ...DEFAULT_CONFIG };
-	}
-}
-
-function saveConfig(config: ProxyConfig): void {
-	const p = getConfigPath();
-	const normalized = normalizeConfig(config);
-	const tmp = `${p}.tmp`;
-	try {
-		mkdirSync(dirname(p), { recursive: true });
-		writeFileSync(tmp, `${JSON.stringify(normalized, null, "\t")}\n`, "utf-8");
-		renameSync(tmp, p);
-	} catch {
-		if (existsSync(tmp)) unlinkSync(tmp);
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Config -> env vars
-// ---------------------------------------------------------------------------
-
-function configToEnv(config: ProxyConfig): Record<string, string> {
-	const env: Record<string, string> = {};
-	env["PI_PROXY_HOST"] = config.host;
-	env["PI_PROXY_PORT"] = String(config.port);
-	if (config.authToken.length > 0) {
-		env["PI_PROXY_AUTH_TOKEN"] = config.authToken;
-	}
-	env["PI_PROXY_REMOTE_IMAGES"] = String(config.remoteImages);
-	env["PI_PROXY_MAX_BODY_SIZE"] = String(config.maxBodySizeMb * 1024 * 1024);
-	env["PI_PROXY_UPSTREAM_TIMEOUT_MS"] = String(config.upstreamTimeoutSec * 1000);
-	return env;
-}
-
-// ---------------------------------------------------------------------------
 // Extension
 // ---------------------------------------------------------------------------
 
 export default function proxyExtension(pi: ExtensionAPI): void {
-	let config = loadConfig();
+	let config = loadConfigFromFile();
 	let sessionProcess: ChildProcess | undefined;
 
 	const extensionDir = dirname(fileURLToPath(import.meta.url));
 	const packageRoot = resolve(extensionDir, "..");
-	const proxyEntry = resolve(packageRoot, "dist", "index.mjs");
+
+	// Resolve pi-proxy binary: try workspace node_modules, then global
+	function findProxyBinary(): string {
+		// In workspace: node_modules/pi-proxy/dist/index.mjs
+		const workspaceBin = resolve(packageRoot, "node_modules", "pi-proxy", "dist", "index.mjs");
+		if (existsSync(workspaceBin)) return workspaceBin;
+		// Fallback: assume pi-proxy is in PATH
+		return "pi-proxy";
+	}
 
 	function proxyUrl(): string {
 		return `http://${config.host}:${String(config.port)}`;
@@ -159,12 +72,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	// --- Lifecycle ---
 
 	pi.on("session_start", async (_event, ctx) => {
-		config = loadConfig();
+		config = loadConfigFromFile();
 		await refreshStatus(ctx);
 	});
 
 	pi.on("session_shutdown", async () => {
-		// Only kill session-tied processes
 		if (sessionProcess !== undefined) {
 			sessionProcess.kill("SIGTERM");
 			sessionProcess = undefined;
@@ -204,7 +116,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					return;
 				case "reset":
 					config = { ...DEFAULT_CONFIG };
-					saveConfig(config);
+					saveConfigToFile(config);
 					ctx.ui.notify("Proxy settings reset to defaults", "info");
 					return;
 				case "help":
@@ -218,7 +130,6 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					return;
 			}
 
-			// Default: open settings panel
 			if (!ctx.hasUI) {
 				ctx.ui.notify("/proxy requires interactive mode. Use /proxy show instead.", "warning");
 				return;
@@ -230,7 +141,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	// --- PID file ---
 
 	function getPidPath(): string {
-		const piDir = process.env["PI_CODING_AGENT_DIR"] ?? resolve(process.env["HOME"] ?? "~", ".pi", "agent");
+		const piDir =
+			process.env["PI_CODING_AGENT_DIR"] ?? resolve(process.env["HOME"] ?? "~", ".pi", "agent");
 		return resolve(piDir, "proxy.pid");
 	}
 
@@ -241,12 +153,10 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			const raw = readFileSync(p, "utf-8").trim();
 			const pid = Number.parseInt(raw, 10);
 			if (!Number.isFinite(pid) || pid <= 0) return undefined;
-			// Check if process is alive
 			try {
 				process.kill(pid, 0);
 				return pid;
 			} catch {
-				// Process is dead, clean up stale PID file
 				unlinkSync(p);
 				return undefined;
 			}
@@ -299,9 +209,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	}
 
 	async function startProxy(ctx: ExtensionContext): Promise<void> {
-		config = loadConfig();
+		config = loadConfigFromFile();
 
-		// Already running?
 		const status = await probe();
 		if (status.reachable) {
 			ctx.ui.notify(
@@ -312,7 +221,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			return;
 		}
 
-		// Stale PID from a previous detached run?
+		// Clean up stale PID
 		const existingPid = readPid();
 		if (existingPid !== undefined) {
 			ctx.ui.notify(`Stale proxy process ${String(existingPid)} -- killing`, "warning");
@@ -329,11 +238,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 		try {
 			const proxyEnv = configToEnv(config);
+			const bin = findProxyBinary();
 
 			if (config.lifetime === "detached") {
-				await startDetached(ctx, proxyEnv);
+				startDetached(bin, proxyEnv);
 			} else {
-				startSessionTied(ctx, proxyEnv);
+				startSessionTied(ctx, bin, proxyEnv);
 			}
 
 			const ready = await waitForReady(3000);
@@ -354,8 +264,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 	}
 
-	async function startDetached(_ctx: ExtensionContext, env: Record<string, string>): Promise<void> {
-		const child = spawn("bun", ["run", proxyEntry], {
+	function startDetached(bin: string, env: Record<string, string>): void {
+		const usesBun = bin.endsWith(".mjs");
+		const cmd = usesBun ? "bun" : bin;
+		const cmdArgs = usesBun ? ["run", bin] : [];
+
+		const child = spawn(cmd, cmdArgs, {
 			stdio: ["ignore", "ignore", "ignore"],
 			detached: true,
 			env: { ...process.env, ...env },
@@ -369,13 +283,17 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		writePid(child.pid);
 	}
 
-	function startSessionTied(ctx: ExtensionContext, env: Record<string, string>): void {
+	function startSessionTied(ctx: ExtensionContext, bin: string, env: Record<string, string>): void {
 		if (sessionProcess !== undefined) {
 			ctx.ui.notify("Session proxy already running", "info");
 			return;
 		}
 
-		sessionProcess = spawn("bun", ["run", proxyEntry], {
+		const usesBun = bin.endsWith(".mjs");
+		const cmd = usesBun ? "bun" : bin;
+		const cmdArgs = usesBun ? ["run", bin] : [];
+
+		sessionProcess = spawn(cmd, cmdArgs, {
 			stdio: ["ignore", "pipe", "pipe"],
 			detached: false,
 			env: { ...process.env, ...env },
@@ -397,7 +315,6 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	}
 
 	async function stopProxy(ctx: ExtensionContext): Promise<void> {
-		// Session-tied process?
 		if (sessionProcess !== undefined) {
 			sessionProcess.kill("SIGTERM");
 			sessionProcess = undefined;
@@ -406,7 +323,6 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			return;
 		}
 
-		// Detached process via PID file?
 		const pid = readPid();
 		if (pid !== undefined) {
 			try {
@@ -420,13 +336,9 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			}
 		}
 
-		// Something else listening?
 		const status = await probe();
 		if (status.reachable) {
-			ctx.ui.notify(
-				`Proxy at ${proxyUrl()} was not started by /proxy -- stop it manually`,
-				"info",
-			);
+			ctx.ui.notify(`Proxy at ${proxyUrl()} was not started by /proxy -- stop it manually`, "info");
 		} else {
 			ctx.ui.notify("Proxy is not running", "info");
 			ctx.ui.setStatus("proxy", undefined);
@@ -439,10 +351,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		const pidTag = pid !== undefined ? ` [pid ${String(pid)}]` : "";
 
 		if (status.reachable) {
-			ctx.ui.notify(
-				`${proxyUrl()} -- ${String(status.models)} models available${pidTag}`,
-				"info",
-			);
+			ctx.ui.notify(`${proxyUrl()} -- ${String(status.models)} models available${pidTag}`, "info");
 		} else {
 			ctx.ui.notify("Proxy not running. Use /proxy start", "info");
 		}
@@ -450,7 +359,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	}
 
 	async function showConfig(ctx: ExtensionContext): Promise<void> {
-		config = loadConfig();
+		config = loadConfigFromFile();
 		const authDisplay =
 			config.authToken.length > 0 ? `enabled (token: ${config.authToken})` : "disabled";
 		const lines = [
@@ -493,7 +402,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			{
 				id: "host",
 				label: "Bind address",
-				description: "Network interface to listen on (127.0.0.1 = local only, 0.0.0.0 = all)",
+				description: "Network interface (127.0.0.1 = local only, 0.0.0.0 = all)",
 				currentValue: config.host,
 				values: ["127.0.0.1", "0.0.0.0"],
 			},
@@ -547,14 +456,15 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				config = { ...config, host: value };
 				break;
 			case "port":
-				config = { ...config, port: clampInt(Number.parseInt(value, 10), 1, 65535, config.port) };
+				config = {
+					...config,
+					port: Math.max(1, Math.min(65535, Number.parseInt(value, 10) || config.port)),
+				};
 				break;
 			case "authToken":
-				// Toggle: "enabled" keeps current token or generates one; "disabled" clears
 				if (value === "disabled") {
 					config = { ...config, authToken: "" };
 				} else if (config.authToken.length === 0) {
-					// Generate a random token on first enable
 					const bytes = new Uint8Array(16);
 					crypto.getRandomValues(bytes);
 					config = {
@@ -563,7 +473,6 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 							.map((b) => b.toString(16).padStart(2, "0"))
 							.join(""),
 					};
-					// Stash token so the caller can notify the user
 					lastGeneratedToken = config.authToken;
 				}
 				break;
@@ -581,12 +490,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				break;
 			}
 		}
-		saveConfig(config);
-		config = loadConfig(); // read back normalized
+		saveConfigToFile(config);
+		config = loadConfigFromFile();
 	}
 
 	async function openSettingsPanel(ctx: ExtensionCommandContext): Promise<void> {
-		config = loadConfig();
+		config = loadConfigFromFile();
 
 		await ctx.ui.custom<void>(
 			(tui, theme, _kb, done) => {
@@ -615,7 +524,10 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					container.addChild(settingsList);
 					container.addChild(
 						new Text(
-							theme.fg("dim", "Esc: close | Arrow keys: navigate | Space: toggle | Restart proxy to apply"),
+							theme.fg(
+								"dim",
+								"Esc: close | Arrow keys: navigate | Space: toggle | Restart proxy to apply",
+							),
 							1,
 							0,
 						),

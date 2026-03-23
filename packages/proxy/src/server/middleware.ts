@@ -2,7 +2,7 @@
  * Hono middleware: request ID injection, proxy auth, body size limits, structured logging.
  */
 
-import type { ProxyConfig } from "@proxy/config/env";
+import type { ServerConfig } from "@proxy/config/env";
 import { authenticationError, invalidRequest } from "@proxy/server/errors";
 import { logDisconnect, logRequest, logResponse } from "@proxy/server/logging";
 import { generateRequestId } from "@proxy/server/request-id";
@@ -51,7 +51,7 @@ export function requestIdMiddleware(): MiddlewareHandler<ProxyEnv> {
  * Optional proxy auth middleware.
  * Only active when PI_PROXY_AUTH_TOKEN is set.
  */
-export function proxyAuthMiddleware(config: ProxyConfig): MiddlewareHandler<ProxyEnv> {
+export function proxyAuthMiddleware(config: ServerConfig): MiddlewareHandler<ProxyEnv> {
 	return async (c, next) => {
 		if (config.proxyAuthToken === undefined) {
 			await next();
@@ -111,7 +111,7 @@ export function disconnectMiddleware(): MiddlewareHandler<ProxyEnv> {
  * Rejects requests with Content-Length exceeding the configured maximum.
  * Only applies to POST/PUT/PATCH methods.
  */
-export function bodySizeLimitMiddleware(config: ProxyConfig): MiddlewareHandler<ProxyEnv> {
+export function bodySizeLimitMiddleware(config: ServerConfig): MiddlewareHandler<ProxyEnv> {
 	return async (c, next) => {
 		const method = c.req.method;
 		if (method !== "POST" && method !== "PUT" && method !== "PATCH") {

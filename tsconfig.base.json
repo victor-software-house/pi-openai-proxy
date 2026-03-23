@@ -17,10 +17,6 @@
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
 		"noEmit": true,
-		"types": ["bun"],
-		"paths": {
-			"@proxy/*": ["./src/*"]
-		}
-	},
-	"include": ["src", "test"]
+		"types": ["bun"]
+	}
 }
