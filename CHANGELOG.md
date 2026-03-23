@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.1...v0.2.2) (2026-03-23)
+
+
+### Bug Fixes
+
+* show auth token on generate, improve /proxy show and docs ([99ebaaf](https://github.com/victor-software-house/pi-openai-proxy/commit/99ebaaf558963d030d514b049f83bd0195bda1a3))
+
 ## [0.2.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.0...v0.2.1) (2026-03-23)
 
 
