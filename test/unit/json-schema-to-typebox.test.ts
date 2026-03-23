@@ -212,13 +212,6 @@ describe("jsonSchemaToTypebox", () => {
 			expect(result.ok).toBe(false);
 		});
 
-		test("rejects anyOf", () => {
-			const result = jsonSchemaToTypebox({
-				anyOf: [{ type: "string" }],
-			});
-			expect(result.ok).toBe(false);
-		});
-
 		test("rejects patternProperties", () => {
 			const result = jsonSchemaToTypebox({
 				type: "object",
@@ -261,6 +254,89 @@ describe("jsonSchemaToTypebox", () => {
 			expect(result.ok).toBe(false);
 			if (result.ok) return;
 			expect(result.path).toBe("nested.bad");
+		});
+	});
+
+	describe("anyOf support", () => {
+		test("converts nullable anyOf (string | null)", () => {
+			const result = jsonSchemaToTypebox({
+				anyOf: [{ type: "string" }, { type: "null" }],
+			});
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.schema["anyOf"]).toHaveLength(2);
+		});
+
+		test("converts simple type union via anyOf", () => {
+			const result = jsonSchemaToTypebox({
+				anyOf: [{ type: "string" }, { type: "number" }],
+			});
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.schema["anyOf"]).toHaveLength(2);
+		});
+
+		test("converts anyOf with object branch", () => {
+			const result = jsonSchemaToTypebox({
+				anyOf: [
+					{
+						type: "object",
+						properties: { name: { type: "string" } },
+						required: ["name"],
+					},
+					{ type: "null" },
+				],
+			});
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.schema["anyOf"]).toHaveLength(2);
+		});
+
+		test("preserves description on anyOf", () => {
+			const result = jsonSchemaToTypebox({
+				description: "A timezone or null",
+				anyOf: [{ type: "string" }, { type: "null" }],
+			});
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.schema["description"]).toBe("A timezone or null");
+		});
+
+		test("rejects empty anyOf", () => {
+			const result = jsonSchemaToTypebox({
+				anyOf: [],
+			});
+			expect(result.ok).toBe(false);
+		});
+
+		test("rejects anyOf with more than 10 branches", () => {
+			const branches = Array.from({ length: 11 }, () => ({ type: "string" }));
+			const result = jsonSchemaToTypebox({ anyOf: branches });
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.message).toContain("10 branches");
+		});
+
+		test("rejects anyOf with unsupported branch", () => {
+			const result = jsonSchemaToTypebox({
+				anyOf: [{ type: "string" }, { $ref: "#/bad" }],
+			});
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.message).toContain("$ref");
+		});
+
+		test("works as property type in object schema", () => {
+			const result = jsonSchemaToTypebox({
+				type: "object",
+				properties: {
+					timezone: {
+						description: "IANA timezone",
+						anyOf: [{ type: "string" }, { type: "null" }],
+					},
+				},
+			});
+			expect(result.ok).toBe(true);
 		});
 	});
 });

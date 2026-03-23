@@ -12,11 +12,12 @@
  * - enum (string enums)
  * - arrays with supported item schema
  * - nullable via type: [T, "null"]
+ * - anyOf for nullable types and simple unions (max 10 branches)
  * - description on any schema node
  *
  * Rejected:
  * - $ref
- * - oneOf, allOf, anyOf
+ * - oneOf, allOf
  * - recursive schemas
  * - additionalProperties as a schema (boolean true/false allowed)
  * - patternProperties
@@ -45,12 +46,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Unsupported JSON Schema keywords that we reject explicitly.
+ * Note: `anyOf` is handled separately for common patterns (nullable types, simple unions).
  */
 const REJECTED_KEYWORDS = [
 	"$ref",
 	"oneOf",
 	"allOf",
-	"anyOf",
 	"if",
 	"then",
 	"else",
@@ -87,6 +88,13 @@ export function jsonSchemaToTypebox(schema: unknown, path: string = ""): SchemaC
 	const opts: Record<string, unknown> = {};
 	if (description !== undefined) {
 		opts["description"] = description;
+	}
+
+	// Handle anyOf: common patterns like nullable types and simple type unions.
+	// Example: anyOf: [{type: "string"}, {type: "null"}] -> Union(String, Null)
+	const anyOf = schema["anyOf"];
+	if (Array.isArray(anyOf)) {
+		return convertAnyOf(anyOf, path, opts);
 	}
 
 	// Handle enum
@@ -140,6 +148,42 @@ export function jsonSchemaToTypebox(schema: unknown, path: string = ""): SchemaC
 				path,
 			};
 	}
+}
+
+/**
+ * Convert anyOf to a TypeBox Union.
+ *
+ * Supports:
+ * - Nullable: anyOf: [{type: T}, {type: "null"}]
+ * - Simple unions of supported types (max 10 branches)
+ */
+function convertAnyOf(
+	branches: unknown[],
+	path: string,
+	opts: Record<string, unknown>,
+): SchemaConversionResult {
+	if (branches.length === 0) {
+		return { ok: false, message: `Empty 'anyOf' at ${path || "root"}`, path };
+	}
+	if (branches.length > 10) {
+		return {
+			ok: false,
+			message: `'anyOf' with more than 10 branches is not supported at ${path || "root"}`,
+			path,
+		};
+	}
+
+	const converted: TSchema[] = [];
+	for (let i = 0; i < branches.length; i++) {
+		const branchPath = `${path || "root"}.anyOf[${String(i)}]`;
+		const result = jsonSchemaToTypebox(branches[i], branchPath);
+		if (!result.ok) {
+			return result;
+		}
+		converted.push(result.schema);
+	}
+
+	return { ok: true, schema: Type.Union(converted, opts) };
 }
 
 function convertEnum(
