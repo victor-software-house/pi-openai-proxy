@@ -1,3 +1,40 @@
+# [1.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.3.1...v1.0.0) (2026-03-23)
+
+
+* feat!: restructure as Bun workspace monorepo (Phase 4) ([5f7a690](https://github.com/victor-software-house/pi-openai-proxy/commit/5f7a6904bef4d6dfe2bdb5d5c3e7c507cbd8e06b))
+
+
+### Bug Fixes
+
+* resolve tsconfig lib/types for monorepo packages ([9770dbc](https://github.com/victor-software-house/pi-openai-proxy/commit/9770dbc5875e1f5557802deb678045bf2d39ef33))
+* restore ES2023 lib in proxy tsconfig for editor compatibility ([ad554a7](https://github.com/victor-software-house/pi-openai-proxy/commit/ad554a7bdb8eb2685d35a89091a5630c086bf409))
+* update lefthook and CI for monorepo ([4759525](https://github.com/victor-software-house/pi-openai-proxy/commit/4759525670a1ec8b8e862a12e1d9d7e54e5064b2))
+
+
+### BREAKING CHANGES
+
+* Package split into two packages.
+
+Monorepo structure:
+  packages/proxy/         pi-proxy (standalone CLI + HTTP server)
+  packages/pi-extension/  @pi-openai-proxy/pi-extension (pi package)
+
+pi-proxy changes:
+- Proper CLI with citty (--host, --port, --auth-token, --config, --help)
+- Config priority: CLI args > env vars > JSON file > defaults
+- Config schema in src/config/schema.ts, exported via pi-proxy/config (SSOT)
+- Binary renamed to pi-proxy, shebang #!/usr/bin/env bun
+- ServerConfig replaces ProxyConfig in server internals
+- @sinclair/typebox added to dependencies
+
+@pi-openai-proxy/pi-extension changes:
+- Imports config from pi-proxy/config (zero duplication)
+- pi-proxy as workspace dependency, pi core as peerDependencies
+
+Workspace:
+- Bun workspaces + turborepo
+- Shared tsconfig.base.json, biome at root, oxlint per-package
+
 ## [0.3.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.3.0...v0.3.1) (2026-03-23)
 
 
