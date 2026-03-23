@@ -31,6 +31,7 @@ Experimental later work:
 - **Request parsing**: Zod v4 schemas for the supported OpenAI chat-completions subset
 - **Message conversion**: OpenAI messages -> pi-ai `Context`
 - **Model resolution**: canonical `provider/model-id` -> pi `Model<Api>`
+- **Tool conversion**: OpenAI function tools -> pi `Tool[]` via JSON Schema -> TypeBox
 - **Streaming bridge**: `AssistantMessageEvent` -> OpenAI chat-completions SSE chunks
 - **Response building**: pi `AssistantMessage` + `Usage` -> OpenAI-compatible JSON
 
@@ -55,6 +56,12 @@ Experimental later work:
 | `max_tokens` / `max_completion_tokens` | `StreamOptions.maxTokens` after normalization |
 | `reasoning_effort` | `SimpleStreamOptions.reasoning` -> `ThinkingLevel` |
 | `tools` | `Context.tools` after JSON Schema -> TypeBox conversion for a supported subset only |
+| `tool_choice` | Accepted by schema; passthrough semantics depend on provider |
+| `top_p` | `onPayload` passthrough |
+| `frequency_penalty` | `onPayload` passthrough |
+| `presence_penalty` | `onPayload` passthrough |
+| `seed` | `onPayload` passthrough |
+| `response_format` | `onPayload` passthrough (`text`, `json_object`) |
 | `usage` | pi `Usage` mapped to OpenAI usage fields |
 | `finish_reason` | pi `stop` -> `stop`, `length` -> `length`, `toolUse` -> `tool_calls` |
 

@@ -141,7 +141,7 @@ Future-compatible design:
 
 ## Request contract for `POST /v1/chat/completions`
 
-### Supported in the stable proxy (Phase 1)
+### Supported fields
 
 - `model`
 - `messages`
@@ -152,20 +152,17 @@ Future-compatible design:
 - `stop`
 - `user`
 - `stream_options.include_usage`
-
-### Supported in the richer compatibility phase (Phase 2)
-
 - `tools`
 - `tool_choice`
 - assistant `tool_calls`
 - `tool` role messages
 - `reasoning_effort`
-- `response_format` on an allowlist basis
+- `response_format` (`text`, `json_object`)
 - `top_p`
 - `frequency_penalty`
 - `presence_penalty`
 - `seed`
-- image content parts
+- image content parts (base64 data URIs only)
 
 ### Rejected
 
@@ -198,14 +195,14 @@ Default behavior:
 
 ### Content parts
 
-Supported initially:
+Supported:
 
 - text
 - image content parts using base64 data URIs
 
-Rejected initially:
+Rejected:
 
-- remote image URLs (disabled by default, future Phase 2)
+- remote image URLs (disabled by default, requires SSRF protections)
 - input audio
 - file parts
 - unsupported structured content variants
@@ -226,22 +223,26 @@ Stable policy:
 - reject unsupported schema constructs with `422`
 - do not silently downgrade complex schemas
 
-Initial supported subset should include:
+Supported subset:
 
-- `type: object`
-- `properties`
-- `required`
-- primitive property types
-- arrays with a supported item schema
-- enums where representable cleanly
+- `type: object` with `properties` and `required`
+- `type: string`, `number`, `integer`, `boolean`, `null`
+- `type: array` with `items` schema
+- `enum` (string values only, mapped to TypeBox Union of literals)
+- nullable types via `type: [T, "null"]`
+- `description` on any schema node
+- `additionalProperties` as boolean (not as schema)
 
-Deferred until explicitly designed:
+Rejected:
 
 - `$ref`
-- complex `oneOf` / `allOf` / `anyOf`
+- `oneOf` / `allOf` / `anyOf`
+- `if` / `then` / `else`
+- `patternProperties`
+- `not`
+- `additionalProperties` as a schema object
 - recursive schemas
-- unsupported nullable combinations
-- schema features that cannot be translated without changing semantics
+- non-string enum values
 
 ## Response contract
 
@@ -421,12 +422,14 @@ src/
     request-id.ts     -- piproxy-{random} generation
     types.ts          -- Hono ProxyEnv type
   openai/
-    schemas.ts        -- Zod v4 request schemas
-    validate.ts       -- request validation with rejected-field checks
-    messages.ts       -- OpenAI messages -> pi Context
-    models.ts         -- pi Model -> OpenAI model object
-    responses.ts      -- pi AssistantMessage -> OpenAI response
-    sse.ts            -- pi events -> SSE chunks
+    schemas.ts              -- Zod v4 request schemas
+    validate.ts             -- request validation with rejected-field checks
+    messages.ts             -- OpenAI messages -> pi Context
+    models.ts               -- pi Model -> OpenAI model object
+    responses.ts            -- pi AssistantMessage -> OpenAI response
+    sse.ts                  -- pi events -> SSE chunks
+    tools.ts                -- OpenAI function tools -> pi Tool[]
+    json-schema-to-typebox.ts -- JSON Schema -> TypeBox conversion
   pi/
     registry.ts       -- AuthStorage + ModelRegistry init
     resolve-model.ts  -- canonical/shorthand model resolution
@@ -561,13 +564,15 @@ Minimum production observability:
 - finish reason mapping
 - usage mapping
 - error mapping
-- tool schema conversion
+- JSON Schema -> TypeBox conversion (supported subset and rejected keywords)
+- OpenAI function tool -> pi Tool conversion
 
 ### Integration tests
 
 - `GET /v1/models` shape
 - `GET /v1/models/{model}` with encoded IDs
 - chat completions validation and rejection
+- tool acceptance and unsupported schema rejection
 - model-not-found flow
 - proxy auth enforcement
 - unsupported endpoint rejection

@@ -59,8 +59,9 @@ HTTP Client                       pi-openai-proxy
          |  POST /v1/chat/   |  +-- Request parser       |
          +--completions------>|  +-- Message converter    |
          |                    |  +-- Model resolver       |
-         |  GET /v1/models    |  +-- SSE encoder          |
-         +------------------>|                          |
+         |  GET /v1/models    |  +-- Tool converter       |
+         +------------------>|  +-- SSE encoder          |
+         |                    |                          |
          |                    |  Pi SDK                   |
          |  SSE / JSON        |  +-- ModelRegistry        |
          |<------------------+  +-- AuthStorage          |
