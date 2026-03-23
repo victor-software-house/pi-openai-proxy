@@ -219,11 +219,11 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Compatibility testing
 
-- [ ] Smoke test with `curl`
+- [x] Smoke test with `curl`
 - [ ] Smoke test with Open WebUI
 - [ ] Smoke test with Continue
 - [ ] Smoke test with Aider
-- [ ] Record known compatibility gaps in docs
+- [x] Record known compatibility gaps in docs
 
 ## Phase 4 -- Experimental agentic mode
 

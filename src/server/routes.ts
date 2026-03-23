@@ -15,9 +15,10 @@ import { streamToSSE } from "@proxy/openai/sse";
 import { convertTools } from "@proxy/openai/tools";
 import { validateChatRequest } from "@proxy/openai/validate";
 import { piComplete, piStream } from "@proxy/pi/complete";
-import { getAllModels } from "@proxy/pi/registry";
+import { getAvailableModels, getRegistry } from "@proxy/pi/registry";
 import { resolveModel } from "@proxy/pi/resolve-model";
 import {
+	authenticationError,
 	invalidRequest,
 	mapUpstreamError,
 	modelNotFound,
@@ -32,8 +33,10 @@ export function createRoutes(config: ProxyConfig): Hono<ProxyEnv> {
 	const routes = new Hono<ProxyEnv>();
 
 	// --- GET /v1/models ---
+	// Only list models that have auth configured (getAvailable).
+	// Models without credentials cause silent failures at the provider level.
 	routes.get("/v1/models", (c) => {
-		const models = getAllModels();
+		const models = getAvailableModels();
 		return c.json(buildModelList(models));
 	});
 
@@ -118,6 +121,21 @@ export function createRoutes(config: ProxyConfig): Hono<ProxyEnv> {
 			context.tools = toolConversion.tools;
 		}
 
+		// Pre-check API key availability: if no per-request override and no
+		// registry key, reject early instead of letting the provider fail silently.
+		if (upstreamApiKey === undefined) {
+			const registryKey = await getRegistry().getApiKey(model);
+			if (registryKey === undefined) {
+				return c.json(
+					authenticationError(
+						`No API key configured for provider '${model.provider}'. ` +
+							"Configure credentials via 'pi /login' or pass X-Pi-Upstream-Api-Key header.",
+					),
+					401,
+				);
+			}
+		}
+
 		const completionOptions = {
 			upstreamApiKey,
 			signal: abortController.signal,
@@ -171,6 +189,14 @@ export function createRoutes(config: ProxyConfig): Hono<ProxyEnv> {
 		// --- Non-streaming ---
 		try {
 			const message = await piComplete(model, context, request, completionOptions);
+
+			// Detect upstream errors reported via stopReason
+			if (message.stopReason === "error" || message.stopReason === "aborted") {
+				const errorMessage = message.errorMessage ?? "Upstream provider error";
+				const mapped = mapUpstreamError(new Error(errorMessage));
+				logError({ requestId, method: "POST", path: "/v1/chat/completions" }, errorMessage);
+				return c.json(mapped.body, mapped.status);
+			}
 
 			return c.json(buildChatCompletion(requestId, canonicalModelId, message));
 		} catch (err: unknown) {

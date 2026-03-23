@@ -213,9 +213,20 @@ export async function* streamToSSE(
 			}
 
 			case "error": {
-				finishReason = mapFinishReason(event.reason);
-				finalUsage = event.error.usage;
-				break;
+				// Surface upstream errors as SSE error frames instead of silent stop.
+				// Write an error data frame so the client sees the failure.
+				const errorMessage = event.error.errorMessage ?? "Upstream provider error";
+				const errorChunk = JSON.stringify({
+					error: {
+						message: errorMessage,
+						type: "server_error",
+						param: null,
+						code: "upstream_error",
+					},
+				});
+				yield `data: ${errorChunk}\n\n`;
+				yield encodeDone();
+				return;
 			}
 
 			// text_start, text_end, thinking_start, thinking_delta, thinking_end, toolcall_end:

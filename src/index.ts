@@ -6,7 +6,7 @@
  */
 
 import { loadConfig } from "@proxy/config/env";
-import { getAllModels, initRegistry } from "@proxy/pi/registry";
+import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
 import { createApp } from "@proxy/server/app";
 import { logShutdown, logStartup } from "@proxy/server/logging";
 
@@ -19,7 +19,7 @@ if (loadError !== undefined) {
 	console.error("[warn] Continuing with built-in models only.");
 }
 
-const models = getAllModels();
+const models = getAvailableModels();
 const app = createApp(config);
 
 logStartup(config.host, config.port, models.length);
