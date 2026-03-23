@@ -43,6 +43,8 @@ interface ProxyConfig {
 	remoteImages: boolean;
 	maxBodySizeMb: number;
 	upstreamTimeoutSec: number;
+	/** "detached" = daemon that outlives the session, "session" = dies with the session */
+	lifetime: "detached" | "session";
 }
 
 interface RuntimeStatus {
@@ -62,6 +64,7 @@ const DEFAULT_CONFIG: ProxyConfig = {
 	remoteImages: false,
 	maxBodySizeMb: 50,
 	upstreamTimeoutSec: 120,
+	lifetime: "detached",
 };
 
 function toObject(value: unknown): Record<string, unknown> {
@@ -85,6 +88,7 @@ function normalizeConfig(raw: unknown): ProxyConfig {
 		remoteImages: typeof v["remoteImages"] === "boolean" ? (v["remoteImages"] as boolean) : DEFAULT_CONFIG.remoteImages,
 		maxBodySizeMb: clampInt(v["maxBodySizeMb"], 1, 500, DEFAULT_CONFIG.maxBodySizeMb),
 		upstreamTimeoutSec: clampInt(v["upstreamTimeoutSec"], 5, 600, DEFAULT_CONFIG.upstreamTimeoutSec),
+		lifetime: v["lifetime"] === "session" ? "session" : "detached",
 	};
 }
 
@@ -142,8 +146,8 @@ function configToEnv(config: ProxyConfig): Record<string, string> {
 // ---------------------------------------------------------------------------
 
 export default function proxyExtension(pi: ExtensionAPI): void {
-	let proxyProcess: ChildProcess | undefined;
 	let config = loadConfig();
+	let sessionProcess: ChildProcess | undefined;
 
 	const extensionDir = dirname(fileURLToPath(import.meta.url));
 	const packageRoot = resolve(extensionDir, "..");
@@ -161,7 +165,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_shutdown", async () => {
-		killProxy();
+		// Only kill session-tied processes
+		if (sessionProcess !== undefined) {
+			sessionProcess.kill("SIGTERM");
+			sessionProcess = undefined;
+		}
 	});
 
 	// --- Command family ---
@@ -220,30 +228,72 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		},
 	});
 
+	// --- PID file ---
+
+	function getPidPath(): string {
+		const piDir = process.env["PI_CODING_AGENT_DIR"] ?? resolve(process.env["HOME"] ?? "~", ".pi", "agent");
+		return resolve(piDir, "proxy.pid");
+	}
+
+	function readPid(): number | undefined {
+		const p = getPidPath();
+		if (!existsSync(p)) return undefined;
+		try {
+			const raw = readFileSync(p, "utf-8").trim();
+			const pid = Number.parseInt(raw, 10);
+			if (!Number.isFinite(pid) || pid <= 0) return undefined;
+			// Check if process is alive
+			try {
+				process.kill(pid, 0);
+				return pid;
+			} catch {
+				// Process is dead, clean up stale PID file
+				unlinkSync(p);
+				return undefined;
+			}
+		} catch {
+			return undefined;
+		}
+	}
+
+	function writePid(pid: number): void {
+		const p = getPidPath();
+		mkdirSync(dirname(p), { recursive: true });
+		writeFileSync(p, String(pid), "utf-8");
+	}
+
+	function removePid(): void {
+		const p = getPidPath();
+		if (existsSync(p)) {
+			try {
+				unlinkSync(p);
+			} catch {
+				// ignore
+			}
+		}
+	}
+
 	// --- Proxy process management ---
 
 	async function probe(): Promise<RuntimeStatus> {
-		const managed = proxyProcess !== undefined;
 		try {
 			const res = await fetch(`${proxyUrl()}/v1/models`, {
 				signal: AbortSignal.timeout(2000),
 			});
 			if (res.ok) {
 				const body = (await res.json()) as { data?: unknown[] };
-				return { reachable: true, models: body.data?.length ?? 0, managed };
+				return { reachable: true, models: body.data?.length ?? 0 };
 			}
 		} catch {
 			// not reachable
 		}
-		return { reachable: false, models: 0, managed };
+		return { reachable: false, models: 0 };
 	}
 
 	async function refreshStatus(ctx: ExtensionContext): Promise<void> {
 		const status = await probe();
 		if (status.reachable) {
 			ctx.ui.setStatus("proxy", `proxy: ${proxyUrl()} (${String(status.models)} models)`);
-		} else if (proxyProcess !== undefined) {
-			ctx.ui.setStatus("proxy", "proxy: starting...");
 		} else {
 			ctx.ui.setStatus("proxy", undefined);
 		}
@@ -251,6 +301,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	async function startProxy(ctx: ExtensionContext): Promise<void> {
 		config = loadConfig();
+
+		// Already running?
 		const status = await probe();
 		if (status.reachable) {
 			ctx.ui.notify(
@@ -261,9 +313,17 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			return;
 		}
 
-		if (proxyProcess !== undefined) {
-			ctx.ui.notify("Proxy is already starting...", "info");
-			return;
+		// Stale PID from a previous detached run?
+		const existingPid = readPid();
+		if (existingPid !== undefined) {
+			ctx.ui.notify(`Stale proxy process ${String(existingPid)} -- killing`, "warning");
+			try {
+				process.kill(existingPid, "SIGTERM");
+			} catch {
+				// already dead
+			}
+			removePid();
+			await new Promise((r) => setTimeout(r, 500));
 		}
 
 		ctx.ui.setStatus("proxy", "proxy: starting...");
@@ -271,30 +331,17 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		try {
 			const proxyEnv = { ...process.env, ...configToEnv(config) };
 
-			proxyProcess = spawn("bun", ["run", proxyEntry], {
-				stdio: ["ignore", "pipe", "pipe"],
-				detached: false,
-				env: proxyEnv,
-			});
-
-			proxyProcess.on("exit", (code) => {
-				proxyProcess = undefined;
-				if (code !== null && code !== 0) {
-					ctx.ui.notify(`Proxy exited with code ${String(code)}`, "warning");
-				}
-				ctx.ui.setStatus("proxy", undefined);
-			});
-
-			proxyProcess.on("error", (err) => {
-				proxyProcess = undefined;
-				ctx.ui.notify(`Failed to start proxy: ${err.message}`, "error");
-				ctx.ui.setStatus("proxy", undefined);
-			});
+			if (config.lifetime === "detached") {
+				await startDetached(ctx, proxyEnv);
+			} else {
+				startSessionTied(ctx, proxyEnv);
+			}
 
 			const ready = await waitForReady(3000);
 			if (ready.reachable) {
+				const mode = config.lifetime === "detached" ? "background" : "session";
 				ctx.ui.notify(
-					`Proxy started at ${proxyUrl()} (${String(ready.models)} models)`,
+					`Proxy started at ${proxyUrl()} (${String(ready.models)} models) [${mode}]`,
 					"info",
 				);
 			} else {
@@ -308,36 +355,97 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 	}
 
+	async function startDetached(ctx: ExtensionContext, env: Record<string, string>): Promise<void> {
+		const child = spawn("bun", ["run", proxyEntry], {
+			stdio: ["ignore", "ignore", "ignore"],
+			detached: true,
+			env,
+		});
+
+		if (child.pid === undefined) {
+			throw new Error("No PID returned from spawn");
+		}
+
+		child.unref();
+		writePid(child.pid);
+	}
+
+	function startSessionTied(ctx: ExtensionContext, env: Record<string, string>): void {
+		if (sessionProcess !== undefined) {
+			ctx.ui.notify("Session proxy already running", "info");
+			return;
+		}
+
+		sessionProcess = spawn("bun", ["run", proxyEntry], {
+			stdio: ["ignore", "pipe", "pipe"],
+			detached: false,
+			env,
+		});
+
+		sessionProcess.on("exit", (code) => {
+			sessionProcess = undefined;
+			if (code !== null && code !== 0) {
+				ctx.ui.notify(`Proxy exited with code ${String(code)}`, "warning");
+			}
+			ctx.ui.setStatus("proxy", undefined);
+		});
+
+		sessionProcess.on("error", (err) => {
+			sessionProcess = undefined;
+			ctx.ui.notify(`Proxy error: ${err.message}`, "error");
+			ctx.ui.setStatus("proxy", undefined);
+		});
+	}
+
 	async function stopProxy(ctx: ExtensionContext): Promise<void> {
-		if (proxyProcess !== undefined) {
-			killProxy();
-			ctx.ui.notify("Proxy stopped", "info");
+		// Session-tied process?
+		if (sessionProcess !== undefined) {
+			sessionProcess.kill("SIGTERM");
+			sessionProcess = undefined;
+			ctx.ui.notify("Session proxy stopped", "info");
 			ctx.ui.setStatus("proxy", undefined);
 			return;
 		}
 
+		// Detached process via PID file?
+		const pid = readPid();
+		if (pid !== undefined) {
+			try {
+				process.kill(pid, "SIGTERM");
+				removePid();
+				ctx.ui.notify(`Proxy stopped (pid ${String(pid)})`, "info");
+				ctx.ui.setStatus("proxy", undefined);
+				return;
+			} catch {
+				removePid();
+			}
+		}
+
+		// Something else listening?
 		const status = await probe();
 		if (status.reachable) {
 			ctx.ui.notify(
-				`Proxy at ${proxyUrl()} is running externally (not managed by this session)`,
+				`Proxy at ${proxyUrl()} was not started by /proxy -- stop it manually`,
 				"info",
 			);
 		} else {
 			ctx.ui.notify("Proxy is not running", "info");
+			ctx.ui.setStatus("proxy", undefined);
 		}
 	}
 
 	async function showStatus(ctx: ExtensionContext): Promise<void> {
 		const status = await probe();
-		const tag = status.managed ? " (managed)" : " (external)";
+		const pid = readPid();
+		const pidTag = pid !== undefined ? ` [pid ${String(pid)}]` : "";
 
 		if (status.reachable) {
 			ctx.ui.notify(
-				`${proxyUrl()}${tag} -- ${String(status.models)} models available`,
+				`${proxyUrl()} -- ${String(status.models)} models available${pidTag}`,
 				"info",
 			);
 		} else {
-			ctx.ui.notify("Proxy not running. Use /proxy start or pi --proxy", "info");
+			ctx.ui.notify("Proxy not running. Use /proxy start", "info");
 		}
 		await refreshStatus(ctx);
 	}
@@ -347,22 +455,16 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		const authDisplay =
 			config.authToken.length > 0 ? `enabled (token: ${config.authToken})` : "disabled";
 		const lines = [
+			`lifetime: ${config.lifetime}`,
 			`host: ${config.host}`,
 			`port: ${String(config.port)}`,
 			`auth: ${authDisplay}`,
 			`remote images: ${String(config.remoteImages)}`,
 			`max body: ${String(config.maxBodySizeMb)} MB`,
-			`upstream timeout: ${String(config.upstreamTimeoutSec)}s`,
+			`timeout: ${String(config.upstreamTimeoutSec)}s`,
 		];
 		ctx.ui.notify(lines.join(" | "), "info");
 		await refreshStatus(ctx);
-	}
-
-	function killProxy(): void {
-		if (proxyProcess !== undefined) {
-			proxyProcess.kill("SIGTERM");
-			proxyProcess = undefined;
-		}
 	}
 
 	async function waitForReady(timeoutMs: number): Promise<RuntimeStatus> {
@@ -373,7 +475,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			if (status.reachable) return status;
 			await new Promise((r) => setTimeout(r, interval));
 		}
-		return { reachable: false, models: 0, managed: proxyProcess !== undefined };
+		return { reachable: false, models: 0 };
 	}
 
 	// --- Settings panel ---
@@ -382,6 +484,13 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	function buildSettingItems(): SettingItem[] {
 		return [
+			{
+				id: "lifetime",
+				label: "Lifetime",
+				description: "detached = background daemon, session = dies when pi exits",
+				currentValue: config.lifetime,
+				values: ["detached", "session"],
+			},
 			{
 				id: "host",
 				label: "Bind address",
@@ -432,6 +541,9 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	function applySetting(id: string, value: string): void {
 		switch (id) {
+			case "lifetime":
+				config = { ...config, lifetime: value === "session" ? "session" : "detached" };
+				break;
 			case "host":
 				config = { ...config, host: value };
 				break;
