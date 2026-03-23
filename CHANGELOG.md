@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.3.0...v0.3.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* type errors in extension, add Phase 4 (config + pi-maestro) to roadmap ([bcaa761](https://github.com/victor-software-house/pi-openai-proxy/commit/bcaa761d67dcb5d4a9c7f3a9dc20c5ad1db58bbb))
+
 # [0.3.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.3...v0.3.0) (2026-03-23)
 
 
