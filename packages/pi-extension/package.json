@@ -32,6 +32,10 @@
 		"typecheck": "tsc --noEmit",
 		"lint:oxlint": "echo 'no src to lint'"
 	},
+	"devDependencies": {
+		"@types/node": "^25.5.0",
+		"typescript": "^5.9.3"
+	},
 	"dependencies": {
 		"pi-proxy": "workspace:*"
 	},

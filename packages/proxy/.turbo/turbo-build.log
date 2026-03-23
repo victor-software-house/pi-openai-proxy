@@ -16,4 +16,4 @@ $ tsdown
 [34mℹ[39m [2mdist/[22m[32m[1mconfig.d.mts[22m[39m  [2m 1.47 kB[22m [2m│ gzip:  0.67 kB[22m
 [34mℹ[39m [2mdist/[22m[32m[1mindex.d.mts[22m[39m   [2m 0.01 kB[22m [2m│ gzip:  0.03 kB[22m
 [34mℹ[39m 4 files, total: 50.03 kB
-[32m✔[39m Build complete in [32m637ms[39m
+[32m✔[39m Build complete in [32m561ms[39m

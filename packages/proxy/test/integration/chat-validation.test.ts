@@ -1,3 +1,4 @@
+import { jsonBody } from "../helpers.js";
 /**
  * Integration tests for POST /v1/chat/completions validation.
  *
@@ -25,7 +26,7 @@ describe("POST /v1/chat/completions - validation", () => {
 			body: "not json",
 		});
 		expect(res.status).toBe(400);
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.error.type).toBe("invalid_request_error");
 	});
 
@@ -103,7 +104,7 @@ describe("POST /v1/chat/completions - validation", () => {
 			}),
 		});
 		expect(res.status).toBe(422);
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.error.code).toBe("unsupported_parameter");
 	});
 
@@ -118,7 +119,7 @@ describe("POST /v1/chat/completions - validation", () => {
 			}),
 		});
 		expect(res.status).toBe(422);
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.error.param).toBe("n");
 	});
 
@@ -145,7 +146,7 @@ describe("POST /v1/chat/completions - validation", () => {
 			}),
 		});
 		expect(res.status).toBe(404);
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.error.code).toBe("model_not_found");
 	});
 
@@ -239,7 +240,7 @@ describe("POST /v1/chat/completions - body size limit", () => {
 			}),
 		});
 		expect(res.status).toBe(413);
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.error.message).toContain("too large");
 	});
 
@@ -300,7 +301,7 @@ describe("unsupported endpoints", () => {
 		test(`returns 404 for ${endpoint}`, async () => {
 			const res = await app.request(endpoint, { method: "POST" });
 			expect(res.status).toBe(404);
-			const body = await res.json();
+			const body = await jsonBody(res);
 			expect(body.error.message).toContain("not supported");
 		});
 	}

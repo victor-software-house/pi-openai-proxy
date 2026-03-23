@@ -17,6 +17,6 @@
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
 		"noEmit": true,
-		"types": ["bun"]
+		"lib": ["ES2023"]
 	}
 }

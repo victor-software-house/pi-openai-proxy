@@ -1,3 +1,4 @@
+import { jsonBody } from "../helpers.js";
 /**
  * Integration tests for GET /v1/models and GET /v1/models/:model
  *
@@ -21,7 +22,7 @@ describe("GET /v1/models", () => {
 		const res = await app.request("/v1/models");
 		expect(res.status).toBe(200);
 
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.object).toBe("list");
 		expect(Array.isArray(body.data)).toBe(true);
 
@@ -48,7 +49,7 @@ describe("GET /v1/models", () => {
 		const res = await app.request(`/v1/models/${encodedId}`);
 		expect(res.status).toBe(200);
 
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.id).toBe(canonicalId);
 		expect(body.object).toBe("model");
 		expect(typeof body.created).toBe("number");
@@ -69,7 +70,7 @@ describe("GET /v1/models/:model", () => {
 		const res = await app.request(`/v1/models/${encodedId}`);
 		expect(res.status).toBe(200);
 
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.id).toBe(canonicalId);
 		expect(body.object).toBe("model");
 		expect(body.owned_by).toBe(first.provider);
@@ -87,7 +88,7 @@ describe("GET /v1/models/:model", () => {
 		const res = await app.request(`/v1/models/${canonicalId}`);
 		expect(res.status).toBe(200);
 
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.id).toBe(canonicalId);
 	});
 
@@ -95,7 +96,7 @@ describe("GET /v1/models/:model", () => {
 		const res = await app.request("/v1/models/nonexistent%2Fmodel");
 		expect(res.status).toBe(404);
 
-		const body = await res.json();
+		const body = await jsonBody(res);
 		expect(body.error).toBeDefined();
 		expect(body.error.type).toBe("invalid_request_error");
 		expect(body.error.code).toBe("model_not_found");

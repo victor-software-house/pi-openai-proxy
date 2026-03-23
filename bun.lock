@@ -18,6 +18,10 @@
       "dependencies": {
         "pi-proxy": "workspace:*",
       },
+      "devDependencies": {
+        "@types/node": "^25.5.0",
+        "typescript": "^5.9.3",
+      },
       "peerDependencies": {
         "@mariozechner/pi-coding-agent": "*",
         "@mariozechner/pi-tui": "*",

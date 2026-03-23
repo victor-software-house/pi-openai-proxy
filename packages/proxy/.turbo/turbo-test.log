@@ -3,183 +3,183 @@ bun test v1.3.11 (af24e281)
 
 test/unit/errors.test.ts:
 (pass) error helpers > invalidRequest creates correct shape [0.04ms]
-(pass) error helpers > modelNotFound creates correct shape [0.03ms]
-(pass) error helpers > unsupportedParameter creates correct shape [0.02ms]
+(pass) error helpers > modelNotFound creates correct shape [0.04ms]
+(pass) error helpers > unsupportedParameter creates correct shape [0.01ms]
 (pass) mapUpstreamError > maps rate limit errors to 429 [0.05ms]
 (pass) mapUpstreamError > maps timeout errors to 504 [0.01ms]
-(pass) mapUpstreamError > maps auth errors to 502
+(pass) mapUpstreamError > maps auth errors to 502 [0.01ms]
 (pass) mapUpstreamError > maps overloaded errors to 503
-(pass) mapUpstreamError > maps unknown errors to 502 [0.01ms]
+(pass) mapUpstreamError > maps unknown errors to 502
 (pass) mapUpstreamError > handles non-Error objects
 
 test/unit/messages.test.ts:
-(pass) convertMessages > converts system messages into systemPrompt [0.55ms]
-(pass) convertMessages > merges system and developer messages [0.05ms]
-(pass) convertMessages > converts user text messages [0.03ms]
-(pass) convertMessages > converts assistant messages into history [0.04ms]
-(pass) convertMessages > converts tool messages [0.31ms]
-(pass) convertMessages > rejects remote image URLs [0.04ms]
-(pass) convertMessages > accepts base64 data URI images [0.05ms]
-(pass) convertMessages > rejects unsupported image MIME types [0.04ms]
-(pass) convertMessages > rejects invalid base64 data URI format [0.01ms]
+(pass) convertMessages > converts system messages into systemPrompt [0.62ms]
+(pass) convertMessages > merges system and developer messages [0.04ms]
+(pass) convertMessages > converts user text messages [0.02ms]
+(pass) convertMessages > converts assistant messages into history [0.03ms]
+(pass) convertMessages > converts tool messages [0.38ms]
+(pass) convertMessages > rejects remote image URLs [0.03ms]
+(pass) convertMessages > accepts base64 data URI images [0.07ms]
+(pass) convertMessages > rejects unsupported image MIME types [0.03ms]
+(pass) convertMessages > rejects invalid base64 data URI format [0.02ms]
 (pass) convertMessages > accepts all supported image MIME types [0.02ms]
 
 test/unit/validate.test.ts:
-(pass) validateChatRequest > accepts minimal valid request [1.17ms]
-(pass) validateChatRequest > accepts request with all Phase 1 fields [0.34ms]
-(pass) validateChatRequest > rejects empty messages [0.23ms]
-(pass) validateChatRequest > rejects permanently rejected fields with 422 [0.04ms]
-(pass) validateChatRequest > accepts Phase 2 fields [0.40ms]
-(pass) validateChatRequest > rejects unknown top-level fields with 422 [0.03ms]
-(pass) validateChatRequest > rejects temperature out of range [0.13ms]
+(pass) validateChatRequest > accepts minimal valid request [1.28ms]
+(pass) validateChatRequest > accepts request with all Phase 1 fields [0.26ms]
+(pass) validateChatRequest > rejects empty messages [0.22ms]
+(pass) validateChatRequest > rejects permanently rejected fields with 422 [0.06ms]
+(pass) validateChatRequest > accepts Phase 2 fields [0.35ms]
+(pass) validateChatRequest > rejects unknown top-level fields with 422 [0.16ms]
+(pass) validateChatRequest > rejects temperature out of range [0.07ms]
 (pass) validateChatRequest > rejects missing model [0.07ms]
-(pass) validateChatRequest > accepts max_completion_tokens [0.04ms]
+(pass) validateChatRequest > accepts max_completion_tokens [0.05ms]
 
 test/unit/tools.test.ts:
-(pass) convertTools > converts a simple function tool [0.31ms]
-(pass) convertTools > converts a tool without parameters [0.08ms]
-(pass) convertTools > converts multiple tools [0.03ms]
-(pass) convertTools > rejects tools with unsupported JSON Schema [0.04ms]
+(pass) convertTools > converts a simple function tool [0.35ms]
+(pass) convertTools > converts a tool without parameters [0.02ms]
+(pass) convertTools > converts multiple tools [0.04ms]
+(pass) convertTools > rejects tools with unsupported JSON Schema [0.03ms]
 (pass) convertTools > handles tool with empty description [0.01ms]
-(pass) convertTools > converts tools with nested object parameters [0.03ms]
-(pass) convertTools > converts tools with array parameters [0.05ms]
+(pass) convertTools > converts tools with nested object parameters [0.04ms]
+(pass) convertTools > converts tools with array parameters [0.02ms]
 
 test/unit/json-schema-to-typebox.test.ts:
-(pass) jsonSchemaToTypebox > primitive types > converts string type [0.48ms]
-(pass) jsonSchemaToTypebox > primitive types > converts number type [0.03ms]
+(pass) jsonSchemaToTypebox > primitive types > converts string type [0.49ms]
+(pass) jsonSchemaToTypebox > primitive types > converts number type [0.02ms]
 (pass) jsonSchemaToTypebox > primitive types > converts integer type [0.04ms]
-(pass) jsonSchemaToTypebox > primitive types > converts boolean type [0.03ms]
-(pass) jsonSchemaToTypebox > primitive types > converts null type [0.03ms]
-(pass) jsonSchemaToTypebox > primitive types > preserves description [0.02ms]
+(pass) jsonSchemaToTypebox > primitive types > converts boolean type [0.02ms]
+(pass) jsonSchemaToTypebox > primitive types > converts null type [0.02ms]
+(pass) jsonSchemaToTypebox > primitive types > preserves description [0.01ms]
 (pass) jsonSchemaToTypebox > object type > converts empty object [0.02ms]
-(pass) jsonSchemaToTypebox > object type > converts object with properties [0.04ms]
-(pass) jsonSchemaToTypebox > object type > makes non-required properties optional [0.01ms]
-(pass) jsonSchemaToTypebox > object type > rejects additionalProperties as schema object [0.04ms]
-(pass) jsonSchemaToTypebox > object type > allows additionalProperties as boolean [0.02ms]
+(pass) jsonSchemaToTypebox > object type > converts object with properties [0.02ms]
+(pass) jsonSchemaToTypebox > object type > makes non-required properties optional [0.04ms]
+(pass) jsonSchemaToTypebox > object type > rejects additionalProperties as schema object [0.02ms]
+(pass) jsonSchemaToTypebox > object type > allows additionalProperties as boolean [0.01ms]
 (pass) jsonSchemaToTypebox > array type > converts array with item schema [0.03ms]
-(pass) jsonSchemaToTypebox > array type > converts array without items [0.02ms]
+(pass) jsonSchemaToTypebox > array type > converts array without items [0.01ms]
 (pass) jsonSchemaToTypebox > array type > converts nested array of objects [0.02ms]
 (pass) jsonSchemaToTypebox > enum > converts string enum [0.02ms]
-(pass) jsonSchemaToTypebox > enum > rejects non-string enum values [0.02ms]
-(pass) jsonSchemaToTypebox > enum > rejects empty enum [0.01ms]
-(pass) jsonSchemaToTypebox > nullable types > converts nullable string [0.05ms]
+(pass) jsonSchemaToTypebox > enum > rejects non-string enum values [0.01ms]
+(pass) jsonSchemaToTypebox > enum > rejects empty enum
+(pass) jsonSchemaToTypebox > nullable types > converts nullable string [0.04ms]
 (pass) jsonSchemaToTypebox > nullable types > rejects multi-type arrays beyond nullable [0.02ms]
-(pass) jsonSchemaToTypebox > rejected keywords > rejects $ref [0.02ms]
-(pass) jsonSchemaToTypebox > rejected keywords > rejects oneOf [0.02ms]
-(pass) jsonSchemaToTypebox > rejected keywords > rejects allOf [0.02ms]
-(pass) jsonSchemaToTypebox > rejected keywords > rejects patternProperties [0.04ms]
-(pass) jsonSchemaToTypebox > edge cases > rejects non-object schema [0.01ms]
-(pass) jsonSchemaToTypebox > edge cases > handles empty object as unconstrained [0.02ms]
+(pass) jsonSchemaToTypebox > rejected keywords > rejects $ref
+(pass) jsonSchemaToTypebox > rejected keywords > rejects oneOf [0.01ms]
+(pass) jsonSchemaToTypebox > rejected keywords > rejects allOf [0.01ms]
+(pass) jsonSchemaToTypebox > rejected keywords > rejects patternProperties
+(pass) jsonSchemaToTypebox > edge cases > rejects non-object schema
+(pass) jsonSchemaToTypebox > edge cases > handles empty object as unconstrained [0.01ms]
 (pass) jsonSchemaToTypebox > edge cases > rejects unknown type [0.01ms]
 (pass) jsonSchemaToTypebox > edge cases > tracks path through nested properties [0.02ms]
-(pass) jsonSchemaToTypebox > anyOf support > converts nullable anyOf (string | null) [0.06ms]
-(pass) jsonSchemaToTypebox > anyOf support > converts simple type union via anyOf [0.02ms]
-(pass) jsonSchemaToTypebox > anyOf support > converts anyOf with object branch [0.02ms]
+(pass) jsonSchemaToTypebox > anyOf support > converts nullable anyOf (string | null) [0.03ms]
+(pass) jsonSchemaToTypebox > anyOf support > converts simple type union via anyOf [0.03ms]
+(pass) jsonSchemaToTypebox > anyOf support > converts anyOf with object branch [0.01ms]
 (pass) jsonSchemaToTypebox > anyOf support > preserves description on anyOf [0.03ms]
 (pass) jsonSchemaToTypebox > anyOf support > rejects empty anyOf
-(pass) jsonSchemaToTypebox > anyOf support > rejects anyOf with more than 10 branches [0.02ms]
-(pass) jsonSchemaToTypebox > anyOf support > rejects anyOf with unsupported branch [0.10ms]
-(pass) jsonSchemaToTypebox > anyOf support > works as property type in object schema [0.02ms]
+(pass) jsonSchemaToTypebox > anyOf support > rejects anyOf with more than 10 branches [0.01ms]
+(pass) jsonSchemaToTypebox > anyOf support > rejects anyOf with unsupported branch [0.09ms]
+(pass) jsonSchemaToTypebox > anyOf support > works as property type in object schema [0.01ms]
 
 test/unit/sse.test.ts:
-(pass) encodeSSE > encodes a chunk as SSE data frame [0.03ms]
-(pass) encodeDone > returns [DONE] sentinel [0.02ms]
+(pass) encodeSSE > encodes a chunk as SSE data frame
+(pass) encodeDone > returns [DONE] sentinel [0.10ms]
 (pass) streamToSSE > emits error frame instead of stop for upstream error events [0.40ms]
-(pass) streamToSSE > emits normal stop for successful done events [0.14ms]
+(pass) streamToSSE > emits normal stop for successful done events [0.31ms]
 
 test/unit/resolve-model.test.ts:
-(pass) parseCanonicalId > parses simple provider/model-id [0.76ms]
-(pass) parseCanonicalId > parses nested slashes (openrouter)
+(pass) parseCanonicalId > parses simple provider/model-id [0.03ms]
+(pass) parseCanonicalId > parses nested slashes (openrouter) [0.06ms]
 (pass) parseCanonicalId > returns null for shorthand (no slash)
-(pass) parseCanonicalId > handles provider with empty model-id
+(pass) parseCanonicalId > handles provider with empty model-id [0.03ms]
 
 test/unit/responses.test.ts:
 (pass) mapFinishReason > maps 'stop' -> 'stop'
-(pass) mapFinishReason > maps 'length' -> 'length' [0.28ms]
+(pass) mapFinishReason > maps 'length' -> 'length' [0.01ms]
 (pass) mapFinishReason > maps 'toolUse' -> 'tool_calls'
 (pass) mapFinishReason > maps 'error' -> 'stop'
 (pass) mapFinishReason > maps 'aborted' -> 'stop'
-(pass) mapUsage > maps pi usage to OpenAI usage [0.04ms]
-(pass) buildChatCompletion > builds a valid non-streaming response [0.05ms]
-(pass) buildChatCompletion > builds response with tool calls [0.08ms]
+(pass) mapUsage > maps pi usage to OpenAI usage [0.02ms]
+(pass) buildChatCompletion > builds a valid non-streaming response [0.06ms]
+(pass) buildChatCompletion > builds response with tool calls [0.09ms]
 
 test/integration/models.test.ts:
-{"ts":"2026-03-23T20:03:21.096Z","level":"info","event":"request","requestId":"piproxy-fc9c59481a0fe2474eca1705","method":"GET","path":"/v1/models"}
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"response","requestId":"piproxy-fc9c59481a0fe2474eca1705","status":200,"durationMs":1}
-(pass) GET /v1/models > returns OpenAI-compatible list shape [2.81ms]
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"request","requestId":"piproxy-dd095edc35df261dc5ab1e24","method":"GET","path":"/v1/models/amazon-bedrock%2Famazon.nova-2-lite-v1%3A0"}
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"response","requestId":"piproxy-dd095edc35df261dc5ab1e24","status":200,"durationMs":0}
+{"ts":"2026-03-23T20:07:25.650Z","level":"info","event":"request","requestId":"piproxy-9f813fb7a48ca47aa48cc5e3","method":"GET","path":"/v1/models"}
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"response","requestId":"piproxy-9f813fb7a48ca47aa48cc5e3","status":200,"durationMs":1}
+(pass) GET /v1/models > returns OpenAI-compatible list shape [2.75ms]
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"request","requestId":"piproxy-20efb56afd1a5c9b3bb92ad8","method":"GET","path":"/v1/models/amazon-bedrock%2Famazon.nova-2-lite-v1%3A0"}
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"response","requestId":"piproxy-20efb56afd1a5c9b3bb92ad8","status":200,"durationMs":0}
 (pass) GET /v1/models > model items have correct shape when auth is configured [0.29ms]
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"request","requestId":"piproxy-f43508e45a150ca79f027cdc","method":"GET","path":"/v1/models/amazon-bedrock%2Famazon.nova-2-lite-v1%3A0"}
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"response","requestId":"piproxy-f43508e45a150ca79f027cdc","status":200,"durationMs":0}
-(pass) GET /v1/models/:model > returns model by canonical ID [0.11ms]
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"request","requestId":"piproxy-1d06bd505a0c36698069a374","method":"GET","path":"/v1/models/amazon-bedrock/amazon.nova-2-lite-v1:0"}
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"response","requestId":"piproxy-1d06bd505a0c36698069a374","status":200,"durationMs":0}
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"request","requestId":"piproxy-118c08900d79f17dddcaa319","method":"GET","path":"/v1/models/amazon-bedrock%2Famazon.nova-2-lite-v1%3A0"}
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"response","requestId":"piproxy-118c08900d79f17dddcaa319","status":200,"durationMs":0}
+(pass) GET /v1/models/:model > returns model by canonical ID [0.10ms]
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"request","requestId":"piproxy-6d5e8adbcb4b4d828699c8bc","method":"GET","path":"/v1/models/amazon-bedrock/amazon.nova-2-lite-v1:0"}
+{"ts":"2026-03-23T20:07:25.651Z","level":"info","event":"response","requestId":"piproxy-6d5e8adbcb4b4d828699c8bc","status":200,"durationMs":0}
 (pass) GET /v1/models/:model > returns model by unencoded canonical path [0.08ms]
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"request","requestId":"piproxy-0b89722e21c4ad00bcb5fd94","method":"GET","path":"/v1/models/nonexistent%2Fmodel"}
-{"ts":"2026-03-23T20:03:21.097Z","level":"info","event":"response","requestId":"piproxy-0b89722e21c4ad00bcb5fd94","status":404,"durationMs":0}
-(pass) GET /v1/models/:model > returns 404 for unknown model [0.11ms]
+{"ts":"2026-03-23T20:07:25.652Z","level":"info","event":"request","requestId":"piproxy-9b13acf8fb127db13ba53150","method":"GET","path":"/v1/models/nonexistent%2Fmodel"}
+{"ts":"2026-03-23T20:07:25.652Z","level":"info","event":"response","requestId":"piproxy-9b13acf8fb127db13ba53150","status":404,"durationMs":0}
+(pass) GET /v1/models/:model > returns 404 for unknown model [0.12ms]
 
 test/integration/chat-validation.test.ts:
-{"ts":"2026-03-23T20:03:21.100Z","level":"info","event":"request","requestId":"piproxy-c8a5e4cca5ad688a2225a94b","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"response","requestId":"piproxy-c8a5e4cca5ad688a2225a94b","status":400,"durationMs":4}
-(pass) POST /v1/chat/completions - validation > rejects invalid JSON [4.89ms]
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"request","requestId":"piproxy-9fca2f6e331637022d07da7f","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"response","requestId":"piproxy-9fca2f6e331637022d07da7f","status":400,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > rejects missing model [0.29ms]
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"request","requestId":"piproxy-e48eb0fa265aeab21c993e23","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"response","requestId":"piproxy-e48eb0fa265aeab21c993e23","status":400,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > rejects empty messages [0.11ms]
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"request","requestId":"piproxy-dba2e4c6b988173b2027fddb","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.104Z","level":"info","event":"response","requestId":"piproxy-dba2e4c6b988173b2027fddb","status":404,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > accepts tools in Phase 2 [0.14ms]
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"request","requestId":"piproxy-b074f961a897b0e5bc1e898c","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"response","requestId":"piproxy-b074f961a897b0e5bc1e898c","status":422,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > rejects unsupported tool schemas with 422 [0.13ms]
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"request","requestId":"piproxy-a8a5eb5ea5ddbda68671aa45","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"response","requestId":"piproxy-a8a5eb5ea5ddbda68671aa45","status":422,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > rejects permanently rejected fields with 422 [0.07ms]
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"request","requestId":"piproxy-48300688e9510b843f37663a","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"response","requestId":"piproxy-48300688e9510b843f37663a","status":422,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > rejects unknown fields with 422 [0.14ms]
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"request","requestId":"piproxy-f55ded1cece5e45b0daeb3f1","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"response","requestId":"piproxy-f55ded1cece5e45b0daeb3f1","status":404,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > returns 404 for non-existent model [0.15ms]
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"request","requestId":"piproxy-b58ae6515bf291bde74ae94c","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"response","requestId":"piproxy-b58ae6515bf291bde74ae94c","status":401,"durationMs":0}
+{"ts":"2026-03-23T20:07:25.654Z","level":"info","event":"request","requestId":"piproxy-0053e0f8964babea5658bf18","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.654Z","level":"info","event":"response","requestId":"piproxy-0053e0f8964babea5658bf18","status":400,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > rejects invalid JSON [0.90ms]
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"request","requestId":"piproxy-229e3d3bd06f2b682cdcffc4","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"response","requestId":"piproxy-229e3d3bd06f2b682cdcffc4","status":400,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > rejects missing model [0.31ms]
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"request","requestId":"piproxy-bf9d739caac48c5cd3548b01","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"response","requestId":"piproxy-bf9d739caac48c5cd3548b01","status":400,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > rejects empty messages [0.09ms]
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"request","requestId":"piproxy-b7cec0ffbbedff81d6e91227","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"response","requestId":"piproxy-b7cec0ffbbedff81d6e91227","status":404,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > accepts tools in Phase 2 [0.23ms]
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"request","requestId":"piproxy-9763a050d93ad7683b2fbe7d","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"response","requestId":"piproxy-9763a050d93ad7683b2fbe7d","status":422,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > rejects unsupported tool schemas with 422 [0.19ms]
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"request","requestId":"piproxy-d857047fbd93ce466193d998","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"response","requestId":"piproxy-d857047fbd93ce466193d998","status":422,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > rejects permanently rejected fields with 422 [0.10ms]
+{"ts":"2026-03-23T20:07:25.655Z","level":"info","event":"request","requestId":"piproxy-761e7df67a39ebec5b584e67","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"response","requestId":"piproxy-761e7df67a39ebec5b584e67","status":422,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > rejects unknown fields with 422 [0.10ms]
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"request","requestId":"piproxy-a627b91adbaaa10e7683921f","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"response","requestId":"piproxy-a627b91adbaaa10e7683921f","status":404,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > returns 404 for non-existent model [0.11ms]
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"request","requestId":"piproxy-e4cf9e84644c28fc835380ce","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"response","requestId":"piproxy-e4cf9e84644c28fc835380ce","status":401,"durationMs":0}
 (pass) POST /v1/chat/completions - validation > returns request-id header [0.25ms]
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"request","requestId":"piproxy-155b323426ee80541e25e9c9","clientRequestId":"client-123","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.105Z","level":"info","event":"response","requestId":"piproxy-155b323426ee80541e25e9c9","status":404,"durationMs":0}
-(pass) POST /v1/chat/completions - validation > echoes x-client-request-id [0.10ms]
-{"ts":"2026-03-23T20:03:21.106Z","level":"info","event":"request","requestId":"piproxy-7a95ad07865560cabb837f0a","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.106Z","level":"info","event":"response","requestId":"piproxy-7a95ad07865560cabb837f0a","status":401,"durationMs":0}
-(pass) POST /v1/chat/completions - proxy auth > blocks requests when proxy auth is configured [0.60ms]
-{"ts":"2026-03-23T20:03:21.106Z","level":"info","event":"request","requestId":"piproxy-ff9598f8089fef7bf31d58c5","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.106Z","level":"info","event":"response","requestId":"piproxy-ff9598f8089fef7bf31d58c5","status":404,"durationMs":0}
-(pass) POST /v1/chat/completions - proxy auth > accepts requests with correct proxy auth [0.45ms]
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"request","requestId":"piproxy-130c1db5e0880a0cfb39c989","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"response","requestId":"piproxy-130c1db5e0880a0cfb39c989","status":413,"durationMs":0}
-(pass) POST /v1/chat/completions - body size limit > rejects requests exceeding body size limit [0.38ms]
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"request","requestId":"piproxy-f00e74e1c15f7bf726dc4da0","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"response","requestId":"piproxy-f00e74e1c15f7bf726dc4da0","status":404,"durationMs":0}
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"request","requestId":"piproxy-a229acafd27a006737fe52f2","clientRequestId":"client-123","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.656Z","level":"info","event":"response","requestId":"piproxy-a229acafd27a006737fe52f2","status":404,"durationMs":0}
+(pass) POST /v1/chat/completions - validation > echoes x-client-request-id [0.12ms]
+{"ts":"2026-03-23T20:07:25.657Z","level":"info","event":"request","requestId":"piproxy-9a89b7c2dc71f71b31786d08","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.657Z","level":"info","event":"response","requestId":"piproxy-9a89b7c2dc71f71b31786d08","status":401,"durationMs":0}
+(pass) POST /v1/chat/completions - proxy auth > blocks requests when proxy auth is configured [0.62ms]
+{"ts":"2026-03-23T20:07:25.657Z","level":"info","event":"request","requestId":"piproxy-76d937d085da89a268a3cf19","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.657Z","level":"info","event":"response","requestId":"piproxy-76d937d085da89a268a3cf19","status":404,"durationMs":0}
+(pass) POST /v1/chat/completions - proxy auth > accepts requests with correct proxy auth [0.44ms]
+{"ts":"2026-03-23T20:07:25.657Z","level":"info","event":"request","requestId":"piproxy-97d176bc39e75a2c8bda086d","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.657Z","level":"info","event":"response","requestId":"piproxy-97d176bc39e75a2c8bda086d","status":413,"durationMs":0}
+(pass) POST /v1/chat/completions - body size limit > rejects requests exceeding body size limit [0.41ms]
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"request","requestId":"piproxy-1b469632a9f0636d3277867f","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"response","requestId":"piproxy-1b469632a9f0636d3277867f","status":404,"durationMs":0}
 (pass) POST /v1/chat/completions - body size limit > allows requests within body size limit [0.10ms]
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"request","requestId":"piproxy-cd5fe88b8c30e1aeb9b73b70","method":"GET","path":"/v1/models"}
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"response","requestId":"piproxy-cd5fe88b8c30e1aeb9b73b70","status":200,"durationMs":0}
-(pass) POST /v1/chat/completions - body size limit > does not apply body size limit to GET requests [0.44ms]
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"request","requestId":"piproxy-d411338edf09c0bddf5ee6d8","method":"POST","path":"/v1/chat/completions"}
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"response","requestId":"piproxy-d411338edf09c0bddf5ee6d8","status":404,"durationMs":0}
-(pass) POST /v1/chat/completions - upstream API key override > accepts X-Pi-Upstream-Api-Key header without error [0.07ms]
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"request","requestId":"piproxy-fe1ee01004b028fa3db33dde","method":"POST","path":"/v1/completions"}
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"response","requestId":"piproxy-fe1ee01004b028fa3db33dde","status":404,"durationMs":0}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"request","requestId":"piproxy-749f70a03f31ddafc5d681e5","method":"GET","path":"/v1/models"}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"response","requestId":"piproxy-749f70a03f31ddafc5d681e5","status":200,"durationMs":0}
+(pass) POST /v1/chat/completions - body size limit > does not apply body size limit to GET requests [0.37ms]
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"request","requestId":"piproxy-af96f3fd54620cdc6b032a8c","method":"POST","path":"/v1/chat/completions"}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"response","requestId":"piproxy-af96f3fd54620cdc6b032a8c","status":404,"durationMs":0}
+(pass) POST /v1/chat/completions - upstream API key override > accepts X-Pi-Upstream-Api-Key header without error [0.06ms]
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"request","requestId":"piproxy-44a75b3f397172a5e457b35c","method":"POST","path":"/v1/completions"}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"response","requestId":"piproxy-44a75b3f397172a5e457b35c","status":404,"durationMs":0}
 (pass) unsupported endpoints > returns 404 for /v1/completions [0.07ms]
-{"ts":"2026-03-23T20:03:21.107Z","level":"info","event":"request","requestId":"piproxy-cedf7c7bdce2aa71ad738ccf","method":"POST","path":"/v1/embeddings"}
-{"ts":"2026-03-23T20:03:21.108Z","level":"info","event":"response","requestId":"piproxy-cedf7c7bdce2aa71ad738ccf","status":404,"durationMs":0}
-(pass) unsupported endpoints > returns 404 for /v1/embeddings [0.01ms]
-{"ts":"2026-03-23T20:03:21.108Z","level":"info","event":"request","requestId":"piproxy-686d10b39ff179c308be89a0","method":"POST","path":"/v1/assistants"}
-{"ts":"2026-03-23T20:03:21.108Z","level":"info","event":"response","requestId":"piproxy-686d10b39ff179c308be89a0","status":404,"durationMs":0}
-(pass) unsupported endpoints > returns 404 for /v1/assistants [0.03ms]
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"request","requestId":"piproxy-30bedd9853eca2db0dff051b","method":"POST","path":"/v1/embeddings"}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"response","requestId":"piproxy-30bedd9853eca2db0dff051b","status":404,"durationMs":0}
+(pass) unsupported endpoints > returns 404 for /v1/embeddings [0.02ms]
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"request","requestId":"piproxy-ccf8231745954c9700b31e27","method":"POST","path":"/v1/assistants"}
+{"ts":"2026-03-23T20:07:25.658Z","level":"info","event":"response","requestId":"piproxy-ccf8231745954c9700b31e27","status":404,"durationMs":0}
+(pass) unsupported endpoints > returns 404 for /v1/assistants [0.02ms]
 
  110 pass
  0 fail
  258 expect() calls
-Ran 110 tests across 10 files. [333.00ms]
+Ran 110 tests across 10 files. [379.00ms]
