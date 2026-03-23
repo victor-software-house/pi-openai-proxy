@@ -1,0 +1,75 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript"],
+	"jsPlugins": [
+		{
+			"name": "zod",
+			"specifier": "eslint-plugin-zod"
+		},
+		{
+			"name": "@limegrass/import-alias",
+			"specifier": "@limegrass/eslint-plugin-import-alias"
+		}
+	],
+	"rules": {
+		"typescript/no-floating-promises": "error",
+		"typescript/no-misused-promises": "error",
+		"typescript/no-deprecated": "error",
+		"typescript/await-thenable": "error",
+		"typescript/strict-boolean-expressions": "error",
+		"typescript/consistent-type-assertions": "error",
+		"typescript/no-unnecessary-type-assertion": "error",
+		"typescript/no-unsafe-type-assertion": "error",
+		"typescript/no-unsafe-assignment": "error",
+		"typescript/no-unsafe-call": "error",
+		"typescript/no-unsafe-member-access": "error",
+		"typescript/no-unsafe-return": "error",
+		"typescript/no-unsafe-argument": "error",
+		"zod/array-style": "error",
+		"zod/consistent-import": "error",
+		"zod/consistent-import-source": [
+			"error",
+			{
+				"sources": ["zod", "zod/mini"]
+			}
+		],
+		"zod/consistent-object-schema-type": [
+			"error",
+			{
+				"allow": ["object", "looseObject"]
+			}
+		],
+		"zod/no-any-schema": "error",
+		"zod/no-empty-custom-schema": "error",
+		"zod/no-number-schema-with-int": "error",
+		"zod/no-string-schema-with-uuid": "error",
+		"zod/no-optional-and-default-together": ["error", { "preferredMethod": "default" }],
+		"zod/no-throw-in-refine": "error",
+		"zod/no-unknown-schema": "off",
+		"zod/prefer-enum-over-literal-union": "error",
+		"zod/prefer-meta": "error",
+		"zod/prefer-meta-last": "error",
+		"zod/prefer-string-schema-with-trim": "warn",
+		"zod/require-brand-type-parameter": "error",
+		"zod/require-error-message": "error",
+		"zod/require-schema-suffix": "error",
+		"zod/schema-error-property-style": "warn",
+		"@limegrass/import-alias/import-alias": "error"
+	},
+	"overrides": [
+		{
+			"files": ["**/*.test.ts"],
+			"rules": {
+				"typescript/await-thenable": "off",
+				"typescript/unbound-method": "off",
+				"typescript/no-floating-promises": "off",
+				"typescript/no-unsafe-assignment": "off",
+				"typescript/no-unsafe-member-access": "off",
+				"typescript/no-unsafe-argument": "off",
+				"typescript/consistent-type-assertions": "off",
+				"typescript/no-unnecessary-type-assertion": "off",
+				"typescript/no-unsafe-type-assertion": "off"
+			}
+		}
+	]
+}

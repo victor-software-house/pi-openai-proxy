@@ -4,12 +4,11 @@
  * Phase 0 contract: unknown fields -> 422
  */
 
-import { z } from "zod";
 import {
 	type ChatCompletionRequest,
 	chatCompletionRequestSchema,
 	phase1RejectedFields,
-} from "./schemas.js";
+} from "@proxy/openai/schemas";
 
 export interface ValidationSuccess {
 	readonly ok: true;
@@ -25,6 +24,10 @@ export interface ValidationError {
 
 export type ValidationResult = ValidationSuccess | ValidationError;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 /**
  * Validate a raw request body against the Phase 1 schema.
  *
@@ -32,10 +35,9 @@ export type ValidationResult = ValidationSuccess | ValidationError;
  */
 export function validateChatRequest(body: unknown): ValidationResult {
 	// Check for Phase 1 rejected fields before schema parsing
-	if (body !== null && typeof body === "object" && !Array.isArray(body)) {
-		const record = body as Record<string, unknown>;
+	if (isRecord(body)) {
 		for (const field of phase1RejectedFields) {
-			if (record[field] !== undefined) {
+			if (body[field] !== undefined) {
 				return {
 					ok: false,
 					status: 422,
@@ -56,7 +58,7 @@ export function validateChatRequest(body: unknown): ValidationResult {
 	const firstIssue = result.error.issues[0];
 	if (firstIssue !== undefined) {
 		const path = firstIssue.path.join(".");
-		if (firstIssue.code === z.ZodIssueCode.unrecognized_keys) {
+		if (firstIssue.code === "unrecognized_keys") {
 			return {
 				ok: false,
 				status: 422,

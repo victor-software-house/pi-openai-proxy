@@ -54,22 +54,20 @@ export interface OpenAIToolCall {
 	};
 }
 
+/** Pi StopReason -> OpenAI finish_reason */
+const FINISH_REASON_MAP: Record<StopReason, string> = {
+	stop: "stop",
+	length: "length",
+	toolUse: "tool_calls",
+	error: "stop",
+	aborted: "stop",
+};
+
 /**
  * Map pi StopReason to OpenAI finish_reason.
  */
 export function mapFinishReason(reason: StopReason): string {
-	switch (reason) {
-		case "stop":
-			return "stop";
-		case "length":
-			return "length";
-		case "toolUse":
-			return "tool_calls";
-		case "error":
-			return "stop";
-		case "aborted":
-			return "stop";
-	}
+	return FINISH_REASON_MAP[reason];
 }
 
 /**

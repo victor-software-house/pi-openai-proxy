@@ -20,7 +20,10 @@ import type {
 	ToolResultMessage,
 	UserMessage,
 } from "@mariozechner/pi-ai";
-import type { OpenAIMessage } from "./schemas.js";
+import type { OpenAIMessage } from "@proxy/openai/schemas";
+import * as z from "zod";
+
+const toolArgsSchema = z.record(z.string(), z.unknown());
 
 export interface ConversionSuccess {
 	readonly ok: true;
@@ -169,7 +172,10 @@ function convertAssistantMessage(
 		for (const tc of toolCalls) {
 			let args: Record<string, unknown> = {};
 			try {
-				args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+				const parsed = toolArgsSchema.safeParse(JSON.parse(tc.function.arguments));
+				if (parsed.success) {
+					args = parsed.data;
+				}
 			} catch {
 				// Best-effort: keep empty args if parsing fails
 			}

@@ -13,8 +13,12 @@ import type {
 	SimpleStreamOptions,
 } from "@mariozechner/pi-ai";
 import { completeSimple, streamSimple } from "@mariozechner/pi-ai";
-import type { ChatCompletionRequest } from "../openai/schemas.js";
-import { getRegistry } from "./registry.js";
+import type { ChatCompletionRequest } from "@proxy/openai/schemas";
+import { getRegistry } from "@proxy/pi/registry";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 /**
  * Build pi SimpleStreamOptions from an OpenAI request.
@@ -49,13 +53,12 @@ async function buildStreamOptions(
 	// Pass `stop` and `user` through onPayload
 	if (request.stop !== undefined || request.user !== undefined) {
 		opts.onPayload = (payload: unknown) => {
-			if (payload !== null && typeof payload === "object") {
-				const p = payload as Record<string, unknown>;
+			if (isRecord(payload)) {
 				if (request.stop !== undefined) {
-					p["stop"] = request.stop;
+					payload["stop"] = request.stop;
 				}
 				if (request.user !== undefined) {
-					p["user"] = request.user;
+					payload["user"] = request.user;
 				}
 			}
 			return payload;

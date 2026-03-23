@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { encodeDone, encodeSSE } from "../../src/openai/sse.js";
+import { encodeDone, encodeSSE } from "@proxy/openai/sse.js";
 
 describe("encodeSSE", () => {
 	test("encodes a chunk as SSE data frame", () => {

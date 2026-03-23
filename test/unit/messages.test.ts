@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { convertMessages } from "../../src/openai/messages.js";
-import type { OpenAIMessage } from "../../src/openai/schemas.js";
+import { convertMessages } from "@proxy/openai/messages.js";
+import type { OpenAIMessage } from "@proxy/openai/schemas.js";
 
 describe("convertMessages", () => {
 	test("converts system messages into systemPrompt", () => {

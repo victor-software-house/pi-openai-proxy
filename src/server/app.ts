@@ -2,11 +2,15 @@
  * Hono application assembly: middleware + routes.
  */
 
+import type { ProxyConfig } from "@proxy/config/env";
+import {
+	disconnectMiddleware,
+	proxyAuthMiddleware,
+	requestIdMiddleware,
+} from "@proxy/server/middleware";
+import { createRoutes } from "@proxy/server/routes";
+import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
-import type { ProxyConfig } from "../config/env.js";
-import { disconnectMiddleware, proxyAuthMiddleware, requestIdMiddleware } from "./middleware.js";
-import { createRoutes } from "./routes.js";
-import type { ProxyEnv } from "./types.js";
 
 export function createApp(config: ProxyConfig): Hono<ProxyEnv> {
 	const app = new Hono<ProxyEnv>();

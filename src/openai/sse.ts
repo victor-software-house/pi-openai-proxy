@@ -12,7 +12,7 @@
  */
 
 import type { AssistantMessageEvent, Usage } from "@mariozechner/pi-ai";
-import { mapFinishReason, mapUsage } from "./responses.js";
+import { mapFinishReason, mapUsage } from "@proxy/openai/responses";
 
 export interface SSEChunk {
 	readonly id: string;

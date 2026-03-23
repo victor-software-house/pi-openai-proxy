@@ -2,12 +2,12 @@
  * Hono middleware: request ID injection, proxy auth, structured logging.
  */
 
+import type { ProxyConfig } from "@proxy/config/env";
+import { authenticationError } from "@proxy/server/errors";
+import { logDisconnect, logRequest, logResponse } from "@proxy/server/logging";
+import { generateRequestId } from "@proxy/server/request-id";
+import type { ProxyEnv } from "@proxy/server/types";
 import type { MiddlewareHandler } from "hono";
-import type { ProxyConfig } from "../config/env.js";
-import { authenticationError } from "./errors.js";
-import { logDisconnect, logRequest, logResponse } from "./logging.js";
-import { generateRequestId } from "./request-id.js";
-import type { ProxyEnv } from "./types.js";
 
 /**
  * Inject request ID and logging context into every request.

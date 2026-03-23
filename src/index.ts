@@ -4,10 +4,10 @@
  * Initializes the pi model registry, creates the Hono app, and starts serving.
  */
 
-import { loadConfig } from "./config/env.js";
-import { getAllModels, initRegistry } from "./pi/registry.js";
-import { createApp } from "./server/app.js";
-import { logStartup } from "./server/logging.js";
+import { loadConfig } from "@proxy/config/env";
+import { getAllModels, initRegistry } from "@proxy/pi/registry";
+import { createApp } from "@proxy/server/app";
+import { logStartup } from "@proxy/server/logging";
 
 const config = loadConfig();
 

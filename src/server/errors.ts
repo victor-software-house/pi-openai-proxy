@@ -74,7 +74,9 @@ export function internalError(message: string): OpenAIError {
  * Map an upstream provider error into appropriate status + error body.
  * Never leaks secrets.
  */
-export function mapUpstreamError(err: unknown): { status: number; body: OpenAIError } {
+export type UpstreamErrorStatus = 429 | 502 | 503 | 504;
+
+export function mapUpstreamError(err: unknown): { status: UpstreamErrorStatus; body: OpenAIError } {
 	const message = err instanceof Error ? err.message : "Unknown upstream error";
 
 	// Detect rate-limiting

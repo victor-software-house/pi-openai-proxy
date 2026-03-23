@@ -8,7 +8,7 @@
  */
 
 import type { Api, Model } from "@mariozechner/pi-ai";
-import { getRegistry } from "./registry.js";
+import { getRegistry } from "@proxy/pi/registry";
 
 export interface ModelResolution {
 	readonly ok: true;

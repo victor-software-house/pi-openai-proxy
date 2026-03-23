@@ -6,9 +6,9 @@
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
-import { loadConfig } from "../../src/config/env.js";
-import { initRegistry } from "../../src/pi/registry.js";
-import { createApp } from "../../src/server/app.js";
+import { loadConfig } from "@proxy/config/env.js";
+import { initRegistry } from "@proxy/pi/registry.js";
+import { createApp } from "@proxy/server/app.js";
 
 let app: ReturnType<typeof createApp>;
 

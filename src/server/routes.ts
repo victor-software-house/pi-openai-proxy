@@ -7,19 +7,24 @@
  * - POST /v1/chat/completions
  */
 
+import { convertMessages } from "@proxy/openai/messages";
+import { buildModelList, toOpenAIModel } from "@proxy/openai/models";
+import { buildChatCompletion } from "@proxy/openai/responses";
+import { streamToSSE } from "@proxy/openai/sse";
+import { validateChatRequest } from "@proxy/openai/validate";
+import { piComplete, piStream } from "@proxy/pi/complete";
+import { getAllModels } from "@proxy/pi/registry";
+import { resolveModel } from "@proxy/pi/resolve-model";
+import {
+	invalidRequest,
+	mapUpstreamError,
+	modelNotFound,
+	unsupportedParameter,
+} from "@proxy/server/errors";
+import { logError } from "@proxy/server/logging";
+import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
-import { convertMessages } from "../openai/messages.js";
-import { buildModelList, toOpenAIModel } from "../openai/models.js";
-import { buildChatCompletion } from "../openai/responses.js";
-import { streamToSSE } from "../openai/sse.js";
-import { validateChatRequest } from "../openai/validate.js";
-import { piComplete, piStream } from "../pi/complete.js";
-import { getAllModels } from "../pi/registry.js";
-import { resolveModel } from "../pi/resolve-model.js";
-import { invalidRequest, mapUpstreamError, modelNotFound, unsupportedParameter } from "./errors.js";
-import { logError } from "./logging.js";
-import type { ProxyEnv } from "./types.js";
 
 export function createRoutes(): Hono<ProxyEnv> {
 	const routes = new Hono<ProxyEnv>();
@@ -157,7 +162,7 @@ export function createRoutes(): Hono<ProxyEnv> {
 				mapped.body.error.message,
 				err instanceof Error ? err.message : undefined,
 			);
-			return c.json(mapped.body, mapped.status as 500);
+			return c.json(mapped.body, mapped.status);
 		}
 	});
 

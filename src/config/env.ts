@@ -24,10 +24,10 @@ export interface ProxyConfig {
 
 export function loadConfig(): ProxyConfig {
 	return {
-		host: process.env["PI_PROXY_HOST"] ?? "127.0.0.1",
-		port: Number.parseInt(process.env["PI_PROXY_PORT"] ?? "4141", 10),
-		proxyAuthToken: process.env["PI_PROXY_AUTH_TOKEN"],
-		agenticEnabled: process.env["PI_PROXY_AGENTIC"] === "true",
-		remoteImagesEnabled: process.env["PI_PROXY_REMOTE_IMAGES"] === "true",
+		host: process.env.PI_PROXY_HOST ?? "127.0.0.1",
+		port: Number.parseInt(process.env.PI_PROXY_PORT ?? "4141", 10),
+		proxyAuthToken: process.env.PI_PROXY_AUTH_TOKEN,
+		agenticEnabled: process.env.PI_PROXY_AGENTIC === "true",
+		remoteImagesEnabled: process.env.PI_PROXY_REMOTE_IMAGES === "true",
 	};
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateChatRequest } from "../../src/openai/validate.js";
+import { validateChatRequest } from "@proxy/openai/validate.js";
 
 describe("validateChatRequest", () => {
 	test("accepts minimal valid request", () => {

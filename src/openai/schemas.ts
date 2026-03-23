@@ -9,19 +9,19 @@
  * - `logprobs` is rejected
  */
 
-import { z } from "zod";
+import * as z from "zod";
 
 // --- Message content parts ---
 
 const textContentPartSchema = z.object({
 	type: z.literal("text"),
-	text: z.string(),
+	text: z.string().trim(),
 });
 
 const imageUrlContentPartSchema = z.object({
 	type: z.literal("image_url"),
 	image_url: z.object({
-		url: z.string(),
+		url: z.string().trim(),
 		detail: z.enum(["auto", "low", "high"]).optional(),
 	}),
 });
@@ -35,40 +35,40 @@ const contentPartSchema = z.discriminatedUnion("type", [
 
 const systemMessageSchema = z.object({
 	role: z.literal("system"),
-	content: z.string(),
-	name: z.string().optional(),
+	content: z.string().trim(),
+	name: z.string().trim().optional(),
 });
 
 const developerMessageSchema = z.object({
 	role: z.literal("developer"),
-	content: z.string(),
-	name: z.string().optional(),
+	content: z.string().trim(),
+	name: z.string().trim().optional(),
 });
 
 const userMessageTextSchema = z.object({
 	role: z.literal("user"),
-	content: z.string(),
-	name: z.string().optional(),
+	content: z.string().trim(),
+	name: z.string().trim().optional(),
 });
 
 const userMessagePartsSchema = z.object({
 	role: z.literal("user"),
 	content: z.array(contentPartSchema),
-	name: z.string().optional(),
+	name: z.string().trim().optional(),
 });
 
 const assistantMessageSchema = z.object({
 	role: z.literal("assistant"),
-	content: z.string().nullable().optional(),
-	name: z.string().optional(),
+	content: z.string().trim().nullable().optional(),
+	name: z.string().trim().optional(),
 	tool_calls: z
 		.array(
 			z.object({
-				id: z.string(),
+				id: z.string().trim(),
 				type: z.literal("function"),
 				function: z.object({
-					name: z.string(),
-					arguments: z.string(),
+					name: z.string().trim(),
+					arguments: z.string().trim(),
 				}),
 			}),
 		)
@@ -77,8 +77,8 @@ const assistantMessageSchema = z.object({
 
 const toolMessageSchema = z.object({
 	role: z.literal("tool"),
-	content: z.string(),
-	tool_call_id: z.string(),
+	content: z.string().trim(),
+	tool_call_id: z.string().trim(),
 });
 
 const messageSchema = z.union([
@@ -102,14 +102,14 @@ const streamOptionsSchema = z.object({
 
 export const chatCompletionRequestSchema = z
 	.object({
-		model: z.string(),
+		model: z.string().trim(),
 		messages: z.array(messageSchema).min(1),
 		stream: z.boolean().optional(),
 		temperature: z.number().min(0).max(2).optional(),
-		max_tokens: z.number().int().positive().optional(),
-		max_completion_tokens: z.number().int().positive().optional(),
-		stop: z.union([z.string(), z.array(z.string()).max(4)]).optional(),
-		user: z.string().optional(),
+		max_tokens: z.int().positive().optional(),
+		max_completion_tokens: z.int().positive().optional(),
+		stop: z.union([z.string().trim(), z.array(z.string().trim()).max(4)]).optional(),
+		user: z.string().trim().optional(),
 		stream_options: streamOptionsSchema.nullable().optional(),
 	})
 	.strict();

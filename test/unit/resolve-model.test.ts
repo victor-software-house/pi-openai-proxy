@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseCanonicalId } from "../../src/pi/resolve-model.js";
+import { parseCanonicalId } from "@proxy/pi/resolve-model.js";
 
 describe("parseCanonicalId", () => {
 	test("parses simple provider/model-id", () => {

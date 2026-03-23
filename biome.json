@@ -65,12 +65,11 @@
 			},
 			"complexity": {
 				"noForEach": "error",
-				"noUselessTypeConstraint": "error",
-				"useLiteralKeys": "off"
+				"noUselessTypeConstraint": "error"
 			},
 			"nursery": {
 				"noFloatingPromises": "error",
-				"noUnnecessaryConditions": "warn"
+				"noUnnecessaryConditions": "error"
 			}
 		}
 	},
