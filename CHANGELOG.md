@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.3...v0.3.0) (2026-03-23)
+
+
+### Features
+
+* configurable proxy lifetime (detached or session-tied) ([036b534](https://github.com/victor-software-house/pi-openai-proxy/commit/036b53413c090eef560212899dfb7bfe99a28bf3))
+
 ## [0.2.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.2...v0.2.3) (2026-03-23)
 
 
