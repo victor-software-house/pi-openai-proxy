@@ -1,3 +1,10 @@
+## [0.2.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.2...v0.2.3) (2026-03-23)
+
+
+### Bug Fixes
+
+* remove undiscoverable --proxy flag, keep config panel ([27c2b92](https://github.com/victor-software-house/pi-openai-proxy/commit/27c2b92777e1eb47c9edb0943a00040c4874e0df))
+
 ## [0.2.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.1...v0.2.2) (2026-03-23)
 
 
