@@ -11,9 +11,6 @@
  *   /proxy path       Show config file location
  *   /proxy reset      Restore default settings
  *   /proxy help       Usage line
- *
- * Flag:
- *   --proxy           Auto-start on session start
  */
 
 import {
@@ -156,23 +153,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		return `http://${config.host}:${String(config.port)}`;
 	}
 
-	// --- Flag ---
-
-	pi.registerFlag("proxy", {
-		description: "Start the OpenAI proxy on session start",
-		type: "boolean",
-		default: false,
-	});
-
 	// --- Lifecycle ---
 
 	pi.on("session_start", async (_event, ctx) => {
 		config = loadConfig();
-		if (pi.getFlag("--proxy")) {
-			await startProxy(ctx);
-		} else {
-			await refreshStatus(ctx);
-		}
+		await refreshStatus(ctx);
 	});
 
 	pi.on("session_shutdown", async () => {
