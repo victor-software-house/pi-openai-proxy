@@ -36,9 +36,23 @@ const REASONING_EFFORT_MAP: Record<string, ThinkingLevel> = {
 };
 
 /**
- * Collect fields that need to be injected via onPayload.
+ * APIs where onPayload passthrough fields are not supported.
+ * These APIs use non-standard request formats that reject standard OpenAI fields.
  */
-function collectPayloadFields(request: ChatCompletionRequest): Record<string, unknown> | undefined {
+const SKIP_PAYLOAD_PASSTHROUGH_APIS = new Set(["openai-codex-responses"]);
+
+/**
+ * Collect fields that need to be injected via onPayload.
+ * Skips passthrough for APIs that use non-standard request formats.
+ */
+function collectPayloadFields(
+	request: ChatCompletionRequest,
+	api: string,
+): Record<string, unknown> | undefined {
+	if (SKIP_PAYLOAD_PASSTHROUGH_APIS.has(api)) {
+		return undefined;
+	}
+
 	const fields: Record<string, unknown> = {};
 	let hasFields = false;
 
@@ -117,7 +131,8 @@ async function buildStreamOptions(
 ): Promise<SimpleStreamOptions> {
 	const opts: SimpleStreamOptions = {};
 
-	if (request.temperature !== undefined) {
+	// openai-codex-responses API does not support temperature
+	if (request.temperature !== undefined && model.api !== "openai-codex-responses") {
 		opts.temperature = request.temperature;
 	}
 
@@ -152,7 +167,7 @@ async function buildStreamOptions(
 	}
 
 	// Inject passthrough fields via onPayload
-	const payloadFields = collectPayloadFields(request);
+	const payloadFields = collectPayloadFields(request, model.api);
 	if (payloadFields !== undefined) {
 		opts.onPayload = (payload: unknown) => {
 			if (isRecord(payload)) {
