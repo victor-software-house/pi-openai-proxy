@@ -59,6 +59,8 @@ const server = Bun.serve({
 	port: config.port,
 	hostname: config.host,
 	fetch: app.fetch,
+	// SSE streams and long completions need generous idle timeout
+	idleTimeout: 255,
 });
 
 export default server;
