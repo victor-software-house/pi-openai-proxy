@@ -2,38 +2,61 @@
 
 This repository implements a local OpenAI-compatible HTTP proxy built on pi's SDK (`@mariozechner/pi-coding-agent` and `@mariozechner/pi-ai`), without modifying pi.
 
+## Planning documents
+
+Treat these files as agent-first implementation guidance:
+
+- `PLAN.md` -- implementation source of truth for architecture, API compatibility policy, security boundaries, phase gates, and acceptance criteria
+- `TODO.md` -- actionable implementation checklist aligned to `PLAN.md`
+- `ROADMAP.md` -- short phase summary only
+
+Read `PLAN.md` before implementation work. Keep `TODO.md` and `ROADMAP.md` aligned with it.
+
 ## Architecture
 
-The proxy translates OpenAI API requests into pi SDK calls:
+The proxy translates OpenAI-style requests into pi SDK calls.
 
-- `GET /v1/models` -> `ModelRegistry.getAll()` / `ModelRegistry.getAvailable()`
-- `GET /v1/models/:model` -> `ModelRegistry.find(provider, modelId)`
-- `POST /v1/chat/completions` (non-streaming) -> `completeSimple()`
-- `POST /v1/chat/completions` (streaming) -> `streamSimple()` + SSE encoding
-- `POST /v1/chat/completions` (agentic, Phase 3) -> `AgentSession.prompt()`
+Stable endpoints:
 
-### Translation layers
+- `GET /v1/models` -> OpenAI-compatible list shape backed by `ModelRegistry`
+- `GET /v1/models/{model}` -> OpenAI-compatible model object backed by `ModelRegistry.find()`
+- `POST /v1/chat/completions` -> `completeSimple()` or `streamSimple()`
 
-- **Request parsing**: Zod schemas validating OpenAI request bodies
-- **Message conversion**: OpenAI messages -> pi-ai `Message[]` + `Context`
-- **Model resolution**: `provider/model-id` string -> pi `Model<Api>` via `ModelRegistry`
-- **SSE encoding**: pi `AssistantMessageEvent` -> OpenAI SSE chunk format
-- **Response building**: pi `AssistantMessage` + `Usage` -> OpenAI response JSON
+Experimental later work:
+
+- agentic mode using `AgentSession`, preferably behind a separate endpoint or explicit opt-in contract
+
+### Core translation layers
+
+- **Request parsing**: Zod schemas for the supported OpenAI chat-completions subset
+- **Message conversion**: OpenAI messages -> pi-ai `Context`
+- **Model resolution**: canonical `provider/model-id` -> pi `Model<Api>`
+- **Streaming bridge**: `AssistantMessageEvent` -> OpenAI chat-completions SSE chunks
+- **Response building**: pi `AssistantMessage` + `Usage` -> OpenAI-compatible JSON
+
+### Critical implementation rules
+
+- Canonical external model IDs use `provider/model-id`
+- `GET /v1/models/{model}` must support URL-encoded IDs because model IDs can contain `/`
+- Reserve `Authorization` for proxy authentication compatibility; do not reuse it for upstream provider overrides
+- Keep stable responses close to OpenAI's schema; if pi-specific metadata is exposed, namespace it under a field such as `x_pi`
+- Reject unsupported parameters clearly instead of silently ignoring them
+- Treat agentic mode as experimental, disabled by default, and security-sensitive
 
 ### Key mappings
 
 | OpenAI | Pi |
 |---|---|
-| `model` field | `ModelRegistry.find(provider, id)` |
-| `messages` array | `Context.messages` (system -> `systemPrompt`) |
-| `stream: true` | `streamSimple()` + async iteration over `AssistantMessageEvent` |
+| `model` | `ModelRegistry.find(provider, id)` after canonical parsing or unique shorthand resolution |
+| `messages` | `Context.messages` with `system` and `developer` merged into the effective system prompt |
+| `stream: true` | `streamSimple()` + SSE encoding |
 | `stream: false` | `completeSimple()` |
 | `temperature` | `StreamOptions.temperature` |
-| `max_tokens` | `StreamOptions.maxTokens` |
+| `max_tokens` / `max_completion_tokens` | `StreamOptions.maxTokens` after normalization |
 | `reasoning_effort` | `SimpleStreamOptions.reasoning` -> `ThinkingLevel` |
-| `tools` | `Context.tools` (JSON Schema -> TypeBox conversion) |
-| `usage` | `AssistantMessage.usage` + `calculateCost()` |
-| `finish_reason` | `StopReason` mapping: `stop`->`stop`, `length`->`length`, `toolUse`->`tool_calls` |
+| `tools` | `Context.tools` after JSON Schema -> TypeBox conversion for a supported subset only |
+| `usage` | pi `Usage` mapped to OpenAI usage fields |
+| `finish_reason` | pi `stop` -> `stop`, `length` -> `length`, `toolUse` -> `tool_calls` |
 
 ## Dev workflow
 

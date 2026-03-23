@@ -1,107 +1,261 @@
 # TODO
 
-Open issues, gaps, and decisions. Checked items are resolved.
+Actionable implementation checklist for `pi-openai-proxy`.
 
-## Project Setup
+Read `PLAN.md` first. This file should track concrete work items and decisions needed to implement that plan.
 
-- [ ] Initialize Bun project with `package.json`
-- [ ] Configure `tsconfig.json` (strict mode, path aliases)
-- [ ] Configure Biome (`biome.json`) and oxlint
-- [ ] Configure tsdown for npm builds
-- [ ] Add Hono as HTTP server dependency
-- [ ] Add `@mariozechner/pi-coding-agent` and `@mariozechner/pi-ai` as dependencies
-- [ ] Add Zod for request validation
-- [ ] Set up lefthook for pre-commit hooks
-- [ ] CLI entry point (`src/index.ts`) with port configuration
+## Phase 0 -- Contract lock
 
-## OpenAI API Conformance
+### API and routing
 
-### Chat Completions -- Request
+- [ ] Document the canonical external model ID format: `provider/model-id`
+- [ ] Document shorthand model resolution rules
+- [ ] Document the ambiguous shorthand error shape
+- [ ] Confirm how Hono route matching will support encoded slash-containing model IDs
+- [ ] Decide whether to expose any non-standard metadata under `x_pi`
 
-- [ ] `model` -- resolve `provider/model-id` via `ModelRegistry.find()`
-- [ ] `model` -- shorthand resolution (bare model ID scans all providers)
-- [ ] `messages` -- convert `system` role to `Context.systemPrompt`
-- [ ] `messages` -- convert `user` role (text content) to `UserMessage`
-- [ ] `messages` -- convert `user` role (image content, base64) to `ImageContent`
-- [ ] `messages` -- convert `user` role (image content, URL) -- fetch and convert to base64
-- [ ] `messages` -- convert `assistant` role (text) to `AssistantMessage`
-- [ ] `messages` -- convert `assistant` role with `tool_calls` to `AssistantMessage` with `ToolCall` content
-- [ ] `messages` -- convert `tool` role to `ToolResultMessage`
-- [ ] `stream` -- route to `streamSimple()` vs `completeSimple()`
-- [ ] `temperature` -- passthrough to `StreamOptions`
-- [ ] `max_tokens` / `max_completion_tokens` -- passthrough to `StreamOptions.maxTokens`
-- [ ] `tools` -- convert OpenAI JSON Schema tool defs to pi-ai `Tool` (TypeBox)
-- [ ] `tool_choice` -- passthrough via `onPayload`
-- [ ] `reasoning_effort` -- map to `SimpleStreamOptions.reasoning` (`ThinkingLevel`)
-- [ ] `stop` -- passthrough via `onPayload`
-- [ ] `response_format` -- passthrough via `onPayload`
-- [ ] `top_p` -- passthrough via `onPayload`
-- [ ] `frequency_penalty` -- passthrough via `onPayload`
-- [ ] `presence_penalty` -- passthrough via `onPayload`
-- [ ] `seed` -- passthrough via `onPayload`
-- [ ] `n` -- reject with error (unsupported)
-- [ ] `logprobs` -- reject with error (unsupported)
+### Authentication and headers
 
-### Chat Completions -- Response (Non-Streaming)
+- [ ] Reserve `Authorization` for proxy authentication compatibility
+- [ ] Choose the upstream override header name, such as `X-Pi-Upstream-Api-Key`
+- [ ] Decide whether proxy auth exists in v1 or stays disabled by default
+- [ ] Decide whether to accept and return `X-Client-Request-Id` / `X-Request-Id`
 
-- [ ] `id` -- generate unique request ID
-- [ ] `object` -- `"chat.completion"`
-- [ ] `created` -- timestamp from `AssistantMessage.timestamp`
-- [ ] `model` -- echo back resolved model ID
-- [ ] `choices[0].index` -- always `0`
-- [ ] `choices[0].message.role` -- `"assistant"`
-- [ ] `choices[0].message.content` -- extract `TextContent` from `AssistantMessage.content`
-- [ ] `choices[0].message.tool_calls` -- extract `ToolCall` blocks, map to OpenAI format
-- [ ] `choices[0].finish_reason` -- map `StopReason`: `stop`->`stop`, `length`->`length`, `toolUse`->`tool_calls`
-- [ ] `usage.prompt_tokens` -- `Usage.input`
-- [ ] `usage.completion_tokens` -- `Usage.output`
-- [ ] `usage.total_tokens` -- `Usage.totalTokens`
-- [ ] `usage.prompt_tokens_details.cached_tokens` -- `Usage.cacheRead`
+### Request compatibility policy
 
-### Chat Completions -- Response (Streaming SSE)
+- [ ] Freeze the Phase 1 supported request fields
+- [ ] Freeze the Phase 2 supported request fields
+- [ ] Freeze the explicit rejection list
+- [ ] Decide whether unknown top-level fields are always rejected with `422`
+- [ ] Decide how `developer` role content is merged into the effective system prompt
 
-- [ ] SSE format: `data: {json}\n\n` per chunk, `data: [DONE]\n\n` at end
-- [ ] `text_delta` -> `choices[0].delta.content`
-- [ ] `thinking_delta` -> `choices[0].delta.reasoning_content` (extended field)
-- [ ] `toolcall_start` -> `choices[0].delta.tool_calls[].id` + `function.name`
-- [ ] `toolcall_delta` -> `choices[0].delta.tool_calls[].function.arguments`
-- [ ] `toolcall_end` -> (no explicit chunk, covered by finish_reason)
-- [ ] `done` -> `choices[0].finish_reason` + final usage chunk
-- [ ] `error` -> SSE error event or close connection
-- [ ] Include `usage` in final chunk when `stream_options.include_usage` is true
+### Streaming contract
 
-### Models Endpoint
+- [ ] Define the initial chunk shape for streamed responses
+- [ ] Define tool-call delta chunk sequencing rules
+- [ ] Define final usage chunk behavior for `stream_options.include_usage`
+- [ ] Define behavior when the stream aborts before final usage is available
+- [ ] Decide whether any non-standard reasoning deltas are exposed at all
 
-- [ ] `GET /v1/models` -- list from `ModelRegistry.getAll()`
-- [ ] Filter to available models only (have auth configured)
-- [ ] Response shape: `{ object: "list", data: [{ id, object, created, owned_by }] }`
-- [ ] Extended fields: `context_window`, `max_tokens`, `reasoning`, `cost`
-- [ ] `GET /v1/models/:model` -- single model lookup via `ModelRegistry.find()`
+### Security policy
 
-### Error Responses
+- [ ] Decide whether remote image URLs are enabled in the stable proxy
+- [ ] If enabled, document SSRF protections and size limits
+- [ ] Document bind-host defaults
+- [ ] Document any future remote exposure guidance
+- [ ] Mark agentic mode experimental and disabled by default
 
-- [ ] Match OpenAI error format: `{ error: { message, type, param, code } }`
-- [ ] `400` -- malformed request body
-- [ ] `401` -- no API key for target provider
-- [ ] `404` -- model not found
-- [ ] `422` -- unsupported parameter (e.g., `n > 1`)
-- [ ] `429` -- rate limit from upstream provider (forward)
-- [ ] `500` -- internal server error
-- [ ] `503` -- provider overloaded (forward)
+## Phase 1 -- Stable core proxy
 
-## Design Decisions
+### Project setup
 
-- [ ] **JSON Schema -> TypeBox**: evaluate whether to convert at request time or pass raw JSON Schema to providers that support it natively
-- [ ] **Model name format**: confirm `provider/model-id` as canonical, decide on shorthand behavior when multiple providers have the same model ID
-- [ ] **Per-request auth**: decide how `Authorization: Bearer` header maps to provider-specific API keys (provider must be inferable from the model)
-- [ ] **`onPayload` passthrough scope**: decide which unsupported params to silently pass vs reject
-- [ ] **Agentic mode activation**: `x-pi-mode: agent` header vs separate endpoint vs query param
-- [ ] **CORS**: decide on default CORS policy for browser-based clients (Open WebUI, etc.)
+- [ ] Initialize `package.json`
+- [ ] Configure `tsconfig.json` for strict TypeScript
+- [ ] Configure Biome
+- [ ] Configure oxlint
+- [ ] Choose the npm build tool and align docs and config
+- [ ] Add Hono
+- [ ] Add `@mariozechner/pi-coding-agent`
+- [ ] Add `@mariozechner/pi-ai`
+- [ ] Add Zod
+- [ ] Add test tooling
+- [ ] Add `src/index.ts`
 
-## Not Planned (Out of Scope)
+### Config and bootstrap
 
-- `POST /v1/completions` -- legacy text completions API (deprecated)
-- `POST /v1/embeddings` -- pi has no embedding infrastructure
-- `POST /v1/images/generations` -- pi has no image generation
-- `POST /v1/audio/*` -- pi has no audio transcription/TTS
-- Files, fine-tuning, assistants, threads, runs, batches -- OpenAI-platform-specific
+- [ ] Create env/config loading module
+- [ ] Add host and port configuration
+- [ ] Add proxy auth config placeholders if supported
+- [ ] Add feature flags for experimental capabilities
+
+### Core pi integration
+
+- [ ] Create `AuthStorage` integration
+- [ ] Create `ModelRegistry` integration
+- [ ] Surface model-registry load errors clearly at startup and in logs
+- [ ] Implement model lookup by canonical ID
+- [ ] Implement shorthand lookup with ambiguity detection
+- [ ] Implement per-request upstream key override without using `Authorization`
+
+### Models endpoints
+
+- [ ] Implement `GET /v1/models`
+- [ ] Return `{ object: "list", data: [...] }`
+- [ ] Return items shaped like `{ id, object: "model", created, owned_by }`
+- [ ] Decide and document what `created` means for pi-backed models
+- [ ] Implement `GET /v1/models/{model}` with encoded ID support
+- [ ] Return OpenAI-style `404` when a model is not found
+
+### Request parsing and validation
+
+- [ ] Create Zod schemas for the Phase 1 request contract
+- [ ] Validate request body shape before model resolution
+- [ ] Reject unsupported fields with clear `422` errors
+- [ ] Normalize `max_tokens` and `max_completion_tokens`
+- [ ] Validate `X-Client-Request-Id` if supported
+
+### Message conversion
+
+- [ ] Convert `system` messages into the effective system prompt
+- [ ] Convert `developer` messages into the effective system prompt
+- [ ] Convert `user` text messages into pi user messages
+- [ ] Convert `assistant` text history into pi assistant messages
+- [ ] Convert `tool` messages into pi tool result messages
+- [ ] Reject unsupported content parts clearly
+
+### Non-streaming completions
+
+- [ ] Route non-streaming requests to `completeSimple()`
+- [ ] Build OpenAI-style non-streaming response objects
+- [ ] Map finish reasons conservatively
+- [ ] Map usage fields from pi `Usage`
+- [ ] Handle upstream failures through normalized error responses
+
+### Streaming completions
+
+- [ ] Route streaming requests to `streamSimple()`
+- [ ] Build SSE encoder for OpenAI chat-completions chunks
+- [ ] Emit first chunk with assistant role
+- [ ] Emit text deltas as `choices[0].delta.content`
+- [ ] Emit `[DONE]` at stream end
+- [ ] Cancel upstream work on client disconnect
+- [ ] Ensure listener and abort-controller cleanup on all paths
+
+### Errors and observability
+
+- [ ] Implement normalized OpenAI-style error response helper
+- [ ] Generate per-request proxy request IDs
+- [ ] Accept and log `X-Client-Request-Id` if present
+- [ ] Capture upstream request IDs where available
+- [ ] Add structured request logging
+- [ ] Log aborts, disconnects, and upstream timeouts distinctly
+
+### Stable-phase tests
+
+- [ ] Unit test model ID parsing
+- [ ] Unit test shorthand ambiguity handling
+- [ ] Unit test message-role conversion
+- [ ] Unit test finish reason mapping
+- [ ] Unit test usage mapping
+- [ ] Golden test `GET /v1/models`
+- [ ] Golden test `GET /v1/models/{model}`
+- [ ] Golden test non-streaming text completion
+- [ ] Golden test streaming text completion
+- [ ] Integration test model-not-found flow
+- [ ] Integration test upstream-auth-missing flow
+- [ ] Integration test client-disconnect cancellation
+
+## Phase 2 -- Tools and richer compatibility
+
+### Tools
+
+- [ ] Define the supported JSON Schema subset for function tools
+- [ ] Implement JSON Schema -> TypeBox conversion for the supported subset
+- [ ] Reject unsupported schemas with `422`
+- [ ] Convert OpenAI `tools` into pi tool definitions
+- [ ] Convert assistant `tool_calls` history into pi tool-call content
+- [ ] Convert `tool` role results back into pi tool-result messages
+- [ ] Support `tool_choice` where compatible
+
+### Streaming tool calls
+
+- [ ] Map `toolcall_start` to OpenAI tool-call delta initialization
+- [ ] Map `toolcall_delta` to argument streaming
+- [ ] Preserve stable tool-call IDs and indexes across chunks
+- [ ] Emit final finish reason `tool_calls` when appropriate
+
+### Usage in streaming
+
+- [ ] Support `stream_options.include_usage`
+- [ ] Emit the final empty-choices usage chunk when requested
+- [ ] Document that interrupted streams may not include usage
+
+### Additional request fields
+
+- [ ] Support `reasoning_effort`
+- [ ] Decide which fields are direct passthrough vs allowlisted transformation
+- [ ] Evaluate support for `response_format`
+- [ ] Evaluate support for `top_p`
+- [ ] Evaluate support for `frequency_penalty`
+- [ ] Evaluate support for `presence_penalty`
+- [ ] Evaluate support for `seed`
+
+### Images
+
+- [ ] Support base64 image data in user message parts
+- [ ] Decide whether remote image URL fetching is enabled
+- [ ] If enabled, implement SSRF protections, timeout, redirect, and size limits
+- [ ] Validate image MIME types and payload sizes
+
+### Phase 2 tests
+
+- [ ] Unit test supported and rejected tool schemas
+- [ ] Golden test non-streaming tool-call completion
+- [ ] Golden test streaming tool-call completion
+- [ ] Golden test final usage chunk behavior
+- [ ] Security test blocked localhost image URL
+- [ ] Security test blocked private-range image URL
+- [ ] Security test oversized image response
+
+## Phase 3 -- Hardening and packaging
+
+### Runtime hardening
+
+- [ ] Add request body size limits
+- [ ] Add upstream timeout defaults
+- [ ] Add graceful shutdown
+- [ ] Ensure in-flight streams are handled cleanly on shutdown
+- [ ] Decide whether any retries are appropriate and where they are forbidden
+
+### Release engineering
+
+- [ ] Add CI typecheck
+- [ ] Add CI lint
+- [ ] Add CI tests
+- [ ] Add npm packaging validation
+- [ ] Verify README examples against the implemented API
+
+### Compatibility testing
+
+- [ ] Smoke test with `curl`
+- [ ] Smoke test with Open WebUI
+- [ ] Smoke test with Continue
+- [ ] Smoke test with Aider
+- [ ] Record known compatibility gaps in docs
+
+## Phase 4 -- Experimental agentic mode
+
+### Contract
+
+- [ ] Decide whether experimental agentic mode uses a separate endpoint
+- [ ] If not, document the opt-in header and the compatibility tradeoff explicitly
+- [ ] Define the SSE event contract for agentic mode
+- [ ] Define the session identifier contract
+
+### Session integration
+
+- [ ] Build `AgentSession` lifecycle wrapper
+- [ ] Bridge `AgentSession` events to SSE
+- [ ] Implement session persistence
+- [ ] Implement session resume
+- [ ] Clean up subscriptions and resources reliably
+
+### Security
+
+- [ ] Define cwd allowlist policy
+- [ ] Prevent arbitrary client-controlled cwd escape
+- [ ] Disable extension loading by default
+- [ ] Add tool allowlist policy for agentic mode
+
+### Experimental tests
+
+- [ ] Test session creation and resume
+- [ ] Test streamed tool execution events
+- [ ] Test cwd policy enforcement
+- [ ] Test extension policy enforcement
+
+## Documentation follow-through
+
+- [ ] Keep `README.md` aligned with the supported endpoint and feature set
+- [ ] Keep `ROADMAP.md` aligned with `PLAN.md`
+- [ ] Keep this file focused on concrete action items only

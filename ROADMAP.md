@@ -1,53 +1,61 @@
 # Roadmap
 
-## Phase 1 -- Stateless LLM Proxy (MVP)
+This file is the short phase summary. See `PLAN.md` for the detailed implementation contract and `TODO.md` for the actionable checklist.
 
-Core value: a local OpenAI-compatible gateway to all providers pi supports.
+## Phase 0 -- Contract lock
 
-- [ ] Project scaffolding (Bun, tsdown, Biome, oxlint, Hono)
-- [ ] Zod request/response schemas for OpenAI Chat Completions
-- [ ] `GET /v1/models` -- list models from `ModelRegistry`
-- [ ] `GET /v1/models/:model` -- single model details
-- [ ] `POST /v1/chat/completions` (non-streaming) -- `completeSimple()`
-- [ ] `POST /v1/chat/completions` (streaming) -- `streamSimple()` + SSE encoding
-- [ ] Model resolution: `provider/model-id` -> `Model<Api>`, with shorthand fallback
-- [ ] Message conversion: OpenAI messages (system/user/assistant) -> pi-ai `Context`
-- [ ] `temperature` and `max_tokens` passthrough
-- [ ] Usage tracking in responses (input, output, cache tokens)
-- [ ] CLI entry point with `--port` flag
-- [ ] Publish to npm as `@victor-software-house/pi-openai-proxy`
+Freeze the API and security decisions before implementation starts.
 
-## Phase 2 -- Rich Features
+- [ ] Finalize model ID strategy and encoded route handling
+- [ ] Finalize auth override strategy
+- [ ] Finalize supported request field matrix
+- [ ] Finalize SSE chunk contract
+- [ ] Finalize error contract
+- [ ] Finalize image-fetch security policy
+- [ ] Mark agentic mode experimental
 
-- [ ] Tool definitions (`tools` field) with JSON Schema -> TypeBox conversion
-- [ ] Tool call messages (assistant `tool_calls` + `tool` role results)
-- [ ] `tool_choice` passthrough via `onPayload`
-- [ ] Image content in user messages (base64 + URL)
-- [ ] `reasoning_effort` -> pi `ThinkingLevel` mapping
-- [ ] Thinking/reasoning content in streaming responses
-- [ ] `stop`, `response_format`, `seed` passthrough via `onPayload`
-- [ ] `top_p`, `frequency_penalty`, `presence_penalty` passthrough via `onPayload`
-- [ ] Per-request API key override via `Authorization: Bearer` header
-- [ ] Cost calculation in extended usage response
-- [ ] Error responses matching OpenAI error format
+## Phase 1 -- Stable core proxy
 
-## Phase 3 -- Agentic Mode
+Deliver the minimum production-capable proxy.
 
-Expose pi's full agent loop behind the completions endpoint.
+- [ ] Scaffold the project and core modules
+- [ ] Integrate `AuthStorage` and `ModelRegistry`
+- [ ] Implement `GET /v1/models`
+- [ ] Implement `GET /v1/models/{model}`
+- [ ] Implement non-streaming `POST /v1/chat/completions`
+- [ ] Implement streaming `POST /v1/chat/completions`
+- [ ] Implement request IDs, structured logs, and disconnect cancellation
+- [ ] Implement OpenAI-style errors
+- [ ] Add unit and golden tests for the stable contract
 
-- [ ] `x-pi-mode: agent` header triggers `AgentSession.prompt()` instead of `streamSimple()`
-- [ ] Agent tool execution events streamed as content annotations
-- [ ] Session persistence via `SessionManager`
-- [ ] `x-pi-session-id` header for session continuity
-- [ ] Compaction and context management
-- [ ] `x-pi-cwd` header for project-scoped sessions
-- [ ] Pi extension loading for agentic sessions
+## Phase 2 -- Tools and richer compatibility
 
-## Phase 4 -- Testing and Hardening
+Add the supported compatibility surface deliberately.
 
-- [ ] Unit tests: message conversion, model resolution, SSE encoding
-- [ ] Integration tests: full HTTP round-trip with mock pi-ai responses
-- [ ] Compatibility tests with common clients (curl, Aider, Continue, Open WebUI)
-- [ ] Error handling: provider failures, auth errors, malformed requests
-- [ ] Rate limiting and request validation
-- [ ] Graceful shutdown and connection cleanup
+- [ ] Support OpenAI function tools subset
+- [ ] Support assistant `tool_calls` and `tool` role messages
+- [ ] Support `stream_options.include_usage`
+- [ ] Support image inputs behind explicit security policy
+- [ ] Support `reasoning_effort`
+- [ ] Add allowlisted passthrough parameters
+- [ ] Add tool and image security tests
+
+## Phase 3 -- Hardening and packaging
+
+Prepare the stable proxy for release.
+
+- [ ] Add request size limits and timeout defaults
+- [ ] Add graceful shutdown and connection cleanup
+- [ ] Run compatibility smoke tests with target clients
+- [ ] Add CI gates for typecheck, lint, and tests
+- [ ] Package for npm release
+
+## Phase 4 -- Experimental agentic mode
+
+Ship agentic behavior only after the stable proxy is solid.
+
+- [ ] Design a separate experimental contract
+- [ ] Bridge `AgentSession` events to SSE
+- [ ] Add session persistence and resume
+- [ ] Enforce strict cwd and extension policy
+- [ ] Decide whether to use a separate endpoint
