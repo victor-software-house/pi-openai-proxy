@@ -135,21 +135,46 @@ openrouter/anthropic/claude-sonnet-4-20250514
 
 ## Configuration
 
-The proxy reuses pi's existing configuration:
+### What comes from pi
 
-- **API keys**: `~/.pi/agent/auth.json` (managed by `pi /login`)
-- **Custom models**: `~/.pi/agent/models.json`
+The proxy reads two files from pi's configuration directory (`~/.pi/agent/`):
 
-### Environment Variables
-
-| Variable | Default | Description |
+| File | Managed by | What the proxy uses |
 |---|---|---|
-| `PI_PROXY_HOST` | `127.0.0.1` | Bind address |
-| `PI_PROXY_PORT` | `4141` | Listen port |
-| `PI_PROXY_AUTH_TOKEN` | (disabled) | Bearer token for proxy authentication |
-| `PI_PROXY_REMOTE_IMAGES` | `false` | Enable remote image URL fetching |
-| `PI_PROXY_MAX_BODY_SIZE` | `52428800` (50 MB) | Maximum request body size in bytes |
-| `PI_PROXY_UPSTREAM_TIMEOUT_MS` | `120000` (120s) | Upstream request timeout in milliseconds |
+| `auth.json` | `pi /login` | API keys for each provider (Anthropic, OpenAI, Google, etc.) |
+| `models.json` | pi built-in + user edits | Model definitions, capabilities, and pricing |
+
+The proxy does **not** read pi's `settings.json` (installed packages, enabled extensions) or session-level model filters (`--models` flag). All models with configured credentials are exposed through the proxy, regardless of pi session scope.
+
+### What the proxy adds
+
+Proxy-specific settings are configured via environment variables or the `/proxy config` panel (when installed as a pi package):
+
+| Setting | Env variable | Default | Description |
+|---|---|---|---|
+| Bind address | `PI_PROXY_HOST` | `127.0.0.1` | Network interface (`127.0.0.1` = local only, `0.0.0.0` = all) |
+| Port | `PI_PROXY_PORT` | `4141` | HTTP listen port |
+| Auth token | `PI_PROXY_AUTH_TOKEN` | (disabled) | Bearer token for proxy authentication |
+| Remote images | `PI_PROXY_REMOTE_IMAGES` | `false` | Allow remote image URL fetching |
+| Max body size | `PI_PROXY_MAX_BODY_SIZE` | `52428800` (50 MB) | Maximum request body size in bytes |
+| Upstream timeout | `PI_PROXY_UPSTREAM_TIMEOUT_MS` | `120000` (120s) | Upstream request timeout in milliseconds |
+
+When used as a pi package, these settings are persisted in `~/.pi/agent/proxy-config.json` and applied when the extension spawns the proxy.
+
+### Discovering available models
+
+List all models the proxy can reach (models with configured credentials):
+
+```bash
+curl http://localhost:4141/v1/models | jq '.data[].id'
+```
+
+Each model includes extended metadata under `x_pi`:
+
+```bash
+curl http://localhost:4141/v1/models/anthropic%2Fclaude-sonnet-4-20250514 | jq '.x_pi'
+# { "api": "anthropic", "reasoning": true, "input": ["text", "image"], ... }
+```
 
 ### Per-request API key override
 
@@ -174,22 +199,37 @@ curl http://localhost:4141/v1/models \
   -H "Authorization: Bearer my-secret-token"
 ```
 
+### API compatibility
+
+The proxy implements a subset of the [OpenAI Chat Completions API](https://platform.openai.com/docs/api-reference/chat/create). Request and response shapes match the OpenAI specification for supported fields. Unsupported fields are rejected with `422` and an OpenAI-style error body naming the offending parameter.
+
+There is no OpenAPI/Swagger spec for the proxy itself. Use the [OpenAI API reference](https://platform.openai.com/docs/api-reference/chat/create) as the primary documentation, noting the supported subset listed in this README.
+
 ## Pi Integration
 
-Install as a pi package to get the `/proxy` command and `--proxy` flag inside pi sessions:
+Install as a pi package to get the `/proxy` command family and `--proxy` flag:
 
 ```bash
 pi install npm:@victor-software-house/pi-openai-proxy
 ```
 
-### Start the proxy from inside pi
+### Command family
 
 ```
-/proxy start     Start the proxy server
-/proxy stop      Stop the proxy server
-/proxy status    Show proxy status (default)
-/proxy           Show proxy status
+/proxy               Open the settings panel
+/proxy start         Start the proxy server
+/proxy stop          Stop the proxy server (session-managed only)
+/proxy status        Show proxy status
+/proxy config        Open the settings panel
+/proxy show          Summarize current configuration
+/proxy path          Show config file location
+/proxy reset         Restore default settings
+/proxy help          Show usage
 ```
+
+### Settings panel
+
+`/proxy` (or `/proxy config`) opens an interactive settings panel where you can configure the bind address, port, auth token, remote images, body size limit, and upstream timeout. Changes are saved to `~/.pi/agent/proxy-config.json` immediately. Restart the proxy to apply changes.
 
 ### Auto-start with pi
 
