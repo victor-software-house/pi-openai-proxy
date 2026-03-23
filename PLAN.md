@@ -434,13 +434,6 @@ src/
     registry.ts       -- AuthStorage + ModelRegistry init
     resolve-model.ts  -- canonical/shorthand model resolution
     complete.ts       -- completeSimple/streamSimple bridge
-  security/           -- (Phase 2+)
-    image-fetch.ts
-    proxy-auth.ts
-    path-policy.ts
-  agentic/            -- (Phase 4)
-    bridge.ts
-    session-store.ts
 ```
 
 ## Delivery phases

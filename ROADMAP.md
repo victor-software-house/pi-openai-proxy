@@ -52,8 +52,8 @@ Prepare the stable proxy for release.
 - [x] Add per-request upstream API key override (`X-Pi-Upstream-Api-Key`)
 - [x] Add image MIME type and payload size validation
 - [x] Add CI gates (GitHub Actions: typecheck, lint, test, build, package)
-- [ ] Run compatibility smoke tests with target clients
-- [ ] Package for npm release
+- [x] Package for npm release (`@victor-software-house/pi-openai-proxy`)
+- [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
 ## Phase 4 -- Experimental agentic mode
 
