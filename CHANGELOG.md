@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.1.0...v0.1.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* use correct notification level 'warning' in proxy extension ([ca1a579](https://github.com/victor-software-house/pi-openai-proxy/commit/ca1a579ddf5fa682d079ad07f63635ddf22c8f5d))
+
 # [0.1.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.0.3...v0.1.0) (2026-03-23)
 
 
