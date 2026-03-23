@@ -17,6 +17,11 @@
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
 		"noEmit": true,
-		"lib": ["ES2023"]
-	}
+		"lib": ["ES2023"],
+		"types": ["bun"],
+		"paths": {
+			"@proxy/*": ["./src/*"]
+		}
+	},
+	"include": ["src", "test"]
 }

@@ -12,7 +12,7 @@
  *   /proxy reset      Restore default settings
  *   /proxy help       Usage line
  *
- * Config schema imported from pi-proxy/config (single source of truth).
+ * Config schema imported from @victor-software-house/pi-openai-proxy/config (SSOT).
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
@@ -27,14 +27,14 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
 
-// Config schema -- single source of truth from pi-proxy
+// Config schema -- single source of truth
 import {
 	configToEnv,
 	DEFAULT_CONFIG,
 	getConfigPath,
 	loadConfigFromFile,
 	saveConfigToFile,
-} from "pi-proxy/config";
+} from "@victor-software-house/pi-openai-proxy/config";
 
 // ---------------------------------------------------------------------------
 // Runtime status
