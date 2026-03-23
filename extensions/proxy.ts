@@ -483,42 +483,47 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 		await ctx.ui.custom<void>(
 			(tui, theme, _kb, done) => {
-				const container = new Container();
-				container.addChild(new Text(theme.fg("accent", theme.bold("Proxy Settings")), 1, 0));
-				container.addChild(new Text(theme.fg("dim", getConfigPath()), 1, 0));
+				function build(): { container: Container; settingsList: SettingsList } {
+					const container = new Container();
+					container.addChild(new Text(theme.fg("accent", theme.bold("Proxy Settings")), 1, 0));
+					container.addChild(new Text(theme.fg("dim", getConfigPath()), 1, 0));
 
-				const settingsList = new SettingsList(
-					buildSettingItems(),
-					10,
-					getSettingsListTheme(),
-					(id, newValue) => {
-						applySetting(id, newValue);
-						// Rebuild items to reflect normalized values
-						settingsList.setItems(buildSettingItems());
-						tui.requestRender();
-					},
-					() => done(undefined),
-					{ enableSearch: true },
-				);
+					const settingsList = new SettingsList(
+						buildSettingItems(),
+						10,
+						getSettingsListTheme(),
+						(id, newValue) => {
+							applySetting(id, newValue);
+							current = build();
+							tui.requestRender();
+						},
+						() => done(undefined),
+						{ enableSearch: true },
+					);
 
-				container.addChild(settingsList);
-				container.addChild(
-					new Text(
-						theme.fg("dim", "Esc: close | Arrow keys: navigate | Space: toggle | Restart proxy to apply"),
-						1,
-						0,
-					),
-				);
+					container.addChild(settingsList);
+					container.addChild(
+						new Text(
+							theme.fg("dim", "Esc: close | Arrow keys: navigate | Space: toggle | Restart proxy to apply"),
+							1,
+							0,
+						),
+					);
+
+					return { container, settingsList };
+				}
+
+				let current = build();
 
 				return {
 					render(width: number): string[] {
-						return container.render(width);
+						return current.container.render(width);
 					},
 					invalidate(): void {
-						container.invalidate();
+						current.container.invalidate();
 					},
 					handleInput(data: string): void {
-						settingsList.handleInput?.(data);
+						current.settingsList.handleInput?.(data);
 						tui.requestRender();
 					},
 				};
