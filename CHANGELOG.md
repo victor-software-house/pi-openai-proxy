@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.2.0...v0.2.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* rebuild SettingsList on change instead of calling nonexistent setItems ([bc140b0](https://github.com/victor-software-house/pi-openai-proxy/commit/bc140b0a37e460dc3dd0e06307289df179d79816))
+
 # [0.2.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.1.1...v0.2.0) (2026-03-23)
 
 
