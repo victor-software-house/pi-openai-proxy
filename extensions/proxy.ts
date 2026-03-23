@@ -359,10 +359,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	async function showConfig(ctx: ExtensionContext): Promise<void> {
 		config = loadConfig();
+		const authDisplay =
+			config.authToken.length > 0 ? `enabled (token: ${config.authToken})` : "disabled";
 		const lines = [
 			`host: ${config.host}`,
 			`port: ${String(config.port)}`,
-			`auth: ${config.authToken.length > 0 ? "enabled" : "disabled"}`,
+			`auth: ${authDisplay}`,
 			`remote images: ${String(config.remoteImages)}`,
 			`max body: ${String(config.maxBodySizeMb)} MB`,
 			`upstream timeout: ${String(config.upstreamTimeoutSec)}s`,
@@ -391,6 +393,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	// --- Settings panel ---
 
+	let lastGeneratedToken = "";
+
 	function buildSettingItems(): SettingItem[] {
 		return [
 			{
@@ -410,7 +414,10 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			{
 				id: "authToken",
 				label: "Proxy auth",
-				description: "Require bearer token for all requests",
+				description:
+					config.authToken.length > 0
+						? `Token: ${config.authToken.slice(0, 8)}... (use /proxy show to copy)`
+						: "Require bearer token for all requests",
 				currentValue: config.authToken.length > 0 ? "enabled" : "disabled",
 				values: ["disabled", "enabled"],
 			},
@@ -447,17 +454,21 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				config = { ...config, port: clampInt(Number.parseInt(value, 10), 1, 65535, config.port) };
 				break;
 			case "authToken":
-				// Toggle: "enabled" keeps current token or sets placeholder; "disabled" clears
+				// Toggle: "enabled" keeps current token or generates one; "disabled" clears
 				if (value === "disabled") {
 					config = { ...config, authToken: "" };
 				} else if (config.authToken.length === 0) {
 					// Generate a random token on first enable
 					const bytes = new Uint8Array(16);
 					crypto.getRandomValues(bytes);
-					const token = Array.from(bytes)
-						.map((b) => b.toString(16).padStart(2, "0"))
-						.join("");
-					config = { ...config, authToken: token };
+					config = {
+						...config,
+						authToken: Array.from(bytes)
+							.map((b) => b.toString(16).padStart(2, "0"))
+							.join(""),
+					};
+					// Stash token so the caller can notify the user
+					lastGeneratedToken = config.authToken;
 				}
 				break;
 			case "remoteImages":
@@ -493,7 +504,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 						10,
 						getSettingsListTheme(),
 						(id, newValue) => {
+							lastGeneratedToken = "";
 							applySetting(id, newValue);
+							if (lastGeneratedToken.length > 0) {
+								ctx.ui.notify(`Auth token: ${lastGeneratedToken}`, "info");
+							}
 							current = build();
 							tui.requestRender();
 						},

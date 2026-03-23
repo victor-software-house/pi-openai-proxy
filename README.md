@@ -231,7 +231,7 @@ pi install npm:@victor-software-house/pi-openai-proxy
 
 `/proxy` (or `/proxy config`) opens an interactive settings panel where you can configure the bind address, port, auth token, remote images, body size limit, and upstream timeout. Changes are saved to `~/.pi/agent/proxy-config.json` immediately. Restart the proxy to apply changes.
 
-### Auto-start with pi
+### Auto-start with a pi session
 
 ```bash
 pi --proxy
@@ -239,7 +239,24 @@ pi --proxy
 
 The proxy starts automatically on session start and stops when the session ends. A status indicator in the footer shows the proxy URL and model count.
 
-The proxy can also run standalone (see [Installation](#installation) above). The extension detects externally running instances and shows their status without trying to manage them.
+Note: the `--proxy` flag is registered by the extension at runtime and does not appear in `pi --help`.
+
+### Standalone (background) mode
+
+For a proxy that outlives pi sessions, run the binary directly:
+
+```bash
+# Foreground
+pi-openai-proxy
+
+# Background
+pi-openai-proxy &
+
+# With custom port
+PI_PROXY_PORT=8080 pi-openai-proxy &
+```
+
+The extension detects externally running instances and shows their status via `/proxy status` without trying to manage them.
 
 ## Architecture
 
