@@ -55,6 +55,19 @@ Prepare the stable proxy for release.
 - [x] Package for npm release (`@victor-software-house/pi-openai-proxy`)
 - [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
+## Phase 3A -- Model exposure and identifier controls
+
+Standardize model exposure and make public IDs configurable.
+
+- [ ] Remove `x_pi` from the standard models endpoints
+- [ ] Add configurable public ID modes: `collision-prefixed`, `universal`, `always-prefixed`
+- [ ] Add configurable exposure modes: `all`, `scoped`, `custom`
+- [ ] Add provider prefix overrides and explicit validation
+- [ ] Use a shared exposure/resolution layer for models listing, detail lookup, and chat requests
+- [ ] Refactor the `/proxy` extension around a controller-backed config flow
+- [ ] Add `/proxy verify` and selector UIs for scoped providers and custom models
+- [ ] Refresh compatibility support for `reasoning_effort` and `response_format.json_schema`
+
 ## Phase 4 -- Monorepo and proper CLI
 
 Split into two packages in a pnpm/turborepo monorepo (reference: pi-maestro structure).

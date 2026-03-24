@@ -77,9 +77,9 @@ Return OpenAI-style errors for:
 - `POST /v1/images/*`
 - assistants, threads, runs, files, batches, fine-tuning
 
-## Canonical model IDs
+## Public and canonical model IDs
 
-The external model ID format is:
+Internal canonical model IDs remain:
 
 - `provider/model-id`
 
@@ -89,26 +89,117 @@ Examples:
 - `anthropic/claude-sonnet-4-20250514`
 - `openrouter/anthropic/claude-sonnet-4-20250514`
 
-### Shorthand resolution
+Canonical IDs are an internal storage and routing primitive.
+Use them for:
 
-Accept bare model IDs only when the match is unique across providers.
+- internal registry lookup
+- persisted custom-model selections
+- backward-compatible request resolution for models that are still exposed
 
-If multiple providers expose the same model ID:
+The public HTTP API does not always expose canonical IDs.
+Public model IDs are configurable and should prefer universal provider-neutral names when possible.
 
-- return `400`
-- use an OpenAI-style error body
-- include the matching canonical IDs in error metadata or message text
+### Public model ID modes
+
+Supported public ID modes:
+
+- `collision-prefixed` -- default
+- `universal`
+- `always-prefixed`
+
+#### `collision-prefixed`
+
+Start from the raw model ID (`model.id`) for every exposed model.
+If any two exposed providers share at least one raw model ID, prefix **all** models from providers in that connected conflict group.
+
+This is a provider-group rule, not a per-model rule.
+If `openai` and `codex` collide on one exposed model name, prefix all exposed `openai/*` and all exposed `codex/*` public IDs.
+Do not prefix unrelated providers that are outside that conflict group.
+
+#### `universal`
+
+Expose raw model IDs only.
+If the exposed model set contains duplicates, configuration is invalid and must fail validation explicitly.
+Do not silently downgrade to a prefixed mode.
+
+#### `always-prefixed`
+
+Expose `<public-prefix>/<model-id>` for every model.
+This is the closest behavior to the current implementation.
+
+### Public prefix labels
+
+Prefixed public IDs use:
+
+- `<public-prefix>/<model-id>`
+
+Default `public-prefix` is the provider key.
+The prefix label must be configurable per provider via settings.
+
+Validation rules:
+
+- prefix labels must be unique among exposed providers in prefixed modes
+- invalid prefix collisions must surface as explicit configuration errors
+
+### Exposure modes
+
+Supported exposure modes:
+
+- `all` -- expose all available models
+- `scoped` -- expose all available models from selected providers only
+- `custom` -- expose only an allowlist of canonical model IDs
+
+Persist custom-model selections as canonical IDs, not public IDs.
+That keeps configuration stable when public ID mode or prefix labels change.
+
+### Resolution policy
+
+For incoming model references on the HTTP API, resolve in this order:
+
+1. exact public ID match
+2. exact canonical ID match for backward compatibility
+
+Canonical fallback is only allowed for models inside the current exposed set.
+Hidden models must not become reachable through canonical fallback.
+
+Do not rely on the old registry-wide shorthand ambiguity rules on the public HTTP surface.
+The public model list itself defines the valid request IDs.
 
 ### Route handling
 
-`GET /v1/models/{model}` must support URL-encoded full model IDs because canonical IDs can contain `/`.
+`GET /v1/models/{model}` must support URL-encoded full model IDs because both canonical IDs and prefixed public IDs can contain `/`.
 
 Examples:
 
-- `/v1/models/openai%2Fgpt-4o`
+- `/v1/models/gpt-5.4-mini`
+- `/v1/models/openai%2Fgpt-5.4-mini`
+- `/v1/models/codex%2Fgpt-5.4-mini`
 - `/v1/models/openrouter%2Fanthropic%2Fclaude-sonnet-4-20250514`
 
 Do not rely on a single path-segment router parameter without decoding support.
+
+## Model exposure configuration
+
+Shared proxy configuration must grow to include model-exposure controls.
+The JSON config file, CLI overrides, env handling, and settings panel must all agree on the same schema.
+
+Required settings:
+
+- `publicModelIdMode`: `collision-prefixed` | `universal` | `always-prefixed`
+- `modelExposureMode`: `all` | `scoped` | `custom`
+- `scopedProviders`: string[]
+- `customModels`: string[] -- canonical model IDs only
+- `providerPrefixes`: record of provider key -> public prefix label
+
+Settings-panel requirements:
+
+- the main `/proxy` panel remains the default no-arg entry point
+- enum settings for public ID mode and exposure mode must persist immediately
+- provider selection for `scoped` mode should use a focused selector UI
+- model selection for `custom` mode should use a searchable selector UI
+- prefix overrides should be editable without requiring manual JSON editing
+- `/proxy verify` should validate collisions, invalid universal mode, unknown providers, and missing custom models
+- `/proxy show` should summarize the effective exposure policy and preview representative public IDs
 
 ## Authentication model
 
@@ -156,13 +247,19 @@ Future-compatible design:
 - `tool_choice`
 - assistant `tool_calls`
 - `tool` role messages
-- `reasoning_effort`
-- `response_format` (`text`, `json_object`)
+- `reasoning_effort` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`)
+- `response_format` (`text`, `json_object`, `json_schema`)
 - `top_p`
 - `frequency_penalty`
 - `presence_penalty`
 - `seed`
 - image content parts (base64 data URIs only)
+
+Compatibility preference:
+
+- prefer `max_completion_tokens` over deprecated `max_tokens`
+- support `json_schema` in `response_format` on the stable chat-completions path
+- broaden `reasoning_effort` to match the current OpenAI enum surface
 
 ### Rejected
 
@@ -315,7 +412,7 @@ Return the OpenAI-compatible list shape:
   "object": "list",
   "data": [
     {
-      "id": "openai/gpt-4o",
+      "id": "gpt-5.4-mini",
       "object": "model",
       "created": 0,
       "owned_by": "openai"
@@ -326,13 +423,15 @@ Return the OpenAI-compatible list shape:
 
 Compatibility rule:
 
-- keep the stable response close to OpenAI's schema
-- if extended pi-specific metadata is exposed, place it under a namespaced field such as `x_pi`
+- keep the stable response strictly to the standard OpenAI model object fields
+- do not attach capability metadata such as context window, max tokens, reasoning support, or modality support to the standard `/v1/models` path
+- if richer metadata is exposed later, use a separate non-standard endpoint rather than `x_pi` on the standard model object
 
 Availability rule:
 
 - distinguish between `configured` and `healthy`
 - do not claim a model is healthy just because credentials are configured
+- apply exposure filtering before public ID generation
 
 ### `GET /v1/models/{model}`
 
@@ -343,7 +442,11 @@ Return the standard OpenAI-compatible model object:
 - `created`
 - `owned_by`
 
-Extended metadata, if included, should be namespaced.
+Resolution rule:
+
+- resolve within the currently exposed model set only
+- accept exact public IDs first
+- accept canonical IDs only as backward-compatible aliases for models that remain exposed
 
 ## Error contract
 
@@ -505,7 +608,7 @@ Release gate:
 - tool streaming already wired in Phase 1 SSE module
 - remote image security deferred (disabled by default)
 
-### Phase 3 -- Hardening and packaging
+### Phase 3 -- Hardening and packaging [DONE]
 
 Build:
 
@@ -521,6 +624,38 @@ Release gate:
 - compatibility smoke tests pass for target clients
 - logs and trace IDs are stable
 - no known security policy gaps remain for stable features
+
+### Phase 3A -- Model exposure and identifier controls
+
+Build:
+
+- standardize `/v1/models` and `/v1/models/{model}` to the minimal OpenAI model object
+- remove `x_pi` from the standard models path
+- add shared model-exposure computation with public-ID generation and reverse lookup
+- add configurable public ID modes: `collision-prefixed`, `universal`, `always-prefixed`
+- add configurable exposure modes: `all`, `scoped`, `custom`
+- add provider prefix overrides with explicit uniqueness validation
+- restrict model resolution to the exposed set for models listing, detail lookup, and chat requests
+- preserve canonical-ID backward compatibility only for models that remain exposed
+- refactor the Pi extension toward a controller-backed config flow
+- add `/proxy verify` and model-exposure preview to the command family
+- add focused selector UIs for scoped providers and custom model selection
+
+Deliverable:
+
+- shared model-exposure module used by models endpoints and chat resolution
+- shared config schema extended with exposure controls
+- updated settings panel and `/proxy` command family
+- route and integration tests covering exposure modes and ID modes
+- documentation aligned to the new public ID policy
+
+Release gate:
+
+- public model IDs are unique under every valid configuration
+- invalid `universal` mode and invalid prefix collisions fail validation explicitly
+- hidden models are not reachable by canonical fallback
+- `/v1/models` stays standard OpenAI shape with no capability extensions
+- typecheck, lint, and tests pass
 
 ### Phase 4 -- Experimental agentic mode
 
@@ -599,8 +734,10 @@ Target at least:
 
 The implementation is production-ready for the stable proxy only if all of the following are true:
 
-- `GET /v1/models` returns an OpenAI-compatible list shape
+- `GET /v1/models` returns an OpenAI-compatible list shape using only standard model object fields
 - `GET /v1/models/{model}` supports encoded slash-containing IDs
+- public model IDs are unique under the active exposure configuration
+- canonical fallback does not bypass exposure filtering
 - non-streaming chat completions return OpenAI-compatible payloads
 - streaming returns valid SSE chunks followed by `[DONE]`
 - final usage chunk behavior matches the documented `stream_options.include_usage` contract
