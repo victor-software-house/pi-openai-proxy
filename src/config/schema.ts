@@ -20,6 +20,24 @@ import { dirname, resolve } from "node:path";
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * How public model IDs are generated from canonical provider/model-id pairs.
+ *
+ * - "collision-prefixed": prefix only providers in conflict groups that share a raw model ID
+ * - "universal": expose raw model IDs only; duplicates are a config error
+ * - "always-prefixed": always expose <prefix>/<model-id> for every model
+ */
+export type PublicModelIdMode = "collision-prefixed" | "universal" | "always-prefixed";
+
+/**
+ * Which models are exposed on the public HTTP API.
+ *
+ * - "all": every available model
+ * - "scoped": all available models from selected providers only
+ * - "custom": explicit allowlist of canonical model IDs
+ */
+export type ModelExposureMode = "all" | "scoped" | "custom";
+
 export interface ProxyConfig {
 	/** Bind address. Default: "127.0.0.1" */
 	readonly host: string;
@@ -35,6 +53,16 @@ export interface ProxyConfig {
 	readonly upstreamTimeoutSec: number;
 	/** "detached" = background daemon, "session" = dies with pi session. Default: "detached" */
 	readonly lifetime: "detached" | "session";
+	/** How public model IDs are generated. Default: "collision-prefixed" */
+	readonly publicModelIdMode: PublicModelIdMode;
+	/** Which models are exposed. Default: "all" */
+	readonly modelExposureMode: ModelExposureMode;
+	/** Provider keys to expose when modelExposureMode is "scoped". */
+	readonly scopedProviders: readonly string[];
+	/** Canonical model IDs to expose when modelExposureMode is "custom". */
+	readonly customModels: readonly string[];
+	/** Provider key -> custom public prefix label. Default prefix = provider key. */
+	readonly providerPrefixes: Readonly<Record<string, string>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,6 +77,11 @@ export const DEFAULT_CONFIG: Readonly<ProxyConfig> = {
 	maxBodySizeMb: 50,
 	upstreamTimeoutSec: 120,
 	lifetime: "detached",
+	publicModelIdMode: "collision-prefixed",
+	modelExposureMode: "all",
+	scopedProviders: [],
+	customModels: [],
+	providerPrefixes: {},
 };
 
 // ---------------------------------------------------------------------------
@@ -66,11 +99,51 @@ function clampInt(raw: unknown, min: number, max: number, fallback: number): num
 	return Math.max(min, Math.min(max, Math.round(raw)));
 }
 
+const VALID_PUBLIC_ID_MODES = new Set<string>([
+	"collision-prefixed",
+	"universal",
+	"always-prefixed",
+]);
+
+function isPublicModelIdMode(value: string): value is PublicModelIdMode {
+	return VALID_PUBLIC_ID_MODES.has(value);
+}
+
+const VALID_EXPOSURE_MODES = new Set<string>(["all", "scoped", "custom"]);
+
+function isModelExposureMode(value: string): value is ModelExposureMode {
+	return VALID_EXPOSURE_MODES.has(value);
+}
+
+function normalizeStringArray(raw: unknown): string[] {
+	if (!Array.isArray(raw)) return [];
+	const result: string[] = [];
+	for (const item of raw) {
+		if (typeof item === "string" && item.length > 0) {
+			result.push(item);
+		}
+	}
+	return result;
+}
+
+function normalizeStringRecord(raw: unknown): Record<string, string> {
+	if (!isRecord(raw)) return {};
+	const result: Record<string, string> = {};
+	for (const [key, val] of Object.entries(raw)) {
+		if (typeof val === "string" && val.length > 0) {
+			result[key] = val;
+		}
+	}
+	return result;
+}
+
 export function normalizeConfig(raw: unknown): ProxyConfig {
 	const v = isRecord(raw) ? raw : {};
 	const rawHost = v["host"];
 	const rawAuthToken = v["authToken"];
 	const rawRemoteImages = v["remoteImages"];
+	const rawPublicIdMode = v["publicModelIdMode"];
+	const rawExposureMode = v["modelExposureMode"];
 	return {
 		host: typeof rawHost === "string" && rawHost.length > 0 ? rawHost : DEFAULT_CONFIG.host,
 		port: clampInt(v["port"], 1, 65535, DEFAULT_CONFIG.port),
@@ -85,6 +158,17 @@ export function normalizeConfig(raw: unknown): ProxyConfig {
 			DEFAULT_CONFIG.upstreamTimeoutSec,
 		),
 		lifetime: v["lifetime"] === "session" ? "session" : "detached",
+		publicModelIdMode:
+			typeof rawPublicIdMode === "string" && isPublicModelIdMode(rawPublicIdMode)
+				? rawPublicIdMode
+				: DEFAULT_CONFIG.publicModelIdMode,
+		modelExposureMode:
+			typeof rawExposureMode === "string" && isModelExposureMode(rawExposureMode)
+				? rawExposureMode
+				: DEFAULT_CONFIG.modelExposureMode,
+		scopedProviders: normalizeStringArray(v["scopedProviders"]),
+		customModels: normalizeStringArray(v["customModels"]),
+		providerPrefixes: normalizeStringRecord(v["providerPrefixes"]),
 	};
 }
 
@@ -139,5 +223,7 @@ export function configToEnv(config: ProxyConfig): Record<string, string> {
 	env["PI_PROXY_REMOTE_IMAGES"] = String(config.remoteImages);
 	env["PI_PROXY_MAX_BODY_SIZE"] = String(config.maxBodySizeMb * 1024 * 1024);
 	env["PI_PROXY_UPSTREAM_TIMEOUT_MS"] = String(config.upstreamTimeoutSec * 1000);
+	// Model exposure settings are read from the shared JSON config file at startup.
+	// They are not passed as env vars because the proxy loads the config file directly.
 	return env;
 }

@@ -8,6 +8,7 @@
  * override it for one-off adjustments or container use.
  */
 
+import type { ModelExposureMode, PublicModelIdMode } from "@proxy/config/schema";
 import { loadConfigFromFile } from "@proxy/config/schema";
 
 export interface ServerConfig {
@@ -25,6 +26,16 @@ export interface ServerConfig {
 	readonly maxBodySize: number;
 	/** Upstream request timeout in milliseconds. */
 	readonly upstreamTimeoutMs: number;
+	/** How public model IDs are generated. */
+	readonly publicModelIdMode: PublicModelIdMode;
+	/** Which models are exposed. */
+	readonly modelExposureMode: ModelExposureMode;
+	/** Provider keys for "scoped" exposure mode. */
+	readonly scopedProviders: readonly string[];
+	/** Canonical model IDs for "custom" exposure mode. */
+	readonly customModels: readonly string[];
+	/** Provider key -> custom public prefix label. */
+	readonly providerPrefixes: Readonly<Record<string, string>>;
 }
 
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
@@ -82,5 +93,10 @@ export function loadConfig(cli: CliOverrides = {}): ServerConfig {
 		remoteImagesEnabled,
 		maxBodySize,
 		upstreamTimeoutMs,
+		publicModelIdMode: file.publicModelIdMode,
+		modelExposureMode: file.modelExposureMode,
+		scopedProviders: file.scopedProviders,
+		customModels: file.customModels,
+		providerPrefixes: file.providerPrefixes,
 	};
 }

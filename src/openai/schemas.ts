@@ -137,9 +137,20 @@ export type ToolChoice = z.infer<typeof toolChoiceSchema>;
 
 // --- Response format ---
 
+const jsonSchemaResponseFormatSchema = z.object({
+	type: z.literal("json_schema"),
+	json_schema: z.object({
+		name: z.string().trim(),
+		description: z.string().trim().optional(),
+		schema: z.record(z.string().trim(), z.unknown()).optional(),
+		strict: z.boolean().nullable().optional(),
+	}),
+});
+
 const responseFormatSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("text") }),
 	z.object({ type: z.literal("json_object") }),
+	jsonSchemaResponseFormatSchema,
 ]);
 
 export type ResponseFormat = z.infer<typeof responseFormatSchema>;
@@ -160,7 +171,7 @@ export const chatCompletionRequestSchema = z
 		// Phase 2 additions
 		tools: z.array(functionToolSchema).optional(),
 		tool_choice: toolChoiceSchema.optional(),
-		reasoning_effort: z.enum(["low", "medium", "high"]).optional(),
+		reasoning_effort: z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]).optional(),
 		top_p: z.number().min(0).max(1).optional(),
 		frequency_penalty: z.number().min(-2).max(2).optional(),
 		presence_penalty: z.number().min(-2).max(2).optional(),

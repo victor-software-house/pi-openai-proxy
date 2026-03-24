@@ -229,37 +229,37 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Contract and config
 
-- [ ] Replace the public models-path contract with standard OpenAI model objects only
-- [ ] Remove `x_pi` from `/v1/models` and `/v1/models/{model}`
-- [ ] Add `publicModelIdMode`: `collision-prefixed` | `universal` | `always-prefixed`
-- [ ] Add `modelExposureMode`: `all` | `scoped` | `custom`
-- [ ] Add `scopedProviders`, `customModels`, and `providerPrefixes` to shared config
-- [ ] Normalize and persist custom model selections as canonical IDs only
-- [ ] Validate duplicate prefix labels explicitly
-- [ ] Validate invalid `universal` mode collisions explicitly
+- [x] Replace the public models-path contract with standard OpenAI model objects only
+- [x] Remove `x_pi` from `/v1/models` and `/v1/models/{model}`
+- [x] Add `publicModelIdMode`: `collision-prefixed` | `universal` | `always-prefixed`
+- [x] Add `modelExposureMode`: `all` | `scoped` | `custom`
+- [x] Add `scopedProviders`, `customModels`, and `providerPrefixes` to shared config
+- [x] Normalize and persist custom model selections as canonical IDs only
+- [x] Validate duplicate prefix labels explicitly
+- [x] Validate invalid `universal` mode collisions explicitly
 
 ### Shared model-exposure engine
 
-- [ ] Add a shared module that derives the exposed model set from config + available models
-- [ ] Compute public IDs from the active ID mode
-- [ ] Build provider conflict groups for `collision-prefixed` mode
-- [ ] Prefix all providers in a connected conflict group, not only colliding models
-- [ ] Build reverse lookup maps for public ID -> canonical model and canonical ID -> exposed model
-- [ ] Ensure hidden models cannot resolve through canonical fallback
+- [x] Add a shared module that derives the exposed model set from config + available models
+- [x] Compute public IDs from the active ID mode
+- [x] Build provider conflict groups for `collision-prefixed` mode
+- [x] Prefix all providers in a connected conflict group, not only colliding models
+- [x] Build reverse lookup maps for public ID -> canonical model and canonical ID -> exposed model
+- [x] Ensure hidden models cannot resolve through canonical fallback
 
 ### Server integration
 
-- [ ] Route `GET /v1/models` through the shared model-exposure engine
-- [ ] Route `GET /v1/models/{model}` through the shared model-exposure engine
-- [ ] Route chat request model resolution through the shared model-exposure engine
-- [ ] Resolve exact public IDs before canonical fallback
-- [ ] Keep canonical fallback only for models that remain exposed
-- [ ] Return explicit config errors when the exposure policy is invalid
+- [x] Route `GET /v1/models` through the shared model-exposure engine
+- [x] Route `GET /v1/models/{model}` through the shared model-exposure engine
+- [x] Route chat request model resolution through the shared model-exposure engine
+- [x] Resolve exact public IDs before canonical fallback
+- [x] Keep canonical fallback only for models that remain exposed
+- [x] Return explicit config errors when the exposure policy is invalid
 
 ### Compatibility refresh
 
-- [ ] Expand `reasoning_effort` enum to `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
-- [ ] Support `response_format: { type: "json_schema" }`
+- [x] Expand `reasoning_effort` enum to `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
+- [x] Support `response_format: { type: "json_schema" }`
 - [ ] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
 - [ ] Re-evaluate which current OpenAI chat fields remain explicitly rejected vs deferred
 
@@ -275,12 +275,12 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Tests and docs
 
-- [ ] Add unit tests for exposure filtering and public ID generation
-- [ ] Add unit tests for provider conflict-group behavior
-- [ ] Add unit tests for invalid universal mode and duplicate prefix labels
-- [ ] Add integration tests for all/scoped/custom exposure modes
-- [ ] Add integration tests for public ID resolution and canonical fallback restrictions
-- [ ] Update `PLAN.md`, `ROADMAP.md`, and `README.md` to match the new model exposure contract
+- [x] Add unit tests for exposure filtering and public ID generation
+- [x] Add unit tests for provider conflict-group behavior
+- [x] Add unit tests for invalid universal mode and duplicate prefix labels
+- [x] Add integration tests for all/scoped/custom exposure modes
+- [x] Add integration tests for public ID resolution and canonical fallback restrictions
+- [x] Update `PLAN.md`, `ROADMAP.md`, and `README.md` to match the new model exposure contract
 
 ## Phase 4 -- Experimental agentic mode
 

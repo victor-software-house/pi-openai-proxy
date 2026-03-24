@@ -24,15 +24,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Map OpenAI reasoning_effort to pi ThinkingLevel.
  *
- * OpenAI: "low" | "medium" | "high"
+ * OpenAI: "none" | "minimal" | "low" | "medium" | "high" | "xhigh"
  * Pi: "minimal" | "low" | "medium" | "high" | "xhigh"
  *
- * Direct mapping for the three shared values.
+ * "none" maps to "minimal" (pi has no "none" level).
  */
 const REASONING_EFFORT_MAP: Record<string, ThinkingLevel> = {
+	none: "minimal",
+	minimal: "minimal",
 	low: "low",
 	medium: "medium",
 	high: "high",
+	xhigh: "xhigh",
 };
 
 /**

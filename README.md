@@ -77,9 +77,14 @@ OPENAI_API_BASE=http://localhost:4141/v1 aider --model anthropic/claude-sonnet-4
 # Set "OpenAI API Base URL" to http://localhost:4141/v1
 ```
 
-### Shorthand model names
+### Model resolution
 
-If a model ID is unique across providers, you can omit the provider prefix:
+The proxy resolves model references in this order:
+
+1. **Exact public ID match** -- the ID from `GET /v1/models`
+2. **Canonical ID fallback** -- `provider/model-id` format (only for exposed models)
+
+With the default `collision-prefixed` mode and no collisions, model IDs are exposed without prefixes:
 
 ```bash
 curl http://localhost:4141/v1/chat/completions \
@@ -87,21 +92,19 @@ curl http://localhost:4141/v1/chat/completions \
   -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hi"}]}'
 ```
 
-Ambiguous shorthand requests fail with a clear error listing the matching canonical IDs.
-
 ## Supported Endpoints
 
 | Endpoint | Description |
 |---|---|
-| `GET /v1/models` | List all available models (only those with configured credentials) |
-| `GET /v1/models/{model}` | Model details by canonical ID (supports URL-encoded IDs with `/`) |
+| `GET /v1/models` | List exposed models (filtered by exposure mode, only those with configured credentials) |
+| `GET /v1/models/{model}` | Model details by public ID or canonical ID (supports URL-encoded IDs with `/`) |
 | `POST /v1/chat/completions` | Chat completions (streaming and non-streaming) |
 
 ## Supported Chat Completions Features
 
 | Feature | Notes |
 |---|---|
-| `model` | Canonical (`provider/model-id`) or unique shorthand |
+| `model` | Public ID, canonical (`provider/model-id`), or collision-prefixed shorthand |
 | `messages` (text) | `system`, `developer`, `user`, `assistant`, `tool` roles |
 | `messages` (base64 images) | Base64 data URI image content parts (`image/png`, `image/jpeg`, `image/gif`, `image/webp`) |
 | `stream` | SSE with `text_delta` and `toolcall_delta` mapping |
@@ -112,8 +115,8 @@ Ambiguous shorthand requests fail with a clear error listing the matching canoni
 | `stream_options.include_usage` | Final usage chunk in SSE stream |
 | `tools` / `tool_choice` | JSON Schema -> TypeBox conversion (supported subset) |
 | `tool_calls` in messages | Assistant tool call + tool result roundtrip |
-| `reasoning_effort` | Maps to pi's `ThinkingLevel` (`low`, `medium`, `high`) |
-| `response_format` | `text` and `json_object` via passthrough |
+| `reasoning_effort` | Maps to pi's `ThinkingLevel` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`) |
+| `response_format` | `text`, `json_object`, and `json_schema` via passthrough |
 | `top_p` | Via passthrough |
 | `frequency_penalty` | Via passthrough |
 | `presence_penalty` | Via passthrough |
@@ -121,9 +124,33 @@ Ambiguous shorthand requests fail with a clear error listing the matching canoni
 
 **Not supported:** `n > 1`, `logprobs`, `logit_bias`, remote image URLs (disabled by default).
 
-## Model Naming
+## Model Naming and Exposure
 
-Models use the `provider/model-id` canonical format, matching pi's registry:
+### Public model IDs
+
+The proxy generates public model IDs based on a configurable ID mode:
+
+| Mode | Behavior | Example |
+|---|---|---|
+| `collision-prefixed` (default) | Raw model IDs; prefix only providers that share a model name | `gpt-4o` or `openai/gpt-4o` if `codex` also has `gpt-4o` |
+| `universal` | Raw model IDs only; rejects config if duplicates exist | `gpt-4o`, `claude-sonnet-4-20250514` |
+| `always-prefixed` | Always `<prefix>/<model-id>` | `openai/gpt-4o`, `anthropic/claude-sonnet-4-20250514` |
+
+The `collision-prefixed` mode prefixes **all** models from providers that form a connected conflict group (not just the colliding model names).
+
+### Exposure modes
+
+Control which models appear in the API:
+
+| Mode | Behavior |
+|---|---|
+| `all` (default) | Expose every model with configured credentials |
+| `scoped` | Expose models from selected providers only (`scopedProviders`) |
+| `custom` | Expose an explicit allowlist of canonical IDs (`customModels`) |
+
+### Canonical model IDs
+
+Internal canonical IDs use the `provider/model-id` format matching pi's registry:
 
 ```
 anthropic/claude-sonnet-4-20250514
@@ -132,6 +159,8 @@ google/gemini-2.5-pro
 xai/grok-3
 openrouter/anthropic/claude-sonnet-4-20250514
 ```
+
+Canonical IDs are accepted as backward-compatible fallback in requests, but only for models that are currently exposed. Hidden models cannot be reached by canonical ID.
 
 ## Configuration
 
@@ -159,22 +188,27 @@ Proxy-specific settings are configured via environment variables or the `/proxy 
 | Max body size | `PI_PROXY_MAX_BODY_SIZE` | `52428800` (50 MB) | Maximum request body size in bytes |
 | Upstream timeout | `PI_PROXY_UPSTREAM_TIMEOUT_MS` | `120000` (120s) | Upstream request timeout in milliseconds |
 
-When used as a pi package, these settings are persisted in `~/.pi/agent/proxy-config.json` and applied when the extension spawns the proxy.
+Model exposure settings are configured via the JSON config file (`~/.pi/agent/proxy-config.json`):
+
+| Setting | Default | Description |
+|---|---|---|
+| `publicModelIdMode` | `collision-prefixed` | Public ID format: `collision-prefixed`, `universal`, `always-prefixed` |
+| `modelExposureMode` | `all` | Which models to expose: `all`, `scoped`, `custom` |
+| `scopedProviders` | `[]` | Provider keys for `scoped` mode |
+| `customModels` | `[]` | Canonical model IDs for `custom` mode |
+| `providerPrefixes` | `{}` | Provider key -> custom prefix label overrides |
+
+When used as a pi package, all settings are persisted in `~/.pi/agent/proxy-config.json` and applied when the extension spawns the proxy.
 
 ### Discovering available models
 
-List all models the proxy can reach (models with configured credentials):
+List all models the proxy exposes (filtered by the active exposure mode):
 
 ```bash
 curl http://localhost:4141/v1/models | jq '.data[].id'
 ```
 
-Each model includes extended metadata under `x_pi`:
-
-```bash
-curl http://localhost:4141/v1/models/anthropic%2Fclaude-sonnet-4-20250514 | jq '.x_pi'
-# { "api": "anthropic", "reasoning": true, "input": ["text", "image"], ... }
-```
+Model objects follow the standard OpenAI shape (`id`, `object`, `created`, `owned_by`) with no proprietary extensions.
 
 ### Per-request API key override
 

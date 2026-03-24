@@ -9,6 +9,12 @@
 
 import type { ServerConfig } from "@proxy/config/env";
 import { convertMessages } from "@proxy/openai/messages";
+import {
+	computeModelExposure,
+	type ModelExposureConfig,
+	type ModelExposureResult,
+	resolveExposedModel,
+} from "@proxy/openai/model-exposure";
 import { buildModelList, toOpenAIModel } from "@proxy/openai/models";
 import { buildChatCompletion } from "@proxy/openai/responses";
 import { streamToSSE } from "@proxy/openai/sse";
@@ -16,7 +22,6 @@ import { convertTools } from "@proxy/openai/tools";
 import { validateChatRequest } from "@proxy/openai/validate";
 import { piComplete, piStream } from "@proxy/pi/complete";
 import { getAvailableModels, getRegistry } from "@proxy/pi/registry";
-import { resolveModel } from "@proxy/pi/resolve-model";
 import {
 	authenticationError,
 	invalidRequest,
@@ -29,15 +34,41 @@ import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
 
+/**
+ * Build a ModelExposureConfig from the server config.
+ */
+function buildExposureConfig(config: ServerConfig): ModelExposureConfig {
+	return {
+		publicModelIdMode: config.publicModelIdMode,
+		modelExposureMode: config.modelExposureMode,
+		scopedProviders: config.scopedProviders,
+		customModels: config.customModels,
+		providerPrefixes: config.providerPrefixes,
+	};
+}
+
+/**
+ * Compute or refresh the model exposure from the current registry and config.
+ * Returns the exposure result or throws on config errors.
+ */
+function getExposure(config: ServerConfig): ModelExposureResult {
+	const models = getAvailableModels();
+	const exposureConfig = buildExposureConfig(config);
+	const outcome = computeModelExposure(models, exposureConfig);
+	if (!outcome.ok) {
+		// Config validation error -- surface as 500 to callers
+		throw new Error(`Model exposure configuration error: ${outcome.message}`);
+	}
+	return outcome;
+}
+
 export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
 	const routes = new Hono<ProxyEnv>();
 
 	// --- GET /v1/models ---
-	// Only list models that have auth configured (getAvailable).
-	// Models without credentials cause silent failures at the provider level.
 	routes.get("/v1/models", (c) => {
-		const models = getAvailableModels();
-		return c.json(buildModelList(models));
+		const exposure = getExposure(config);
+		return c.json(buildModelList(exposure.models));
 	});
 
 	// --- GET /v1/models/:model ---
@@ -56,15 +87,13 @@ export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
 		}
 		const modelId = decodeURIComponent(modelIdEncoded);
 
-		const resolution = resolveModel(modelId);
-		if (!resolution.ok) {
-			if (resolution.status === 400) {
-				return c.json(invalidRequest(resolution.message, "model"), 400);
-			}
+		const exposure = getExposure(config);
+		const resolved = resolveExposedModel(exposure, modelId);
+		if (resolved === undefined) {
 			return c.json(modelNotFound(modelId), 404);
 		}
 
-		return c.json(toOpenAIModel(resolution.model));
+		return c.json(toOpenAIModel(resolved));
 	});
 
 	// --- POST /v1/chat/completions ---
@@ -92,17 +121,15 @@ export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
 
 		const request = validation.data;
 
-		// Resolve model
-		const resolution = resolveModel(request.model);
-		if (!resolution.ok) {
-			if (resolution.status === 400) {
-				return c.json(invalidRequest(resolution.message, "model"), 400);
-			}
+		// Resolve model through the exposure engine
+		const exposure = getExposure(config);
+		const resolved = resolveExposedModel(exposure, request.model);
+		if (resolved === undefined) {
 			return c.json(modelNotFound(request.model), 404);
 		}
 
-		const model = resolution.model;
-		const canonicalModelId = `${model.provider}/${model.id}`;
+		const model = resolved.model;
+		const canonicalModelId = resolved.canonicalId;
 
 		// Convert messages
 		const conversion = convertMessages(request.messages);

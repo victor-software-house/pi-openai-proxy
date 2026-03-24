@@ -8,7 +8,7 @@ import { jsonBody } from "../helpers.js";
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { loadConfig } from "@proxy/config/env.js";
-import { initRegistry } from "@proxy/pi/registry.js";
+import { getAvailableModels, initRegistry } from "@proxy/pi/registry.js";
 import { createApp } from "@proxy/server/app.js";
 
 let app: ReturnType<typeof createApp>;
@@ -81,11 +81,20 @@ describe("POST /v1/chat/completions - validation", () => {
 	});
 
 	test("rejects unsupported tool schemas with 422", async () => {
+		// Tool schema validation requires model resolution to succeed first.
+		// Skip if no models are available (no auth configured).
+		const models = getAvailableModels();
+		if (models.length === 0) return;
+
+		const first = models[0];
+		if (first === undefined) return;
+		const canonicalId = `${first.provider}/${first.id}`;
+
 		const res = await app.request("/v1/chat/completions", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				model: "openai/gpt-4o",
+				model: canonicalId,
 				messages: [{ role: "user", content: "Hello" }],
 				tools: [
 					{

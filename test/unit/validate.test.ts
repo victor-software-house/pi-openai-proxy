@@ -132,4 +132,64 @@ describe("validateChatRequest", () => {
 		if (!result.ok) return;
 		expect(result.data.max_completion_tokens).toBe(256);
 	});
+
+	test("accepts all reasoning_effort values", () => {
+		for (const effort of ["none", "minimal", "low", "medium", "high", "xhigh"] as const) {
+			const result = validateChatRequest({
+				model: "openai/gpt-4o",
+				messages: [{ role: "user", content: "Hello" }],
+				reasoning_effort: effort,
+			});
+			expect(result.ok).toBe(true);
+			if (!result.ok) continue;
+			expect(result.data.reasoning_effort).toBe(effort);
+		}
+	});
+
+	test("rejects invalid reasoning_effort", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			reasoning_effort: "extreme",
+		});
+		expect(result.ok).toBe(false);
+	});
+
+	test("accepts response_format json_schema", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			response_format: {
+				type: "json_schema",
+				json_schema: {
+					name: "my_schema",
+					description: "A test schema",
+					schema: {
+						type: "object",
+						properties: {
+							name: { type: "string" },
+						},
+					},
+					strict: true,
+				},
+			},
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.response_format?.type).toBe("json_schema");
+	});
+
+	test("accepts response_format json_schema without optional fields", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			response_format: {
+				type: "json_schema",
+				json_schema: {
+					name: "minimal",
+				},
+			},
+		});
+		expect(result.ok).toBe(true);
+	});
 });
