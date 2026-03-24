@@ -260,18 +260,18 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 - [x] Expand `reasoning_effort` enum to `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
 - [x] Support `response_format: { type: "json_schema" }`
-- [ ] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
+- [x] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
 - [ ] Re-evaluate which current OpenAI chat fields remain explicitly rejected vs deferred
 
 ### Pi extension UX
 
-- [ ] Refactor `/proxy` extension config handling around a controller pattern
-- [ ] Add public ID mode and exposure mode to the main settings panel
-- [ ] Add `/proxy verify`
-- [ ] Add provider selector UI for `scoped` mode
-- [ ] Add searchable model selector UI for `custom` mode
-- [ ] Add prefix override editing flow
-- [ ] Add effective public-ID preview to `/proxy show` and the settings UI
+- [x] Refactor `/proxy` extension config handling around a controller pattern
+- [x] Add public ID mode and exposure mode to the main settings panel
+- [x] Add `/proxy verify`
+- [x] Add provider selector UI for `scoped` mode
+- [x] Add searchable model selector UI for `custom` mode
+- [x] Add prefix override editing flow
+- [x] Add effective public-ID preview to `/proxy show` and the settings UI
 
 ### Tests and docs
 

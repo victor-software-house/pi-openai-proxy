@@ -109,7 +109,7 @@ curl http://localhost:4141/v1/chat/completions \
 | `messages` (base64 images) | Base64 data URI image content parts (`image/png`, `image/jpeg`, `image/gif`, `image/webp`) |
 | `stream` | SSE with `text_delta` and `toolcall_delta` mapping |
 | `temperature` | Direct passthrough |
-| `max_tokens` / `max_completion_tokens` | Normalized to `maxTokens` |
+| `max_completion_tokens` | Preferred; `max_tokens` accepted as deprecated fallback |
 | `stop` | Via passthrough |
 | `user` | Via passthrough |
 | `stream_options.include_usage` | Final usage chunk in SSE stream |

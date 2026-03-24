@@ -6,24 +6,29 @@
  *   /proxy start      Start the proxy server
  *   /proxy stop       Stop the proxy server
  *   /proxy status     Show proxy status
+ *   /proxy verify     Validate model exposure config against available models
  *   /proxy config     Open settings panel (alias)
- *   /proxy show       Summarize current config
+ *   /proxy show       Summarize current config and exposure policy
  *   /proxy path       Show config file location
  *   /proxy reset      Restore default settings
  *   /proxy help       Usage line
  *
  * Config schema imported from @victor-software-house/pi-openai-proxy/config (SSOT).
+ * Model-exposure engine imported from @victor-software-house/pi-openai-proxy/exposure.
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Api, Model } from "@mariozechner/pi-ai";
 import {
+	AuthStorage,
 	type ExtensionAPI,
 	type ExtensionCommandContext,
 	type ExtensionContext,
 	getSettingsListTheme,
+	ModelRegistry,
 } from "@mariozechner/pi-coding-agent";
 import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
 
@@ -33,8 +38,16 @@ import {
 	DEFAULT_CONFIG,
 	getConfigPath,
 	loadConfigFromFile,
+	type ModelExposureMode,
+	type PublicModelIdMode,
 	saveConfigToFile,
 } from "@victor-software-house/pi-openai-proxy/config";
+
+// Model-exposure engine
+import {
+	computeModelExposure,
+	type ModelExposureConfig,
+} from "@victor-software-house/pi-openai-proxy/exposure";
 
 // ---------------------------------------------------------------------------
 // Runtime status
@@ -55,6 +68,32 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	const extensionDir = dirname(fileURLToPath(import.meta.url));
 	const packageRoot = resolve(extensionDir, "..");
+
+	// --- Model registry access (for verify/show/selectors) ---
+
+	function getAvailableModels(): Model<Api>[] {
+		const auth = AuthStorage.create();
+		const registry = new ModelRegistry(auth);
+		return registry.getAvailable();
+	}
+
+	function getUniqueProviders(models: readonly Model<Api>[]): string[] {
+		const seen = new Set<string>();
+		for (const m of models) {
+			seen.add(m.provider);
+		}
+		return [...seen].sort();
+	}
+
+	function buildExposureConfig(): ModelExposureConfig {
+		return {
+			publicModelIdMode: config.publicModelIdMode,
+			modelExposureMode: config.modelExposureMode,
+			scopedProviders: config.scopedProviders,
+			customModels: config.customModels,
+			providerPrefixes: config.providerPrefixes,
+		};
+	}
 
 	// Resolve pi-proxy binary: try workspace node_modules, then global
 	function findProxyBinary(): string {
@@ -85,8 +124,18 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	// --- Command family ---
 
-	const SUBCOMMANDS = ["start", "stop", "status", "config", "show", "path", "reset", "help"];
-	const USAGE = "/proxy [start|stop|status|config|show|path|reset|help]";
+	const SUBCOMMANDS = [
+		"start",
+		"stop",
+		"status",
+		"verify",
+		"config",
+		"show",
+		"path",
+		"reset",
+		"help",
+	];
+	const USAGE = "/proxy [start|stop|status|verify|config|show|path|reset|help]";
 
 	pi.registerCommand("proxy", {
 		description: "Manage the OpenAI-compatible proxy",
@@ -108,8 +157,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				case "status":
 					await showStatus(ctx);
 					return;
+				case "verify":
+					verifyExposure(ctx);
+					return;
 				case "show":
-					await showConfig(ctx);
+					showConfig(ctx);
 					return;
 				case "path":
 					ctx.ui.notify(getConfigPath(), "info");
@@ -358,11 +410,13 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		await refreshStatus(ctx);
 	}
 
-	async function showConfig(ctx: ExtensionContext): Promise<void> {
+	function showConfig(ctx: ExtensionContext): void {
 		config = loadConfigFromFile();
 		const authDisplay =
 			config.authToken.length > 0 ? `enabled (token: ${config.authToken})` : "disabled";
-		const lines = [
+
+		// Server settings
+		const serverLines = [
 			`lifetime: ${config.lifetime}`,
 			`host: ${config.host}`,
 			`port: ${String(config.port)}`,
@@ -371,8 +425,96 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			`max body: ${String(config.maxBodySizeMb)} MB`,
 			`timeout: ${String(config.upstreamTimeoutSec)}s`,
 		];
-		ctx.ui.notify(lines.join(" | "), "info");
-		await refreshStatus(ctx);
+
+		// Exposure policy
+		const exposureLines = [
+			`id mode: ${config.publicModelIdMode}`,
+			`exposure: ${config.modelExposureMode}`,
+		];
+
+		if (config.modelExposureMode === "scoped" && config.scopedProviders.length > 0) {
+			exposureLines.push(`providers: ${config.scopedProviders.join(", ")}`);
+		}
+		if (config.modelExposureMode === "custom" && config.customModels.length > 0) {
+			exposureLines.push(`models: ${String(config.customModels.length)} custom`);
+		}
+
+		const prefixKeys = Object.keys(config.providerPrefixes);
+		if (prefixKeys.length > 0) {
+			const pairs = prefixKeys.map((k) => `${k}=${config.providerPrefixes[k] ?? k}`);
+			exposureLines.push(`prefixes: ${pairs.join(", ")}`);
+		}
+
+		// Public ID preview (first 5 exposed models)
+		const models = getAvailableModels();
+		const outcome = computeModelExposure(models, buildExposureConfig());
+		if (outcome.ok && outcome.models.length > 0) {
+			const preview = outcome.models.slice(0, 5).map((m) => m.publicId);
+			const suffix =
+				outcome.models.length > 5 ? ` (+${String(outcome.models.length - 5)} more)` : "";
+			exposureLines.push(`exposed: ${preview.join(", ")}${suffix}`);
+		} else if (outcome.ok) {
+			exposureLines.push("exposed: none");
+		} else {
+			exposureLines.push(`error: ${outcome.message}`);
+		}
+
+		ctx.ui.notify(`${serverLines.join(" | ")}\n${exposureLines.join(" | ")}`, "info");
+	}
+
+	// --- /proxy verify ---
+
+	function verifyExposure(ctx: ExtensionContext): void {
+		config = loadConfigFromFile();
+		const models = getAvailableModels();
+		const issues: string[] = [];
+
+		// Check available models
+		if (models.length === 0) {
+			issues.push("No models have auth configured. The proxy will expose 0 models.");
+		}
+
+		// Check scoped providers reference valid providers
+		if (config.modelExposureMode === "scoped") {
+			const availableProviders = new Set(getUniqueProviders(models));
+			for (const p of config.scopedProviders) {
+				if (!availableProviders.has(p)) {
+					issues.push(`Scoped provider '${p}' has no available models (no auth or unknown).`);
+				}
+			}
+			if (config.scopedProviders.length === 0) {
+				issues.push("Scoped mode with empty provider list will expose 0 models.");
+			}
+		}
+
+		// Check custom models reference valid canonical IDs
+		if (config.modelExposureMode === "custom") {
+			const canonicalSet = new Set(models.map((m) => `${m.provider}/${m.id}`));
+			for (const id of config.customModels) {
+				if (!canonicalSet.has(id)) {
+					issues.push(`Custom model '${id}' is not available (no auth or unknown).`);
+				}
+			}
+			if (config.customModels.length === 0) {
+				issues.push("Custom mode with empty model list will expose 0 models.");
+			}
+		}
+
+		// Run the full exposure computation to catch ID/prefix errors
+		const outcome = computeModelExposure(models, buildExposureConfig());
+		if (!outcome.ok) {
+			issues.push(outcome.message);
+		}
+
+		if (issues.length === 0) {
+			const count = outcome.ok ? outcome.models.length : 0;
+			ctx.ui.notify(`Verification passed. ${String(count)} models exposed.`, "info");
+		} else {
+			ctx.ui.notify(
+				`Verification found ${String(issues.length)} issue(s):\n${issues.join("\n")}`,
+				"warning",
+			);
+		}
 	}
 
 	async function waitForReady(timeoutMs: number): Promise<RuntimeStatus> {
@@ -391,7 +533,28 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	let lastGeneratedToken = "";
 
 	function buildSettingItems(): SettingItem[] {
+		// Build dynamic choices for scoped providers and custom models
+		const models = getAvailableModels();
+		const availableProviders = getUniqueProviders(models);
+
+		// Scoped providers: show available + current selection indicator
+		const scopedSet = new Set(config.scopedProviders);
+		const scopedDisplay =
+			config.scopedProviders.length > 0 ? config.scopedProviders.join(", ") : "(none)";
+
+		// Custom models: show count
+		const customDisplay =
+			config.customModels.length > 0 ? `${String(config.customModels.length)} selected` : "(none)";
+
+		// Prefix overrides: show current
+		const prefixKeys = Object.keys(config.providerPrefixes);
+		const prefixDisplay =
+			prefixKeys.length > 0
+				? prefixKeys.map((k) => `${k}=${config.providerPrefixes[k] ?? k}`).join(", ")
+				: "(defaults)";
+
 		return [
+			// --- Server ---
 			{
 				id: "lifetime",
 				label: "Lifetime",
@@ -444,7 +607,88 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				currentValue: `${String(config.upstreamTimeoutSec)}s`,
 				values: ["30s", "60s", "120s", "300s"],
 			},
+			// --- Model exposure ---
+			{
+				id: "publicModelIdMode",
+				label: "Public ID mode",
+				description: "How public model IDs are generated from canonical provider/model-id",
+				currentValue: config.publicModelIdMode,
+				values: ["collision-prefixed", "universal", "always-prefixed"],
+			},
+			{
+				id: "modelExposureMode",
+				label: "Exposure mode",
+				description: "Which models are exposed on the API",
+				currentValue: config.modelExposureMode,
+				values: ["all", "scoped", "custom"],
+			},
+			{
+				id: "scopedProviders",
+				label: "Scoped providers",
+				description: `Toggle providers for scoped mode. Available: ${availableProviders.join(", ") || "(none)"}`,
+				currentValue: scopedDisplay,
+				values: availableProviders.map((p) => {
+					const selected = scopedSet.has(p);
+					return selected ? `[-] ${p}` : `[+] ${p}`;
+				}),
+			},
+			{
+				id: "customModels",
+				label: "Custom models",
+				description: "Toggle individual models for custom mode",
+				currentValue: customDisplay,
+				values: buildCustomModelValues(models),
+			},
+			{
+				id: "providerPrefixes",
+				label: "Prefix overrides",
+				description: "Custom prefix labels for providers (provider=label)",
+				currentValue: prefixDisplay,
+				values: buildPrefixValues(availableProviders),
+			},
 		];
+	}
+
+	/**
+	 * Build toggle values for custom model selection.
+	 * Each model is shown as "[+] provider/id" or "[-] provider/id".
+	 */
+	function buildCustomModelValues(models: readonly Model<Api>[]): string[] {
+		const customSet = new Set(config.customModels);
+		return models.map((m) => {
+			const canonical = `${m.provider}/${m.id}`;
+			const selected = customSet.has(canonical);
+			return selected ? `[-] ${canonical}` : `[+] ${canonical}`;
+		});
+	}
+
+	/**
+	 * Build toggle values for prefix override editing.
+	 * Each provider is shown as "provider=label" or "provider (default)".
+	 */
+	function buildPrefixValues(providers: readonly string[]): string[] {
+		const values: string[] = [];
+		for (const p of providers) {
+			const override = config.providerPrefixes[p];
+			if (override !== undefined && override.length > 0) {
+				values.push(`clear ${p}`);
+			} else {
+				values.push(`set ${p}`);
+			}
+		}
+		return values;
+	}
+
+	const VALID_ID_MODES = new Set<string>(["collision-prefixed", "universal", "always-prefixed"]);
+
+	function isPublicModelIdMode(v: string): v is PublicModelIdMode {
+		return VALID_ID_MODES.has(v);
+	}
+
+	const VALID_EXPOSURE_MODES = new Set<string>(["all", "scoped", "custom"]);
+
+	function isModelExposureMode(v: string): v is ModelExposureMode {
+		return VALID_EXPOSURE_MODES.has(v);
 	}
 
 	function applySetting(id: string, value: string): void {
@@ -489,9 +733,96 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				if (Number.isFinite(sec) && sec > 0) config = { ...config, upstreamTimeoutSec: sec };
 				break;
 			}
+			case "publicModelIdMode":
+				if (isPublicModelIdMode(value)) {
+					config = { ...config, publicModelIdMode: value };
+				}
+				break;
+			case "modelExposureMode":
+				if (isModelExposureMode(value)) {
+					config = { ...config, modelExposureMode: value };
+				}
+				break;
+			case "scopedProviders":
+				applyScopedProviderToggle(value);
+				break;
+			case "customModels":
+				applyCustomModelToggle(value);
+				break;
+			case "providerPrefixes":
+				applyPrefixAction(value);
+				break;
 		}
 		saveConfigToFile(config);
 		config = loadConfigFromFile();
+	}
+
+	/**
+	 * Toggle a provider in/out of the scoped providers list.
+	 * Value format: "[+] provider" to add, "[-] provider" to remove.
+	 */
+	function applyScopedProviderToggle(value: string): void {
+		const match = /^\[([+-])\]\s+(.+)$/.exec(value);
+		if (match === null) return;
+		const action = match[1];
+		const provider = match[2];
+		if (provider === undefined) return;
+
+		const current = new Set(config.scopedProviders);
+		if (action === "+") {
+			current.add(provider);
+		} else {
+			current.delete(provider);
+		}
+		config = { ...config, scopedProviders: [...current] };
+	}
+
+	/**
+	 * Toggle a model in/out of the custom models list.
+	 * Value format: "[+] provider/model-id" to add, "[-] provider/model-id" to remove.
+	 */
+	function applyCustomModelToggle(value: string): void {
+		const match = /^\[([+-])\]\s+(.+)$/.exec(value);
+		if (match === null) return;
+		const action = match[1];
+		const canonicalId = match[2];
+		if (canonicalId === undefined) return;
+
+		const current = new Set(config.customModels);
+		if (action === "+") {
+			current.add(canonicalId);
+		} else {
+			current.delete(canonicalId);
+		}
+		config = { ...config, customModels: [...current] };
+	}
+
+	/**
+	 * Apply a prefix override action.
+	 * Value format: "set provider" to prompt for a label, "clear provider" to remove override.
+	 */
+	function applyPrefixAction(value: string): void {
+		const clearMatch = /^clear\s+(.+)$/.exec(value);
+		if (clearMatch !== null) {
+			const provider = clearMatch[1];
+			if (provider === undefined) return;
+			const next = { ...config.providerPrefixes };
+			delete next[provider];
+			config = { ...config, providerPrefixes: next };
+			return;
+		}
+
+		// "set provider" -- set a simple abbreviated prefix
+		const setMatch = /^set\s+(.+)$/.exec(value);
+		if (setMatch !== null) {
+			const provider = setMatch[1];
+			if (provider === undefined) return;
+			// Use first 3 characters as a short prefix (user can edit JSON for custom values)
+			const shortPrefix = provider.slice(0, 3);
+			const next = { ...config.providerPrefixes };
+			next[provider] = shortPrefix;
+			config = { ...config, providerPrefixes: next };
+		}
 	}
 
 	async function openSettingsPanel(ctx: ExtensionCommandContext): Promise<void> {

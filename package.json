@@ -37,6 +37,10 @@
 		"./config": {
 			"import": "./dist/config.mjs",
 			"types": "./dist/config.d.mts"
+		},
+		"./exposure": {
+			"import": "./dist/exposure.mjs",
+			"types": "./dist/exposure.d.mts"
 		}
 	},
 	"main": "dist/index.mjs",
