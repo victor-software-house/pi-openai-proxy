@@ -1,3 +1,48 @@
+# [2.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v1.0.0...v2.0.0) (2026-03-24)
+
+
+* feat!: add model exposure engine with configurable public IDs and filtering ([82f866c](https://github.com/victor-software-house/pi-openai-proxy/commit/82f866c6d8f65fd9fb9bb26298dc9f79df8d952d))
+
+
+### BREAKING CHANGES
+
+* /v1/models and /v1/models/{model} no longer include x_pi
+metadata. Model objects now follow the standard OpenAI shape only.
+
+Model exposure engine (src/openai/model-exposure.ts):
+- Three public ID modes: collision-prefixed (default), universal,
+  always-prefixed
+- Three exposure modes: all (default), scoped, custom
+- Connected conflict group detection via Union-Find for
+  collision-prefixed mode
+- Provider prefix label overrides with uniqueness validation
+- Universal mode collision detection with explicit config errors
+- Resolution: public ID match -> canonical ID fallback (exposed only)
+- Hidden models cannot be reached through canonical fallback
+
+Config schema extended with:
+- publicModelIdMode, modelExposureMode, scopedProviders, customModels,
+  providerPrefixes
+- Type guards for enum validation (no unsafe assertions)
+- Normalization for string arrays and string records from JSON
+
+Server integration:
+- All three endpoints (GET /v1/models, GET /v1/models/{model},
+  POST /v1/chat/completions) route through the shared exposure engine
+- Replaces direct registry lookup and shorthand resolution
+
+Compatibility refresh:
+- reasoning_effort expanded: none, minimal, low, medium, high, xhigh
+- response_format: added json_schema variant alongside text and
+  json_object
+- Reasoning effort mapping: none -> minimal, xhigh -> xhigh
+
+Tests:
+- 29 new unit tests for exposure engine covering all modes, conflict
+  groups, prefix validation, resolution, and edge cases
+- Updated integration tests for exposure-based resolution
+- 4 new validation tests for expanded reasoning_effort and json_schema
+
 # [1.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v0.3.1...v1.0.0) (2026-03-23)
 
 
