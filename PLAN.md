@@ -512,14 +512,15 @@ Module layout:
 
 ```text
 src/
-├── index.ts            -- entry point, bootstrap
+├── index.ts            -- entry point, CLI bootstrap (citty)
 ├── env.d.ts            -- typed process.env
 ├── config/
-│   └── env.ts            -- ProxyConfig from environment
+│   ├── schema.ts         -- ProxyConfig type, defaults, JSON I/O (exported via ./config)
+│   └── env.ts            -- ServerConfig from file + env + CLI overrides
 ├── server/
-│   ├── app.ts            -- Hono app assembly
-│   ├── routes.ts         -- GET /v1/models, POST /v1/chat/completions
-│   ├── middleware.ts     -- request-id, proxy-auth, disconnect detection
+│   ├── app.ts            -- Hono app assembly (middleware + routes)
+│   ├── routes.ts         -- GET /v1/models, GET /v1/models/:model, POST /v1/chat/completions
+│   ├── middleware.ts     -- request-id, proxy-auth, body size limit, disconnect detection
 │   ├── errors.ts         -- OpenAI-style error helpers
 │   ├── logging.ts        -- structured JSON logging
 │   ├── request-id.ts     -- piproxy-{random} generation
@@ -528,16 +529,27 @@ src/
 │   ├── schemas.ts              -- Zod v4 request schemas
 │   ├── validate.ts             -- request validation with rejected-field checks
 │   ├── messages.ts             -- OpenAI messages -> pi Context
-│   ├── models.ts               -- pi Model -> OpenAI model object
-│   ├── responses.ts            -- pi AssistantMessage -> OpenAI response
-│   ├── sse.ts                  -- pi events -> SSE chunks
+│   ├── model-exposure.ts       -- exposure engine: filtering, public IDs, resolution (exported via ./exposure)
+│   ├── models.ts               -- ExposedModel -> OpenAI model object
+│   ├── responses.ts            -- pi AssistantMessage -> OpenAI ChatCompletion
+│   ├── sse.ts                  -- pi events -> SSE ChatCompletionChunk frames
 │   ├── tools.ts                -- OpenAI function tools -> pi Tool[]
 │   └── json-schema-to-typebox.ts -- JSON Schema -> TypeBox conversion
 └── pi/
     ├── registry.ts       -- AuthStorage + ModelRegistry init
-    ├── resolve-model.ts  -- canonical/shorthand model resolution
     └── complete.ts       -- completeSimple/streamSimple bridge
 ```
+
+### Dead code
+
+`src/pi/resolve-model.ts` was superseded by `src/openai/model-exposure.ts` in Phase 3A.
+No production code imports it. Remove it along with its test file.
+
+### Scaling notes
+
+`routes.ts` is the sole composition root (267 lines, 15 imports). The chat completions handler is ~170 lines covering body parse, validate, resolve model, convert messages, convert tools, check API key, and stream/non-stream branching. This is manageable for the current three-endpoint surface but should be decomposed if new endpoints or complex middleware (agentic mode) are added.
+
+`extensions/proxy.ts` (896 lines) mixes process management, config UI, model queries, verification logic, and TUI rendering. It is isolated from the core proxy. If it grows further (agentic mode controls), extract helpers into separate extension modules.
 
 ## Delivery phases
 
@@ -625,7 +637,7 @@ Release gate:
 - logs and trace IDs are stable
 - no known security policy gaps remain for stable features
 
-### Phase 3A — Model exposure and identifier controls
+### Phase 3A — Model exposure and identifier controls [DONE]
 
 Build:
 
@@ -655,6 +667,82 @@ Release gate:
 - invalid `universal` mode and invalid prefix collisions fail validation explicitly
 - hidden models are not reachable by canonical fallback
 - `/v1/models` stays standard OpenAI shape with no capability extensions
+- typecheck, lint, and tests pass
+
+### Phase 3B — SDK conformance and robustness testing
+
+Validate that the proxy produces responses the official OpenAI SDK can parse without errors. This is the single highest-value test investment because it catches the exact field-level bugs that break real clients (Open WebUI, Continue, Aider).
+
+There is no standard conformance test suite for OpenAI-compatible APIs. Every project (LiteLLM, vLLM, Ollama) rolls its own. The approach here uses the official `openai` Node SDK (v6+) as a client with strict response validation enabled.
+
+Pre-work:
+
+- remove dead `src/pi/resolve-model.ts` and its test
+- add `openai` as an explicit devDependency (currently transitive via pi-ai)
+
+Build:
+
+**Wire-level SSE conformance (no credentials needed)**
+
+Validate the exact SSE frame format against the `ChatCompletionChunk` contract using mock `AssistantMessage` / `AssistantMessageEvent` objects:
+
+- each chunk has `id`, `object: "chat.completion.chunk"`, `created` (number), `model`
+- `delta.role` is `"assistant"` on first chunk only
+- `delta.content` is a string (never `undefined` when text is present)
+- `finish_reason` is `null` on intermediate chunks, then `"stop"` / `"length"` / `"tool_calls"` on the final content chunk
+- tool call delta chunks: `delta.tool_calls[n].index`, `.id`, `.type`, `.function.name`, `.function.arguments` are present and well-typed
+- usage chunk: `choices` is an empty array, `usage` has `prompt_tokens`, `completion_tokens`, `total_tokens` as numbers
+- final line is `data: [DONE]\n\n`
+
+**Non-streaming response conformance (no credentials needed)**
+
+Validate the exact `ChatCompletion` shape from `buildChatCompletion` output:
+
+- required fields: `id`, `object: "chat.completion"`, `created`, `model`, `choices`, `usage`
+- `choices[0].finish_reason` is never `null` (unlike streaming)
+- `choices[0].message.role` is `"assistant"`
+- `choices[0].message.content` is `string | null` (explicitly `null` when tool_calls present, not `undefined`)
+- `choices[0].message.tool_calls` shape includes `id`, `type: "function"`, `function.name`, `function.arguments`
+- `usage.prompt_tokens`, `usage.completion_tokens`, `usage.total_tokens` are all numbers
+
+**SDK round-trip conformance (requires one API credential)**
+
+Use `new OpenAI({ baseURL, apiKey: "dummy" })` with `_strict_response_validation: true` against the running proxy:
+
+- `client.models.list()` succeeds and returns iterable model objects
+- `client.models.retrieve(id)` succeeds for an exposed model
+- `client.chat.completions.create({ stream: false })` -- simple text completion
+- `client.chat.completions.create({ stream: true })` -- streaming text, collect all chunks
+- `client.chat.completions.create({ tools })` -- non-streaming tool call
+- `client.chat.completions.create({ stream: true, tools })` -- streaming tool call
+- `client.chat.completions.create({ stream: true, stream_options: { include_usage: true } })` -- usage chunk
+
+These tests skip gracefully when no credentials are available.
+
+**Security tests (no credentials needed)**
+
+- blocked localhost image URL returns error
+- blocked private-range image URL returns error
+- oversized image payload rejected
+
+Deliverable:
+
+- `test/unit/sse-conformance.test.ts` — wire-level SSE validation
+- `test/unit/response-conformance.test.ts` — non-streaming shape validation
+- `test/unit/security.test.ts` — image URL blocking
+- `test/conformance/helpers.ts` — SDK client factory, skip-if-no-auth
+- `test/conformance/sdk-models.test.ts` — SDK models endpoint tests
+- `test/conformance/sdk-chat.test.ts` — SDK non-streaming chat
+- `test/conformance/sdk-streaming.test.ts` — SDK streaming chat
+- `test/conformance/sdk-tools.test.ts` — SDK tool call tests
+
+Release gate:
+
+- all SSE conformance tests pass without credentials
+- all response conformance tests pass without credentials
+- all security tests pass without credentials
+- SDK conformance tests pass when credentials are available, skip cleanly otherwise
+- the `openai` Node SDK with `_strict_response_validation: true` parses every response without errors
 - typecheck, lint, and tests pass
 
 ### Phase 4 — Experimental agentic mode
@@ -687,13 +775,38 @@ Minimum production observability:
 
 ### Unit tests
 
-- model ID parsing and ambiguity
 - role and content mapping
 - finish reason mapping
 - usage mapping
 - error mapping
 - JSON Schema -> TypeBox conversion (supported subset and rejected keywords)
 - OpenAI function tool -> pi Tool conversion
+- model-exposure filtering, public ID generation, conflict groups
+
+### Conformance tests — wire-level (no credentials)
+
+Validate the exact response shapes that the OpenAI SDK expects. These are the highest-value offline tests because field-level mistakes (wrong type, missing field, `undefined` vs `null`) silently break real clients.
+
+- SSE chunk conformance: required/optional fields, `delta` shape, `finish_reason` lifecycle, tool call deltas, usage chunk, `[DONE]` termination
+- non-streaming response conformance: `ChatCompletion` required fields, `message.content` nullability, `tool_calls` shape, `usage` fields
+
+### Conformance tests — SDK round-trip (require credentials)
+
+Use the official `openai` Node SDK as client with `_strict_response_validation: true`. This is the same approach vLLM uses (Python SDK against their server).
+
+- `client.models.list()` and `client.models.retrieve()`
+- non-streaming text completion
+- streaming text completion
+- non-streaming and streaming tool calls
+- `stream_options.include_usage` usage chunk
+
+Skip gracefully when no credentials are available (CI without auth).
+
+### Security tests (no credentials)
+
+- blocked localhost image URL
+- blocked private-range image URL
+- oversized image response
 
 ### Integration tests
 
@@ -704,22 +817,6 @@ Minimum production observability:
 - model-not-found flow
 - proxy auth enforcement
 - unsupported endpoint rejection
-
-### Golden tests (require API credentials)
-
-- non-streaming text completion
-- non-streaming tool-call completion
-- streaming text completion
-- streaming tool-call completion
-- final usage chunk behavior
-
-### Security tests
-
-- blocked localhost image URL
-- blocked private-range image URL
-- oversized image response
-- invalid override headers
-- rejected cwd outside policy
 
 ### Compatibility smoke tests
 
@@ -741,10 +838,14 @@ The implementation is production-ready for the stable proxy only if all of the f
 - non-streaming chat completions return OpenAI-compatible payloads
 - streaming returns valid SSE chunks followed by `[DONE]`
 - final usage chunk behavior matches the documented `stream_options.include_usage` contract
+- the official `openai` Node SDK with `_strict_response_validation: true` parses every response without errors
+- SSE conformance tests validate chunk shapes, `finish_reason` lifecycle, and tool call deltas
+- response conformance tests validate `content` nullability and `tool_calls` shape
 - unsupported fields are rejected clearly
 - secrets are never logged
 - client disconnects abort upstream work
 - request IDs are logged consistently
 - supported tool schemas roundtrip correctly
-- stable features pass unit, integration, and compatibility smoke tests
+- no dead code in production `src/` tree
+- stable features pass unit, conformance, integration, and security tests
 - zero oxlint errors, zero biome errors, typecheck clean

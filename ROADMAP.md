@@ -69,6 +69,17 @@ Standardize model exposure and make public IDs configurable.
 - [x] Add `/proxy verify` and selector UIs for scoped providers and custom models
 - [x] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
 
+## Phase 3B — SDK conformance and robustness testing
+
+Validate response shapes against the official OpenAI Node SDK to catch field-level bugs that break real clients.
+
+- [ ] Remove dead code (`resolve-model.ts`)
+- [ ] Add `openai` as explicit devDependency
+- [ ] Wire-level SSE conformance tests (chunk shape, `finish_reason` lifecycle, tool deltas, usage chunk, `[DONE]`)
+- [ ] Non-streaming response conformance tests (`ChatCompletion` shape, `content` nullability, `tool_calls`)
+- [ ] SDK round-trip conformance tests using `openai` client with `_strict_response_validation: true`
+- [ ] Security tests (image URL blocking, oversized payloads)
+
 ## Phase 4 — Monorepo and proper CLI
 
 Split into two packages in a pnpm/turborepo monorepo (reference: pi-maestro structure).

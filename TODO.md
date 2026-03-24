@@ -139,8 +139,6 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Unit test usage mapping
 - [x] Golden test `GET /v1/models`
 - [x] Golden test `GET /v1/models/{model}`
-- [ ] Golden test non-streaming text completion (requires API credentials)
-- [ ] Golden test streaming text completion (requires API credentials)
 - [x] Integration test model-not-found flow
 - [x] Integration test upstream-auth-missing flow
 - [x] Integration test client-disconnect cancellation (abort controller wired)
@@ -192,12 +190,6 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Unit test supported and rejected tool schemas
 - [x] Unit test JSON Schema -> TypeBox conversion
 - [x] Integration test tool acceptance and rejection
-- [ ] Golden test non-streaming tool-call completion (requires API credentials)
-- [ ] Golden test streaming tool-call completion (requires API credentials)
-- [ ] Golden test final usage chunk behavior (requires API credentials)
-- [ ] Security test blocked localhost image URL
-- [ ] Security test blocked private-range image URL
-- [ ] Security test oversized image response
 
 ## Phase 3 — Hardening and packaging
 
@@ -281,6 +273,48 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Add integration tests for all/scoped/custom exposure modes
 - [x] Add integration tests for public ID resolution and canonical fallback restrictions
 - [x] Update `PLAN.md`, `ROADMAP.md`, and `README.md` to match the new model exposure contract
+
+## Phase 3B — SDK conformance and robustness testing
+
+### Pre-work
+
+- [ ] Remove dead `src/pi/resolve-model.ts` and `test/unit/resolve-model.test.ts`
+- [ ] Add `openai` as explicit devDependency (currently transitive via pi-ai)
+
+### Wire-level SSE conformance (no credentials)
+
+- [ ] Each chunk has `id`, `object: "chat.completion.chunk"`, `created` (number), `model`
+- [ ] `delta.role` is `"assistant"` on first chunk only
+- [ ] `delta.content` is a string, never `undefined` when text is present
+- [ ] `finish_reason` is `null` on intermediate chunks, correct value on final content chunk
+- [ ] Tool call delta chunks: `delta.tool_calls[n].index`, `.id`, `.type`, `.function.name`, `.function.arguments`
+- [ ] Usage chunk: `choices` is empty array, `usage` has `prompt_tokens`, `completion_tokens`, `total_tokens`
+- [ ] Final line is `data: [DONE]\n\n`
+
+### Non-streaming response conformance (no credentials)
+
+- [ ] Required fields: `id`, `object: "chat.completion"`, `created`, `model`, `choices`, `usage`
+- [ ] `choices[0].finish_reason` is never `null`
+- [ ] `choices[0].message.role` is `"assistant"`
+- [ ] `choices[0].message.content` is `string | null` (explicitly `null` when tool_calls present)
+- [ ] `choices[0].message.tool_calls` shape: `id`, `type: "function"`, `function.name`, `function.arguments`
+- [ ] `usage` fields are all numbers
+
+### SDK round-trip conformance (requires credentials, skip otherwise)
+
+- [ ] `client.models.list()` succeeds and returns iterable model objects
+- [ ] `client.models.retrieve(id)` succeeds for an exposed model
+- [ ] Non-streaming text completion parses without SDK errors
+- [ ] Streaming text completion parses all chunks without SDK errors
+- [ ] Non-streaming tool call parses without SDK errors
+- [ ] Streaming tool call parses all chunks without SDK errors
+- [ ] `stream_options.include_usage` usage chunk parses without SDK errors
+
+### Security tests (no credentials)
+
+- [ ] Blocked localhost image URL returns error
+- [ ] Blocked private-range image URL returns error
+- [ ] Oversized image payload rejected
 
 ## Phase 4 — Experimental agentic mode
 
