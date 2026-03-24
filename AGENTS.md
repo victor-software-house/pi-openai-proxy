@@ -6,9 +6,9 @@ This repository implements a local OpenAI-compatible HTTP proxy built on pi's SD
 
 Treat these files as agent-first implementation guidance:
 
-- `PLAN.md` -- implementation source of truth for architecture, API compatibility policy, security boundaries, phase gates, and acceptance criteria
-- `TODO.md` -- actionable implementation checklist aligned to `PLAN.md`
-- `ROADMAP.md` -- short phase summary only
+- `PLAN.md` — implementation source of truth for architecture, API compatibility policy, security boundaries, phase gates, and acceptance criteria
+- `TODO.md` — actionable implementation checklist aligned to `PLAN.md`
+- `ROADMAP.md` — short phase summary only
 
 Read `PLAN.md` before implementation work. Keep `TODO.md` and `ROADMAP.md` aligned with it.
 
@@ -80,16 +80,16 @@ Experimental later work:
 
 - Toolchain: Bun (dev/test), tsdown (npm build), Biome (format/lint), oxlint (type-aware lint with `.oxlintrc.json`)
 - Tabs, double quotes, semicolons, `import type` enforced, `node:` protocol
-- Import aliases: `@proxy/*` mapped to `src/*` -- no relative imports, no `.js` extensions
+- Import aliases: `@proxy/*` mapped to `src/*` — no relative imports, no `.js` extensions
 - Zod v4 for parsing untrusted/external data (HTTP request bodies, JSON.parse boundaries)
-- Zod namespace import: `import * as z from "zod"` -- never named import
+- Zod namespace import: `import * as z from "zod"` — never named import
 - No `any`, no unsafe type assertions (`as Type`), no `@ts-ignore`
-- No `typeof x === 'string'` -- use proper type guard functions
+- No `typeof x === 'string'` — use proper type guard functions
 - Type guards: `isRecord()` for narrowing `unknown` to `Record<string, unknown>`
 - Zod `safeParse()` for validating parsed JSON instead of `as` casts
 - Strict TS: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`
-- Typed `process.env` via `src/env.d.ts` -- dot notation, no bracket access on env vars
-- Explicit null/undefined comparisons -- no truthy coercion on nullable strings
+- Typed `process.env` via `src/env.d.ts` — dot notation, no bracket access on env vars
+- Explicit null/undefined comparisons — no truthy coercion on nullable strings
 - `exactOptionalPropertyTypes`: optional properties must include `| undefined` in their type
 
 ## oxlint strict rules
@@ -113,4 +113,4 @@ The `.oxlintrc.json` enforces (matching pi-acp):
 - Pi SDK: `@mariozechner/pi-coding-agent` exports from `dist/index.d.ts`
 - Pi AI: `@mariozechner/pi-ai` exports from `dist/index.d.ts`
 - Pi mono repo: https://github.com/badlogic/pi-mono
-- Sister project: `pi-acp` (ACP adapter) -- similar translation patterns, identical tooling config
+- Sister project: `pi-acp` (ACP adapter) — similar translation patterns, identical tooling config

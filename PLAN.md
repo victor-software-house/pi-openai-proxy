@@ -103,7 +103,7 @@ Public model IDs are configurable and should prefer universal provider-neutral n
 
 Supported public ID modes:
 
-- `collision-prefixed` -- default
+- `collision-prefixed` — default
 - `universal`
 - `always-prefixed`
 
@@ -145,9 +145,9 @@ Validation rules:
 
 Supported exposure modes:
 
-- `all` -- expose all available models
-- `scoped` -- expose all available models from selected providers only
-- `custom` -- expose only an allowlist of canonical model IDs
+- `all` — expose all available models
+- `scoped` — expose all available models from selected providers only
+- `custom` — expose only an allowlist of canonical model IDs
 
 Persist custom-model selections as canonical IDs, not public IDs.
 That keeps configuration stable when public ID mode or prefix labels change.
@@ -188,7 +188,7 @@ Required settings:
 - `publicModelIdMode`: `collision-prefixed` | `universal` | `always-prefixed`
 - `modelExposureMode`: `all` | `scoped` | `custom`
 - `scopedProviders`: string[]
-- `customModels`: string[] -- canonical model IDs only
+- `customModels`: string[] — canonical model IDs only
 - `providerPrefixes`: record of provider key -> public prefix label
 
 Settings-panel requirements:
@@ -541,7 +541,7 @@ src/
 
 ## Delivery phases
 
-### Phase 0 -- Contract lock [DONE]
+### Phase 0 — Contract lock [DONE]
 
 Before runtime work:
 
@@ -559,7 +559,7 @@ Deliverable:
 - aligned `ROADMAP.md`
 - aligned `TODO.md`
 
-### Phase 1 -- Stable core proxy [DONE]
+### Phase 1 — Stable core proxy [DONE]
 
 Build:
 
@@ -582,7 +582,7 @@ Release gate:
 - zero oxlint errors, zero biome errors
 - typecheck passes with ultra-strict tsconfig
 
-### Phase 2 -- Tools and richer compatibility [DONE]
+### Phase 2 — Tools and richer compatibility [DONE]
 
 Build:
 
@@ -595,10 +595,10 @@ Build:
 
 Deliverable:
 
-- `src/openai/json-schema-to-typebox.ts` -- JSON Schema -> TypeBox conversion
-- `src/openai/tools.ts` -- OpenAI function tools -> pi Tool definitions
-- updated `src/openai/schemas.ts` -- Phase 2 fields added to request schema
-- updated `src/pi/complete.ts` -- reasoning_effort + passthrough parameters
+- `src/openai/json-schema-to-typebox.ts` — JSON Schema -> TypeBox conversion
+- `src/openai/tools.ts` — OpenAI function tools -> pi Tool definitions
+- updated `src/openai/schemas.ts` — Phase 2 fields added to request schema
+- updated `src/pi/complete.ts` — reasoning_effort + passthrough parameters
 - unit tests for JSON Schema conversion and tool acceptance/rejection
 - integration tests for tool validation
 
@@ -608,7 +608,7 @@ Release gate:
 - tool streaming already wired in Phase 1 SSE module
 - remote image security deferred (disabled by default)
 
-### Phase 3 -- Hardening and packaging [DONE]
+### Phase 3 — Hardening and packaging [DONE]
 
 Build:
 
@@ -625,7 +625,7 @@ Release gate:
 - logs and trace IDs are stable
 - no known security policy gaps remain for stable features
 
-### Phase 3A -- Model exposure and identifier controls
+### Phase 3A — Model exposure and identifier controls
 
 Build:
 
@@ -657,7 +657,7 @@ Release gate:
 - `/v1/models` stays standard OpenAI shape with no capability extensions
 - typecheck, lint, and tests pass
 
-### Phase 4 -- Experimental agentic mode
+### Phase 4 — Experimental agentic mode
 
 Only after stable proxy behavior is complete:
 

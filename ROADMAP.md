@@ -2,7 +2,7 @@
 
 This file is the short phase summary. See `PLAN.md` for the detailed implementation contract and `TODO.md` for the actionable checklist.
 
-## Phase 0 -- Contract lock [DONE]
+## Phase 0 — Contract lock [DONE]
 
 Freeze the API and security decisions before implementation starts.
 
@@ -14,7 +14,7 @@ Freeze the API and security decisions before implementation starts.
 - [x] Finalize image-fetch security policy
 - [x] Mark agentic mode experimental
 
-## Phase 1 -- Stable core proxy [DONE]
+## Phase 1 — Stable core proxy [DONE]
 
 Deliver the minimum production-capable proxy.
 
@@ -29,7 +29,7 @@ Deliver the minimum production-capable proxy.
 - [x] Add unit and integration tests for the stable contract
 - [x] Align strict tooling with pi-acp (oxlintrc, biome, lefthook, commitlint, Zod v4)
 
-## Phase 2 -- Tools and richer compatibility [DONE]
+## Phase 2 — Tools and richer compatibility [DONE]
 
 Add the supported compatibility surface deliberately.
 
@@ -40,9 +40,9 @@ Add the supported compatibility surface deliberately.
 - [x] Support `reasoning_effort` (mapped to pi ThinkingLevel)
 - [x] Add passthrough parameters: `top_p`, `frequency_penalty`, `presence_penalty`, `seed`, `response_format`
 - [x] Add JSON Schema conversion and tool acceptance/rejection tests
-- [ ] Remote image URL support (deferred -- requires SSRF protections)
+- [ ] Remote image URL support (deferred — requires SSRF protections)
 
-## Phase 3 -- Hardening and packaging [DONE]
+## Phase 3 — Hardening and packaging [DONE]
 
 Prepare the stable proxy for release.
 
@@ -55,7 +55,7 @@ Prepare the stable proxy for release.
 - [x] Package for npm release (`@victor-software-house/pi-openai-proxy`)
 - [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
-## Phase 3A -- Model exposure and identifier controls [IN PROGRESS]
+## Phase 3A — Model exposure and identifier controls [IN PROGRESS]
 
 Standardize model exposure and make public IDs configurable.
 
@@ -69,7 +69,7 @@ Standardize model exposure and make public IDs configurable.
 - [ ] Add `/proxy verify` and selector UIs for scoped providers and custom models
 - [ ] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
 
-## Phase 4 -- Monorepo and proper CLI
+## Phase 4 — Monorepo and proper CLI
 
 Split into two packages in a pnpm/turborepo monorepo (reference: pi-maestro structure).
 
@@ -88,7 +88,7 @@ packages/
 
 ### CLI (`pi-proxy`)
 
-Proper CLI with a framework (citty or cleye) -- the current binary has no argument parsing.
+Proper CLI with a framework (citty or cleye) — the current binary has no argument parsing.
 
 ```bash
 pi-proxy                          Start the proxy server (foreground)
@@ -107,7 +107,7 @@ CLI args > env vars > JSON config file (`~/.pi/agent/proxy-config.json`) > defau
 
 - [ ] Config schema defined once in `pi-proxy` (types, defaults, normalize, JSON I/O)
 - [ ] Server reads JSON config as defaults, env vars override, CLI args override both
-- [ ] Extension imports schema from `pi-proxy/config` -- no duplication
+- [ ] Extension imports schema from `pi-proxy/config` — no duplication
 - [ ] JSON config file is the shared persistence layer written by both CLI and extension
 
 ### Workspace setup
@@ -118,7 +118,7 @@ CLI args > env vars > JSON config file (`~/.pi/agent/proxy-config.json`) > defau
 - [ ] Per-package build, test, typecheck tasks
 - [ ] CI workflow updated for monorepo
 
-## Phase 5 -- Experimental agentic mode
+## Phase 5 — Experimental agentic mode
 
 Ship agentic behavior only after the stable proxy is solid.
 

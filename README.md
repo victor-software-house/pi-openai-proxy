@@ -5,10 +5,10 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 ## Why
 
 - **Single gateway** to 20+ LLM providers (Anthropic, OpenAI, Google, Bedrock, Mistral, xAI, Groq, OpenRouter, Vertex, etc.) via one OpenAI-compatible API
-- **No duplicate config** -- reuses pi's `~/.pi/agent/auth.json` and `models.json` for credentials and model definitions
-- **Self-hosted** -- runs locally, no third-party proxy services
-- **Streaming** -- full SSE streaming with token usage and cost tracking
-- **Strict validation** -- unsupported parameters are rejected clearly, not silently ignored
+- **No duplicate config** — reuses pi's `~/.pi/agent/auth.json` and `models.json` for credentials and model definitions
+- **Self-hosted** — runs locally, no third-party proxy services
+- **Streaming** — full SSE streaming with token usage and cost tracking
+- **Strict validation** — unsupported parameters are rejected clearly, not silently ignored
 
 ## Prerequisites
 
@@ -81,8 +81,8 @@ OPENAI_API_BASE=http://localhost:4141/v1 aider --model anthropic/claude-sonnet-4
 
 The proxy resolves model references in this order:
 
-1. **Exact public ID match** -- the ID from `GET /v1/models`
-2. **Canonical ID fallback** -- `provider/model-id` format (only for exposed models)
+1. **Exact public ID match** — the ID from `GET /v1/models`
+2. **Canonical ID fallback** — `provider/model-id` format (only for exposed models)
 
 With the default `collision-prefixed` mode and no collisions, model IDs are exposed without prefixes:
 
@@ -309,8 +309,8 @@ The extension detects externally running instances and shows their status via `/
 
 ### Pi SDK layers used
 
-- **`@mariozechner/pi-ai`** -- `streamSimple()`, `completeSimple()`, `Model`, `Usage`, `AssistantMessageEvent`
-- **`@mariozechner/pi-coding-agent`** -- `ModelRegistry`, `AuthStorage`
+- **`@mariozechner/pi-ai`** — `streamSimple()`, `completeSimple()`, `Model`, `Usage`, `AssistantMessageEvent`
+- **`@mariozechner/pi-coding-agent`** — `ModelRegistry`, `AuthStorage`
 
 ## Security defaults
 
@@ -334,14 +334,14 @@ bun test              # Run all tests
 
 ### Tooling
 
-- **Bun** -- runtime, test runner, package manager
-- **tsdown** -- npm build (ESM + .d.ts)
-- **Biome** -- format + lint
-- **oxlint** -- type-aware lint with strict rules (`.oxlintrc.json`)
-- **lefthook** -- pre-commit hooks (format, lint, typecheck), pre-push hooks (test)
-- **commitlint** -- conventional commits
-- **semantic-release** -- automated versioning and npm publish
-- **mise** -- tool version management (node, bun)
+- **Bun** — runtime, test runner, package manager
+- **tsdown** — npm build (ESM + .d.ts)
+- **Biome** — format + lint
+- **oxlint** — type-aware lint with strict rules (`.oxlintrc.json`)
+- **lefthook** — pre-commit hooks (format, lint, typecheck), pre-push hooks (test)
+- **commitlint** — conventional commits
+- **semantic-release** — automated versioning and npm publish
+- **mise** — tool version management (node, bun)
 
 ## License
 

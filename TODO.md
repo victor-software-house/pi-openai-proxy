@@ -4,7 +4,7 @@ Actionable implementation checklist for `pi-openai-proxy`.
 
 Read `PLAN.md` first. This file should track concrete work items and decisions needed to implement that plan.
 
-## Phase 0 -- Contract lock
+## Phase 0 — Contract lock
 
 ### API and routing
 
@@ -45,7 +45,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Document any future remote exposure guidance
 - [x] Mark agentic mode experimental and disabled by default
 
-## Phase 1 -- Stable core proxy
+## Phase 1 — Stable core proxy
 
 ### Project setup
 
@@ -145,7 +145,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Integration test upstream-auth-missing flow
 - [x] Integration test client-disconnect cancellation (abort controller wired)
 
-## Phase 2 -- Tools and richer compatibility
+## Phase 2 — Tools and richer compatibility
 
 ### Tools
 
@@ -199,7 +199,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [ ] Security test blocked private-range image URL
 - [ ] Security test oversized image response
 
-## Phase 3 -- Hardening and packaging
+## Phase 3 — Hardening and packaging
 
 ### Runtime hardening
 
@@ -225,7 +225,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [ ] Smoke test with Aider
 - [x] Record known compatibility gaps in docs
 
-## Phase 3A -- Model exposure and identifier controls
+## Phase 3A — Model exposure and identifier controls
 
 ### Contract and config
 
@@ -282,7 +282,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Add integration tests for public ID resolution and canonical fallback restrictions
 - [x] Update `PLAN.md`, `ROADMAP.md`, and `README.md` to match the new model exposure contract
 
-## Phase 4 -- Experimental agentic mode
+## Phase 4 — Experimental agentic mode
 
 ### Contract
 
