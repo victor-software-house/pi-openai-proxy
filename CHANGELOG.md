@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v2.0.0...v2.1.0) (2026-03-24)
+
+
+### Features
+
+* add /proxy verify, exposure settings panel, and public ID preview ([ac13313](https://github.com/victor-software-house/pi-openai-proxy/commit/ac13313dcad594a3a685e23e05605f1186916751))
+
 # [2.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v1.0.0...v2.0.0) (2026-03-24)
 
 
