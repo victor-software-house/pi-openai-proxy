@@ -512,31 +512,31 @@ Module layout:
 
 ```text
 src/
-  index.ts            -- entry point, bootstrap
-  env.d.ts            -- typed process.env
-  config/
-    env.ts            -- ProxyConfig from environment
-  server/
-    app.ts            -- Hono app assembly
-    routes.ts         -- GET /v1/models, POST /v1/chat/completions
-    middleware.ts      -- request-id, proxy-auth, disconnect detection
-    errors.ts         -- OpenAI-style error helpers
-    logging.ts        -- structured JSON logging
-    request-id.ts     -- piproxy-{random} generation
-    types.ts          -- Hono ProxyEnv type
-  openai/
-    schemas.ts              -- Zod v4 request schemas
-    validate.ts             -- request validation with rejected-field checks
-    messages.ts             -- OpenAI messages -> pi Context
-    models.ts               -- pi Model -> OpenAI model object
-    responses.ts            -- pi AssistantMessage -> OpenAI response
-    sse.ts                  -- pi events -> SSE chunks
-    tools.ts                -- OpenAI function tools -> pi Tool[]
-    json-schema-to-typebox.ts -- JSON Schema -> TypeBox conversion
-  pi/
-    registry.ts       -- AuthStorage + ModelRegistry init
-    resolve-model.ts  -- canonical/shorthand model resolution
-    complete.ts       -- completeSimple/streamSimple bridge
+├── index.ts            -- entry point, bootstrap
+├── env.d.ts            -- typed process.env
+├── config/
+│   └── env.ts            -- ProxyConfig from environment
+├── server/
+│   ├── app.ts            -- Hono app assembly
+│   ├── routes.ts         -- GET /v1/models, POST /v1/chat/completions
+│   ├── middleware.ts     -- request-id, proxy-auth, disconnect detection
+│   ├── errors.ts         -- OpenAI-style error helpers
+│   ├── logging.ts        -- structured JSON logging
+│   ├── request-id.ts     -- piproxy-{random} generation
+│   └── types.ts          -- Hono ProxyEnv type
+├── openai/
+│   ├── schemas.ts              -- Zod v4 request schemas
+│   ├── validate.ts             -- request validation with rejected-field checks
+│   ├── messages.ts             -- OpenAI messages -> pi Context
+│   ├── models.ts               -- pi Model -> OpenAI model object
+│   ├── responses.ts            -- pi AssistantMessage -> OpenAI response
+│   ├── sse.ts                  -- pi events -> SSE chunks
+│   ├── tools.ts                -- OpenAI function tools -> pi Tool[]
+│   └── json-schema-to-typebox.ts -- JSON Schema -> TypeBox conversion
+└── pi/
+    ├── registry.ts       -- AuthStorage + ModelRegistry init
+    ├── resolve-model.ts  -- canonical/shorthand model resolution
+    └── complete.ts       -- completeSimple/streamSimple bridge
 ```
 
 ## Delivery phases

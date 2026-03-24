@@ -75,10 +75,10 @@ Split into two packages in a pnpm/turborepo monorepo (reference: pi-maestro stru
 
 ### Package split
 
-```
+```text
 packages/
-  proxy/            pi-proxy -- standalone CLI + HTTP server + config schema
-  pi-extension/     @pi-openai-proxy/pi-extension -- pi package (depends on pi-proxy)
+├── proxy/           pi-proxy -- standalone CLI + HTTP server + config schema
+└── pi-extension/    @pi-openai-proxy/pi-extension -- pi package (depends on pi-proxy)
 ```
 
 - `pi-proxy` is the primary deliverable: proper CLI binary with args, help, shell completions
@@ -90,7 +90,7 @@ packages/
 
 Proper CLI with a framework (citty or cleye) -- the current binary has no argument parsing.
 
-```
+```bash
 pi-proxy                          Start the proxy server (foreground)
 pi-proxy --port 8080              Override port
 pi-proxy --host 0.0.0.0           Override bind address
