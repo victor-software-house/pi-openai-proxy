@@ -614,6 +614,40 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		};
 	}
 
+	// --- Dynamic descriptions ---
+
+	const ID_MODE_DESCRIPTIONS: Record<string, string> = {
+		"collision-prefixed": "Short names; adds provider/ prefix only when models collide",
+		universal: "Short names only; fails if any model name is shared by two providers",
+		"always-prefixed": "Always provider/model-id for every model",
+	};
+
+	const EXPOSURE_MODE_DESCRIPTIONS: Record<string, string> = {
+		scoped: "Expose models from pi's configured auth (default)",
+		all: "Expose all registered models, including those without auth",
+		custom: "Expose only manually selected models",
+	};
+
+	function idModeDescription(): string {
+		return ID_MODE_DESCRIPTIONS[config.publicModelIdMode] ?? "";
+	}
+
+	function exposureModeDescription(): string {
+		return EXPOSURE_MODE_DESCRIPTIONS[config.modelExposureMode] ?? "";
+	}
+
+	function customModelsDescription(): string {
+		if (config.modelExposureMode === "custom") return "Press Enter to open model selector";
+		return "Switch exposure mode to 'custom' to select models";
+	}
+
+	function authDescription(): string {
+		if (config.authToken.length > 0) {
+			return `Token: ${config.authToken.slice(0, 8)}... (use /proxy show to copy)`;
+		}
+		return "Require bearer token for all requests";
+	}
+
 	function buildSettingItems(): SettingItem[] {
 		return [
 			// --- Server ---
@@ -641,10 +675,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			{
 				id: "authToken",
 				label: "Proxy auth",
-				description:
-					config.authToken.length > 0
-						? `Token: ${config.authToken.slice(0, 8)}... (use /proxy show to copy)`
-						: "Require bearer token for all requests",
+				description: authDescription(),
 				currentValue: config.authToken.length > 0 ? "enabled" : "disabled",
 				values: ["disabled", "enabled"],
 			},
@@ -672,30 +703,48 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			// --- Model exposure ---
 			{
 				id: "publicModelIdMode",
-				label: "Public ID mode",
-				description: "How public model IDs are generated from canonical provider/model-id",
+				label: "Model ID format",
+				description: idModeDescription(),
 				currentValue: config.publicModelIdMode,
 				values: ["collision-prefixed", "universal", "always-prefixed"],
 			},
 			{
 				id: "modelExposureMode",
 				label: "Exposure mode",
-				description:
-					"scoped = pi's available models, all = all registered, custom = manual selection",
+				description: exposureModeDescription(),
 				currentValue: config.modelExposureMode,
 				values: ["scoped", "all", "custom"],
 			},
 			{
 				id: "customModels",
 				label: "Select models",
-				description:
-					config.modelExposureMode === "custom"
-						? "Press Enter to open model selector"
-						: "Switch exposure mode to 'custom' to select models",
+				description: customModelsDescription(),
 				currentValue: customModelsDisplay(),
 				submenu: config.modelExposureMode === "custom" ? buildModelSelectorSubmenu : undefined,
 			},
 		];
+	}
+
+	/**
+	 * Update descriptions on items that change dynamically based on the current value.
+	 */
+	function refreshDescriptions(items: SettingItem[]): void {
+		for (const item of items) {
+			switch (item.id) {
+				case "publicModelIdMode":
+					item.description = idModeDescription();
+					break;
+				case "modelExposureMode":
+					item.description = exposureModeDescription();
+					break;
+				case "customModels":
+					item.description = customModelsDescription();
+					break;
+				case "authToken":
+					item.description = authDescription();
+					break;
+			}
+		}
 	}
 
 	const VALID_ID_MODES = new Set<string>(["collision-prefixed", "universal", "always-prefixed"]);
@@ -821,8 +870,9 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 							ctx.ui.notify(`Auth token: ${lastGeneratedToken}`, "info");
 						}
 
-						// Update display value in-place (no rebuild, preserves selection)
+						// Update display value and descriptions in-place (preserves selection)
 						settingsList.updateValue(id, getDisplayValue(id));
+						refreshDescriptions(items);
 
 						// When exposure mode changes, update the "Select models" item
 						if (id === "modelExposureMode") {
