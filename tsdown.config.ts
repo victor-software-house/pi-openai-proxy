@@ -5,6 +5,7 @@ export default defineConfig({
 		index: "src/index.ts",
 		config: "src/config/schema.ts",
 		exposure: "src/openai/model-exposure.ts",
+		"sync-zed": "src/sync/zed.ts",
 	},
 	format: ["esm"],
 	dts: true,

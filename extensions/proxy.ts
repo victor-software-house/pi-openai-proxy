@@ -57,7 +57,7 @@ import {
 	type ModelExposureConfig,
 } from "@victor-software-house/pi-openai-proxy/exposure";
 
-import { syncToZed, type ZedSyncOptions } from "./zed-sync.ts";
+import { syncToZed, type ZedSyncOptions } from "@victor-software-house/pi-openai-proxy/sync/zed";
 
 // ---------------------------------------------------------------------------
 // Runtime status

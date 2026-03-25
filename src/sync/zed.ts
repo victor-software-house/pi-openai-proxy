@@ -8,7 +8,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { ExposedModel } from "@victor-software-house/pi-openai-proxy/exposure";
+import type { ExposedModel } from "@proxy/openai/model-exposure";
 import { applyEdits, type ModificationOptions, modify, parse } from "jsonc-parser";
 
 // ---------------------------------------------------------------------------
@@ -61,19 +61,19 @@ export interface ZedSyncResult {
  * 3. $XDG_CONFIG_HOME/zed/settings.json (Linux XDG)
  */
 export function findZedSettings(): string | undefined {
-	const customDir = process.env["CUSTOM_DATA_DIR"];
+	const customDir = process.env.CUSTOM_DATA_DIR;
 	if (customDir !== undefined && customDir.length > 0) {
 		const p = resolve(customDir, "settings.json");
 		if (existsSync(p)) return p;
 	}
 
-	const home = process.env["HOME"];
+	const home = process.env.HOME;
 	if (home !== undefined && home.length > 0) {
 		const p = resolve(home, ".config", "zed", "settings.json");
 		if (existsSync(p)) return p;
 	}
 
-	const xdg = process.env["XDG_CONFIG_HOME"];
+	const xdg = process.env.XDG_CONFIG_HOME;
 	if (xdg !== undefined && xdg.length > 0) {
 		const p = resolve(xdg, "zed", "settings.json");
 		if (existsSync(p)) return p;

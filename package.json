@@ -41,6 +41,10 @@
 		"./exposure": {
 			"import": "./dist/exposure.mjs",
 			"types": "./dist/exposure.d.mts"
+		},
+		"./sync/zed": {
+			"import": "./dist/sync-zed.mjs",
+			"types": "./dist/sync-zed.d.mts"
 		}
 	},
 	"main": "dist/index.mjs",
