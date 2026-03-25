@@ -65,7 +65,8 @@
 			},
 			"complexity": {
 				"noForEach": "error",
-				"noUselessTypeConstraint": "error"
+				"noUselessTypeConstraint": "error",
+				"useLiteralKeys": "off"
 			},
 			"nursery": {
 				"noFloatingPromises": "error",
