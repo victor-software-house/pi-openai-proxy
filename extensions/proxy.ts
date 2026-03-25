@@ -83,6 +83,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		return registry.getAvailable();
 	}
 
+	function getAllRegisteredModels(): Model<Api>[] {
+		const auth = AuthStorage.create();
+		const registry = new ModelRegistry(auth);
+		return registry.getAll();
+	}
+
 	function getUniqueProviders(models: readonly Model<Api>[]): string[] {
 		const seen = new Set<string>();
 		for (const m of models) {
@@ -453,7 +459,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 		// Public ID preview (first 5 exposed models)
 		const models = getAvailableModels();
-		const outcome = computeModelExposure(models, buildExposureConfig());
+		const allModels = getAllRegisteredModels();
+		const outcome = computeModelExposure(models, allModels, buildExposureConfig());
 		if (outcome.ok && outcome.models.length > 0) {
 			const preview = outcome.models.slice(0, 5).map((m) => m.publicId);
 			const suffix =
@@ -475,22 +482,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		const models = getAvailableModels();
 		const issues: string[] = [];
 
+		const allModels = getAllRegisteredModels();
+
 		// Check available models
 		if (models.length === 0) {
 			issues.push("No models have auth configured. The proxy will expose 0 models.");
-		}
-
-		// Check scoped providers reference valid providers
-		if (config.modelExposureMode === "scoped") {
-			const availableProviders = new Set(getUniqueProviders(models));
-			for (const p of config.scopedProviders) {
-				if (!availableProviders.has(p)) {
-					issues.push(`Scoped provider '${p}' has no available models (no auth or unknown).`);
-				}
-			}
-			if (config.scopedProviders.length === 0) {
-				issues.push("Scoped mode with empty provider list will expose 0 models.");
-			}
 		}
 
 		// Check custom models reference valid canonical IDs
@@ -507,7 +503,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 
 		// Run the full exposure computation to catch ID/prefix errors
-		const outcome = computeModelExposure(models, buildExposureConfig());
+		const outcome = computeModelExposure(models, allModels, buildExposureConfig());
 		if (!outcome.ok) {
 			issues.push(outcome.message);
 		}
