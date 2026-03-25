@@ -107,7 +107,7 @@ describe("SSE text streaming conformance", () => {
 
 			expect(chunk.id).toBe("req-1");
 			expect(chunk.object).toBe("chat.completion.chunk");
-			expect(typeof chunk.created).toBe("number");
+			expect(chunk.created).toBeNumber();
 			expect(chunk.created).toBeGreaterThan(0);
 			expect(chunk.model).toBe("test-model");
 		}
@@ -129,7 +129,7 @@ describe("SSE text streaming conformance", () => {
 
 		expect(contentChunks.length).toBeGreaterThan(0);
 		for (const chunk of contentChunks) {
-			expect(typeof chunk.choices[0].delta.content).toBe("string");
+			expect(chunk.choices[0].delta.content).toBeString();
 		}
 	});
 
@@ -195,9 +195,9 @@ describe("SSE usage chunk conformance", () => {
 		expect(usageChunk).toBeDefined();
 		expect(usageChunk.choices).toEqual([]);
 		expect(usageChunk.usage).toBeDefined();
-		expect(typeof usageChunk.usage.prompt_tokens).toBe("number");
-		expect(typeof usageChunk.usage.completion_tokens).toBe("number");
-		expect(typeof usageChunk.usage.total_tokens).toBe("number");
+		expect(usageChunk.usage.prompt_tokens).toBeNumber();
+		expect(usageChunk.usage.completion_tokens).toBeNumber();
+		expect(usageChunk.usage.total_tokens).toBeNumber();
 	});
 
 	test("usage chunk is absent when include_usage is false", async () => {
@@ -265,7 +265,7 @@ describe("SSE tool call streaming conformance", () => {
 
 		expect(tcStartChunk).toBeDefined();
 		const tc = tcStartChunk.choices[0].delta.tool_calls[0];
-		expect(typeof tc.index).toBe("number");
+		expect(tc.index).toBeNumber();
 		expect(tc.index).toBe(0);
 		expect(tc.id).toBe("call_abc");
 		expect(tc.type).toBe("function");
@@ -285,8 +285,8 @@ describe("SSE tool call streaming conformance", () => {
 		expect(deltaChunks.length).toBe(2);
 		for (const chunk of deltaChunks) {
 			const tc = chunk.choices[0].delta.tool_calls[0];
-			expect(typeof tc.index).toBe("number");
-			expect(typeof tc.function.arguments).toBe("string");
+			expect(tc.index).toBeNumber();
+			expect(tc.function.arguments).toBeString();
 		}
 	});
 

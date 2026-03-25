@@ -25,7 +25,7 @@ describe("GET /v1/models", () => {
 
 		const body = await jsonBody(res);
 		expect(body.object).toBe("list");
-		expect(Array.isArray(body.data)).toBe(true);
+		expect(body.data).toBeArray();
 
 		// In CI there may be no auth.json, so available models can be 0.
 		// Validate item shape only when models are present.
@@ -33,7 +33,7 @@ describe("GET /v1/models", () => {
 			const first = body.data[0];
 			expect(first.object).toBe("model");
 			expect(first.owned_by).toBeDefined();
-			expect(typeof first.created).toBe("number");
+			expect(first.created).toBeNumber();
 			// No x_pi field (removed in Phase 3A)
 			expect(first.x_pi).toBeUndefined();
 		}
@@ -58,8 +58,8 @@ describe("GET /v1/models", () => {
 		const body = await jsonBody(res);
 		expect(body.id).toBe(publicId);
 		expect(body.object).toBe("model");
-		expect(typeof body.created).toBe("number");
-		expect(typeof body.owned_by).toBe("string");
+		expect(body.created).toBeNumber();
+		expect(body.owned_by).toBeString();
 	});
 });
 

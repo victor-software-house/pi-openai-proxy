@@ -72,10 +72,10 @@ describe("non-streaming response conformance", () => {
 
 		expect(result.id).toBe("req-1");
 		expect(result.object).toBe("chat.completion");
-		expect(typeof result.created).toBe("number");
+		expect(result.created).toBeNumber();
 		expect(result.created).toBeGreaterThan(0);
 		expect(result.model).toBe("openai/gpt-4o");
-		expect(Array.isArray(result.choices)).toBe(true);
+		expect(result.choices).toBeArray();
 		expect(result.choices.length).toBe(1);
 		expect(result.usage).toBeDefined();
 	});
@@ -113,7 +113,7 @@ describe("non-streaming response conformance", () => {
 	test("content is string for text responses", () => {
 		const result = buildChatCompletion("req-4", "m", makeTextMessage("Hello world"));
 		const content = result.choices[0]?.message.content;
-		expect(typeof content).toBe("string");
+		expect(content).toBeString();
 		expect(content).toBe("Hello world");
 	});
 
@@ -139,9 +139,9 @@ describe("non-streaming response conformance", () => {
 		const first = toolCalls?.[0];
 		expect(first?.id).toBe("call_abc");
 		expect(first?.type).toBe("function");
-		expect(typeof first?.function.name).toBe("string");
+		expect(first?.function.name).toBeString();
 		expect(first?.function.name).toBe("get_weather");
-		expect(typeof first?.function.arguments).toBe("string");
+		expect(first?.function.arguments).toBeString();
 		// arguments must be a JSON string, not an object
 		expect(JSON.parse(first?.function.arguments ?? "")).toEqual({ city: "NYC" });
 	});
@@ -157,9 +157,9 @@ describe("non-streaming response conformance", () => {
 		});
 		const result = buildChatCompletion("req-8", "m", msg);
 
-		expect(typeof result.usage.prompt_tokens).toBe("number");
-		expect(typeof result.usage.completion_tokens).toBe("number");
-		expect(typeof result.usage.total_tokens).toBe("number");
+		expect(result.usage.prompt_tokens).toBeNumber();
+		expect(result.usage.completion_tokens).toBeNumber();
+		expect(result.usage.total_tokens).toBeNumber();
 		expect(result.usage.prompt_tokens).toBe(15);
 		expect(result.usage.completion_tokens).toBe(25);
 		expect(result.usage.total_tokens).toBe(40);
