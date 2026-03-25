@@ -1,3 +1,10 @@
+## [4.0.4](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.3...v4.0.4) (2026-03-25)
+
+
+### Bug Fixes
+
+* separate CI tests from SDK conformance tests ([cf6b401](https://github.com/victor-software-house/pi-openai-proxy/commit/cf6b4019e479b71a6808cb89de1036206ada1e0c))
+
 ## [4.0.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.2...v4.0.3) (2026-03-25)
 
 
