@@ -1,3 +1,10 @@
+# [4.6.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.5.1...v4.6.0) (2026-03-25)
+
+
+### Features
+
+* **zed-sync:** run auto-sync on session start ([503007a](https://github.com/victor-software-house/pi-openai-proxy/commit/503007a20d3b4121be5b86bf47d758e3cf0410b9))
+
 ## [4.5.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.5.0...v4.5.1) (2026-03-25)
 
 
