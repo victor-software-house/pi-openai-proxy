@@ -25,10 +25,6 @@ beforeAll(() => {
 	}
 });
 
-// Small valid base64 PNG (1x1 pixel)
-const TINY_PNG =
-	"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-
 function chatRequestWithImage(imageUrl: string): string {
 	// These tests validate image URL handling in message conversion.
 	// Model resolution must succeed first, so use a real model ID.
