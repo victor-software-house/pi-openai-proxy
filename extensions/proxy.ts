@@ -89,14 +89,6 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		return registry.getAll();
 	}
 
-	function getUniqueProviders(models: readonly Model<Api>[]): string[] {
-		const seen = new Set<string>();
-		for (const m of models) {
-			seen.add(m.provider);
-		}
-		return [...seen].sort();
-	}
-
 	function buildExposureConfig(): ModelExposureConfig {
 		return {
 			publicModelIdMode: config.publicModelIdMode,
