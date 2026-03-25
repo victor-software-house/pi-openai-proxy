@@ -1,3 +1,10 @@
+## [4.4.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.4.0...v4.4.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* **lint:** disable useLiteralKeys, incompatible with noPropertyAccessFromIndexSignature ([375ebef](https://github.com/victor-software-house/pi-openai-proxy/commit/375ebefb6af037cfa6b5f643b6dc19b626487a38))
+
 # [4.4.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.3.1...v4.4.0) (2026-03-25)
 
 
