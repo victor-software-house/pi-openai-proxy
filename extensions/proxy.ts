@@ -7,6 +7,7 @@
  *   /proxy stop       Stop the proxy server
  *   /proxy status     Show proxy status
  *   /proxy verify     Validate model exposure config against available models
+ *   /proxy models     List all exposed models with their public IDs
  *   /proxy config     Open settings panel (alias)
  *   /proxy show       Summarize current config and exposure policy
  *   /proxy path       Show config file location
@@ -137,13 +138,14 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		"restart",
 		"status",
 		"verify",
+		"models",
 		"config",
 		"show",
 		"path",
 		"reset",
 		"help",
 	];
-	const USAGE = "/proxy [start|stop|restart|status|verify|config|show|path|reset|help]";
+	const USAGE = "/proxy [start|stop|restart|status|verify|models|config|show|path|reset|help]";
 
 	pi.registerCommand("proxy", {
 		description: "Manage the OpenAI-compatible proxy",
@@ -172,6 +174,9 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					return;
 				case "verify":
 					verifyExposure(ctx);
+					return;
+				case "models":
+					showModels(ctx);
 					return;
 				case "show":
 					showConfig(ctx);
@@ -474,6 +479,52 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 
 		ctx.ui.notify(`${serverLines.join(" | ")}\n${exposureLines.join(" | ")}`, "info");
+	}
+
+	// --- /proxy models ---
+
+	function showModels(ctx: ExtensionContext): void {
+		config = loadConfigFromFile();
+		const models = getAvailableModels();
+		const allModels = getAllRegisteredModels();
+		const outcome = computeModelExposure(models, allModels, buildExposureConfig());
+
+		if (!outcome.ok) {
+			ctx.ui.notify(`Model exposure error: ${outcome.message}`, "warning");
+			return;
+		}
+
+		if (outcome.models.length === 0) {
+			ctx.ui.notify("No models exposed. Check /proxy verify for details.", "info");
+			return;
+		}
+
+		// Group models by provider for readable output
+		const byProvider = new Map<string, { publicId: string; canonicalId: string }[]>();
+		for (const m of outcome.models) {
+			const list = byProvider.get(m.provider);
+			const entry = { publicId: m.publicId, canonicalId: m.canonicalId };
+			if (list !== undefined) {
+				list.push(entry);
+			} else {
+				byProvider.set(m.provider, [entry]);
+			}
+		}
+
+		const sections: string[] = [];
+		for (const [provider, entries] of byProvider) {
+			const lines = entries.map((e) => {
+				// Only show canonical ID when it differs from the public ID
+				if (e.publicId === e.canonicalId) {
+					return `  ${e.publicId}`;
+				}
+				return `  ${e.publicId}  (${e.canonicalId})`;
+			});
+			sections.push(`${provider} (${String(entries.length)}):\n${lines.join("\n")}`);
+		}
+
+		const header = `${String(outcome.models.length)} exposed model(s)`;
+		ctx.ui.notify(`${header}\n\n${sections.join("\n\n")}`, "info");
 	}
 
 	// --- /proxy verify ---
