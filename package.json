@@ -1,6 +1,6 @@
 {
 	"name": "@victor-software-house/pi-openai-proxy",
-	"version": "4.2.2",
+	"version": "4.2.3",
 	"description": "OpenAI-compatible HTTP proxy for pi's multi-provider model registry",
 	"license": "MIT",
 	"author": "Victor Software House",

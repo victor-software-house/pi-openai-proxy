@@ -1,3 +1,10 @@
+## [4.2.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.2...v4.2.3) (2026-03-25)
+
+
+### Bug Fixes
+
+* rewrite model selector with proper keybindings and provider jumping ([95598ad](https://github.com/victor-software-house/pi-openai-proxy/commit/95598ad03003731cd64a52f619cbefcd8d9652eb))
+
 ## [4.2.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.1...v4.2.2) (2026-03-25)
 
 
