@@ -8,6 +8,7 @@
  *   /proxy status     Show proxy status
  *   /proxy verify     Validate model exposure config against available models
  *   /proxy models     List all exposed models with their public IDs
+ *   /proxy zed-sync   Sync exposed models to Zed settings.json (--dry-run)
  *   /proxy config     Open settings panel (alias)
  *   /proxy show       Summarize current config and exposure policy
  *   /proxy path       Show config file location
@@ -55,6 +56,8 @@ import {
 	computeModelExposure,
 	type ModelExposureConfig,
 } from "@victor-software-house/pi-openai-proxy/exposure";
+
+import { syncToZed, type ZedSyncOptions } from "./zed-sync.ts";
 
 // ---------------------------------------------------------------------------
 // Runtime status
@@ -140,13 +143,15 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		"status",
 		"verify",
 		"models",
+		"zed-sync",
 		"config",
 		"show",
 		"path",
 		"reset",
 		"help",
 	];
-	const USAGE = "/proxy [start|stop|restart|status|verify|models|config|show|path|reset|help]";
+	const USAGE =
+		"/proxy [start|stop|restart|status|verify|models|zed-sync|config|show|path|reset|help]";
 
 	pi.registerCommand("proxy", {
 		description: "Manage the OpenAI-compatible proxy",
@@ -178,6 +183,9 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					return;
 				case "models":
 					showModels(ctx);
+					return;
+				case "zed-sync":
+					handleZedSync(ctx, args);
 					return;
 				case "show":
 					showConfig(ctx);
@@ -575,6 +583,46 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				"warning",
 			);
 		}
+	}
+
+	// --- Zed sync ---
+
+	function handleZedSync(ctx: ExtensionContext, args: string): void {
+		config = loadConfigFromFile();
+
+		const dryRun = args.includes("--dry-run");
+
+		// Compute exposed models (same as /proxy models)
+		const available = getAvailableModels();
+		const allModels = getAllRegisteredModels();
+		const outcome = computeModelExposure(available, allModels, buildExposureConfig());
+		if (!outcome.ok) {
+			ctx.ui.notify(`Model exposure error: ${outcome.message}`, "error");
+			return;
+		}
+
+		if (outcome.models.length === 0) {
+			ctx.ui.notify("No models exposed. Nothing to sync.", "warning");
+			return;
+		}
+
+		const syncOptions: ZedSyncOptions = {
+			providerName: "Pi Proxy",
+			apiUrl: `http://${config.host}:${String(config.port)}/v1`,
+			dryRun,
+		};
+
+		const result = syncToZed(outcome.models, syncOptions);
+
+		if (!result.ok) {
+			ctx.ui.notify(result.error ?? "Zed sync failed", "error");
+			return;
+		}
+
+		const msg = dryRun
+			? `Zed sync dry-run: ${result.summary}\n${result.configPath}`
+			: `Zed sync complete: ${result.summary}\n${result.configPath}`;
+		ctx.ui.notify(msg, "info");
 	}
 
 	async function waitForReady(timeoutMs: number): Promise<RuntimeStatus> {
