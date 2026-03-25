@@ -1,3 +1,10 @@
+## [4.5.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.5.0...v4.5.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* cover extensions/ in typecheck and lint, fix all type safety violations ([54e90e2](https://github.com/victor-software-house/pi-openai-proxy/commit/54e90e2af2f69ba0c1fa221cd04f646f62060360))
+
 # [4.5.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.4.1...v4.5.0) (2026-03-25)
 
 
