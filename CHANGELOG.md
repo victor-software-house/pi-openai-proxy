@@ -1,3 +1,10 @@
+## [4.2.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.1...v4.2.2) (2026-03-25)
+
+
+### Bug Fixes
+
+* rewrite model selector as SettingsList ([d68c853](https://github.com/victor-software-house/pi-openai-proxy/commit/d68c853886432a06b9a83cdd2a7178cfa4791bd6))
+
 ## [4.2.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.0...v4.2.1) (2026-03-25)
 
 
