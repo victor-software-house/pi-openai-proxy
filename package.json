@@ -63,6 +63,7 @@
 		"format": "biome format --write .",
 		"test": "bun test",
 		"test:ci": "bun test test/unit/ test/integration/",
+		"prepare": "tsdown",
 		"prepack": "bun run build",
 		"prepublishOnly": "bun test && bun run build"
 	},
