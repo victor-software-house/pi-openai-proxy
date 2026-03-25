@@ -99,11 +99,14 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		};
 	}
 
-	// Resolve pi-proxy binary: try workspace node_modules, then global
+	// Resolve pi-proxy binary: try local dev build, then installed package, then PATH
 	function findProxyBinary(): string {
-		// In workspace: node_modules/pi-proxy/dist/index.mjs
-		const workspaceBin = resolve(packageRoot, "node_modules", "pi-proxy", "dist", "index.mjs");
-		if (existsSync(workspaceBin)) return workspaceBin;
+		// Local development: dist/index.mjs in the same package root
+		const localBin = resolve(packageRoot, "dist", "index.mjs");
+		if (existsSync(localBin)) return localBin;
+		// Installed as dependency: node_modules/pi-proxy/dist/index.mjs
+		const depBin = resolve(packageRoot, "node_modules", "pi-proxy", "dist", "index.mjs");
+		if (existsSync(depBin)) return depBin;
 		// Fallback: assume pi-proxy is in PATH
 		return "pi-proxy";
 	}
