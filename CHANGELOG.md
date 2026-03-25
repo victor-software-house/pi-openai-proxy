@@ -1,3 +1,10 @@
+## [4.0.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.0...v4.0.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* remove unused TINY_PNG constant from security tests ([658d2fd](https://github.com/victor-software-house/pi-openai-proxy/commit/658d2fdba6bfbc8cc3cac30d77a24a3285b69718))
+
 # [4.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v3.0.0...v4.0.0) (2026-03-25)
 
 
