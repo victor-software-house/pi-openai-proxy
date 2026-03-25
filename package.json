@@ -69,6 +69,7 @@
 	"dependencies": {
 		"@mariozechner/pi-ai": "^0.62.0",
 		"@mariozechner/pi-coding-agent": "^0.62.0",
+		"@mobily/ts-belt": "^3.13.1",
 		"@sinclair/typebox": "^0.34.0",
 		"citty": "^0.1.6",
 		"hono": "^4.12.8",

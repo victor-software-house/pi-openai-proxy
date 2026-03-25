@@ -7,7 +7,9 @@
  * - POST /v1/chat/completions
  */
 
+import { F } from "@mobily/ts-belt";
 import type { ServerConfig } from "@proxy/config/env";
+import { loadConfigFromFile } from "@proxy/config/schema";
 import { convertMessages } from "@proxy/openai/messages";
 import {
 	computeModelExposure,
@@ -35,40 +37,59 @@ import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
 
 /**
- * Build a ModelExposureConfig from the server config.
+ * Builds a function that returns the current ModelExposureConfig,
+ * re-reading from the config file at most once every 2s.
+ * The boot-time config is used as the initial value.
  */
-function buildExposureConfig(config: ServerConfig): ModelExposureConfig {
-	return {
-		publicModelIdMode: config.publicModelIdMode,
-		modelExposureMode: config.modelExposureMode,
-		scopedProviders: config.scopedProviders,
-		customModels: config.customModels,
-		providerPrefixes: config.providerPrefixes,
+function createExposureConfigLoader(bootConfig: ServerConfig): () => ModelExposureConfig {
+	let current: ModelExposureConfig = {
+		publicModelIdMode: bootConfig.publicModelIdMode,
+		modelExposureMode: bootConfig.modelExposureMode,
+		scopedProviders: bootConfig.scopedProviders,
+		customModels: bootConfig.customModels,
+		providerPrefixes: bootConfig.providerPrefixes,
+	};
+
+	let firstCall = true;
+	const reload = F.throttle(() => {
+		const file = loadConfigFromFile();
+		current = {
+			publicModelIdMode: file.publicModelIdMode,
+			modelExposureMode: file.modelExposureMode,
+			scopedProviders: file.scopedProviders,
+			customModels: file.customModels,
+			providerPrefixes: file.providerPrefixes,
+		};
+	}, 2000);
+
+	return () => {
+		if (firstCall) {
+			firstCall = false;
+		} else {
+			reload();
+		}
+		return current;
 	};
 }
 
-/**
- * Compute or refresh the model exposure from the current registry and config.
- * Returns the exposure result or throws on config errors.
- */
-function getExposure(config: ServerConfig): ModelExposureResult {
-	const available = getAvailableModels();
-	const allRegistered = getAllModels();
-	const exposureConfig = buildExposureConfig(config);
-	const outcome = computeModelExposure(available, allRegistered, exposureConfig);
-	if (!outcome.ok) {
-		// Config validation error -- surface as 500 to callers
-		throw new Error(`Model exposure configuration error: ${outcome.message}`);
-	}
-	return outcome;
-}
-
 export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
+	const getExposureConfig = createExposureConfigLoader(config);
+
+	function getExposure(): ModelExposureResult {
+		const available = getAvailableModels();
+		const allRegistered = getAllModels();
+		const outcome = computeModelExposure(available, allRegistered, getExposureConfig());
+		if (!outcome.ok) {
+			throw new Error(`Model exposure configuration error: ${outcome.message}`);
+		}
+		return outcome;
+	}
+
 	const routes = new Hono<ProxyEnv>();
 
 	// --- GET /v1/models ---
 	routes.get("/v1/models", (c) => {
-		const exposure = getExposure(config);
+		const exposure = getExposure();
 		return c.json(buildModelList(exposure.models));
 	});
 
@@ -88,7 +109,7 @@ export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
 		}
 		const modelId = decodeURIComponent(modelIdEncoded);
 
-		const exposure = getExposure(config);
+		const exposure = getExposure();
 		const resolved = resolveExposedModel(exposure, modelId);
 		if (resolved === undefined) {
 			return c.json(modelNotFound(modelId), 404);
@@ -123,7 +144,7 @@ export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
 		const request = validation.data;
 
 		// Resolve model through the exposure engine
-		const exposure = getExposure(config);
+		const exposure = getExposure();
 		const resolved = resolveExposedModel(exposure, request.model);
 		if (resolved === undefined) {
 			return c.json(modelNotFound(request.model), 404);
