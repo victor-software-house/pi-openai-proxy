@@ -1,3 +1,10 @@
+# [4.2.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.1.0...v4.2.0) (2026-03-25)
+
+
+### Features
+
+* add /proxy restart command ([66fa02f](https://github.com/victor-software-house/pi-openai-proxy/commit/66fa02f89d336d2d48acaff457ef9e542072235a))
+
 # [4.1.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.6...v4.1.0) (2026-03-25)
 
 
