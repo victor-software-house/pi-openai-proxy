@@ -1,3 +1,10 @@
+## [4.2.5](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.4...v4.2.5) (2026-03-25)
+
+
+### Bug Fixes
+
+* use on/off values for model selector toggle ([7305d4e](https://github.com/victor-software-house/pi-openai-proxy/commit/7305d4e9f82fb03993e29ecf0cdd1d9d7b4b1e3e))
+
 ## [4.2.4](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.3...v4.2.4) (2026-03-25)
 
 
