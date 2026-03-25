@@ -16,6 +16,7 @@ import {
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { isRecord } from "@proxy/utils/guards";
+import * as z from "zod";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,7 +65,20 @@ export interface ProxyConfig {
 	readonly customModels: readonly string[];
 	/** Provider key -> custom public prefix label. Default prefix = provider key. */
 	readonly providerPrefixes: Readonly<Record<string, string>>;
+	/** Zed editor sync settings. */
+	readonly zed: ZedSyncConfig;
 }
+
+const ZedSyncConfigSchema = z.object({
+	providerName: z
+		.string()
+		.trim()
+		.min(1, { error: "Provider name must not be empty" })
+		.default("Pi Proxy"),
+	autoSync: z.boolean({ error: "autoSync must be a boolean" }).default(false),
+});
+
+export type ZedSyncConfig = z.infer<typeof ZedSyncConfigSchema>;
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -83,6 +97,10 @@ export const DEFAULT_CONFIG: Readonly<ProxyConfig> = {
 	scopedProviders: [],
 	customModels: [],
 	providerPrefixes: {},
+	zed: {
+		providerName: "Pi Proxy",
+		autoSync: false,
+	},
 };
 
 // ---------------------------------------------------------------------------
@@ -164,7 +182,16 @@ export function normalizeConfig(raw: unknown): ProxyConfig {
 		scopedProviders: normalizeStringArray(v["scopedProviders"]),
 		customModels: normalizeStringArray(v["customModels"]),
 		providerPrefixes: normalizeStringRecord(v["providerPrefixes"]),
+		zed: parseZedSyncConfig(v["zed"]),
 	};
+}
+
+function parseZedSyncConfig(raw: unknown): ZedSyncConfig {
+	const result = ZedSyncConfigSchema.safeParse(isRecord(raw) ? raw : {});
+	if (result.success) {
+		return result.data;
+	}
+	return ZedSyncConfigSchema.parse({});
 }
 
 // ---------------------------------------------------------------------------

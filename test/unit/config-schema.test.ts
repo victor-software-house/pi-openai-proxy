@@ -182,4 +182,61 @@ describe("normalizeConfig", () => {
 		expect(result.customModels).toEqual(["openai/gpt-4o"]);
 		expect(result.providerPrefixes).toEqual({ openai: "oai" });
 	});
+
+	test("normalizes zed config with defaults when missing", () => {
+		const result = normalizeConfig({});
+		expect(result.zed.providerName).toBe("Pi Proxy");
+		expect(result.zed.autoSync).toBe(false);
+	});
+
+	test("normalizes zed config from valid input", () => {
+		const result = normalizeConfig({
+			zed: { providerName: "My Proxy", autoSync: true },
+		});
+		expect(result.zed.providerName).toBe("My Proxy");
+		expect(result.zed.autoSync).toBe(true);
+	});
+
+	test("normalizes zed config with invalid types to defaults", () => {
+		const result = normalizeConfig({
+			zed: { providerName: 42, autoSync: "yes" },
+		});
+		expect(result.zed.providerName).toBe("Pi Proxy");
+		expect(result.zed.autoSync).toBe(false);
+	});
+
+	test("trims whitespace from zed providerName", () => {
+		const result = normalizeConfig({
+			zed: { providerName: "  My Proxy  " },
+		});
+		expect(result.zed.providerName).toBe("My Proxy");
+	});
+
+	test("falls back to default when zed providerName is empty after trim", () => {
+		const result = normalizeConfig({
+			zed: { providerName: "   " },
+		});
+		expect(result.zed.providerName).toBe("Pi Proxy");
+	});
+
+	test("preserves zed config through full roundtrip", () => {
+		const full = {
+			host: "0.0.0.0",
+			port: 9090,
+			lifetime: "session",
+			authToken: "tok",
+			remoteImages: true,
+			maxBodySizeMb: 100,
+			upstreamTimeoutSec: 300,
+			publicModelIdMode: "always-prefixed",
+			modelExposureMode: "custom",
+			scopedProviders: ["openai"],
+			customModels: ["openai/gpt-4o"],
+			providerPrefixes: { openai: "oai" },
+			zed: { providerName: "Custom Name", autoSync: true },
+		};
+		const result = normalizeConfig(full);
+		expect(result.zed.providerName).toBe("Custom Name");
+		expect(result.zed.autoSync).toBe(true);
+	});
 });

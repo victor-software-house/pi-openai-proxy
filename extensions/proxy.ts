@@ -587,27 +587,23 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	// --- Zed sync ---
 
-	function handleZedSync(ctx: ExtensionContext, args: string): void {
-		config = loadConfigFromFile();
-
-		const dryRun = args.includes("--dry-run");
-
-		// Compute exposed models (same as /proxy models)
+	/**
+	 * Run Zed sync and return the result. Shared by the command and auto-sync.
+	 */
+	function runZedSync(dryRun: boolean): { ok: boolean; message: string } {
 		const available = getAvailableModels();
 		const allModels = getAllRegisteredModels();
 		const outcome = computeModelExposure(available, allModels, buildExposureConfig());
 		if (!outcome.ok) {
-			ctx.ui.notify(`Model exposure error: ${outcome.message}`, "error");
-			return;
+			return { ok: false, message: `Model exposure error: ${outcome.message}` };
 		}
 
 		if (outcome.models.length === 0) {
-			ctx.ui.notify("No models exposed. Nothing to sync.", "warning");
-			return;
+			return { ok: false, message: "No models exposed. Nothing to sync." };
 		}
 
 		const syncOptions: ZedSyncOptions = {
-			providerName: "Pi Proxy",
+			providerName: config.zed.providerName,
 			apiUrl: `http://${config.host}:${String(config.port)}/v1`,
 			dryRun,
 		};
@@ -615,14 +611,30 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		const result = syncToZed(outcome.models, syncOptions);
 
 		if (!result.ok) {
-			ctx.ui.notify(result.error ?? "Zed sync failed", "error");
-			return;
+			return { ok: false, message: result.error ?? "Zed sync failed" };
 		}
 
-		const msg = dryRun
-			? `Zed sync dry-run: ${result.summary}\n${result.configPath}`
-			: `Zed sync complete: ${result.summary}\n${result.configPath}`;
-		ctx.ui.notify(msg, "info");
+		const prefix = dryRun ? "[dry-run] " : "";
+		return { ok: true, message: `${prefix}${result.summary} (${result.configPath})` };
+	}
+
+	function handleZedSync(ctx: ExtensionContext, args: string): void {
+		config = loadConfigFromFile();
+		const dryRun = args.includes("--dry-run");
+		const result = runZedSync(dryRun);
+		ctx.ui.notify(`Zed sync: ${result.message}`, result.ok ? "info" : "error");
+	}
+
+	/**
+	 * Trigger auto-sync to Zed if enabled. Called after config save.
+	 */
+	function maybeAutoSyncZed(ctx: ExtensionContext): void {
+		if (!config.zed.autoSync) return;
+		const result = runZedSync(false);
+		if (result.ok) {
+			ctx.ui.notify(`Zed auto-sync: ${result.message}`, "info");
+		}
+		// Silent on failure during auto-sync -- don't spam the user
 	}
 
 	async function waitForReady(timeoutMs: number): Promise<RuntimeStatus> {
@@ -868,6 +880,21 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				currentValue: customModelsDisplay(),
 				submenu: config.modelExposureMode === "custom" ? buildModelSelectorSubmenu : undefined,
 			},
+			// --- Zed sync ---
+			{
+				id: "zed.autoSync",
+				label: "Zed auto-sync",
+				description: "Sync models to Zed settings.json when config changes",
+				currentValue: config.zed.autoSync ? "on" : "off",
+				values: ["off", "on"],
+			},
+			{
+				id: "zed.providerName",
+				label: "Zed provider name",
+				description: "Provider label in Zed's openai_compatible section",
+				currentValue: config.zed.providerName,
+				values: ["Pi Proxy"],
+			},
 		];
 	}
 
@@ -958,6 +985,14 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			case "customModels":
 				// Handled by submenu -- no cycling
 				break;
+			case "zed.autoSync":
+				config = { ...config, zed: { ...config.zed, autoSync: value === "on" } };
+				break;
+			case "zed.providerName":
+				if (value.length > 0) {
+					config = { ...config, zed: { ...config.zed, providerName: value } };
+				}
+				break;
 		}
 		saveConfigToFile(config);
 		config = loadConfigFromFile();
@@ -988,6 +1023,10 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				return config.modelExposureMode;
 			case "customModels":
 				return customModelsDisplay();
+			case "zed.autoSync":
+				return config.zed.autoSync ? "on" : "off";
+			case "zed.providerName":
+				return config.zed.providerName;
 			default:
 				return "";
 		}
@@ -1023,6 +1062,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 							settingsList.updateValue("customModels", customModelsDisplay());
 						}
 
+						maybeAutoSyncZed(ctx);
 						tui.requestRender();
 					},
 					() => done(undefined),
