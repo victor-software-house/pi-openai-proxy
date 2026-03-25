@@ -1,3 +1,32 @@
+# [4.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v3.0.0...v4.0.0) (2026-03-25)
+
+
+* fix!: redesign model exposure UX and fix settings panel selection reset ([787624c](https://github.com/victor-software-house/pi-openai-proxy/commit/787624c21a80d182a5bbabc58d113cac4b7fcd76))
+
+
+### BREAKING CHANGES
+
+* default modelExposureMode changed from 'all' to 'scoped'.
+The 'scoped' mode now means 'use pi's available (auth-configured) models'
+which was the previous 'all' behavior. The 'all' mode now exposes all
+registered models regardless of auth status.
+
+Settings panel fixes:
+- Fix selection jumping to first item on every value change: use
+  SettingsList.updateValue() instead of rebuilding the entire list
+- Remove scopedProviders, customModels, providerPrefixes as separate
+  top-level settings items
+- Single 'Exposure mode' enum: scoped (default), all, custom
+- 'Select models' item with submenu for interactive model selection
+  when exposure mode is 'custom'
+
+Model-exposure engine:
+- computeModelExposure() now accepts both available and allRegistered
+  model arrays
+- 'scoped' mode uses available (auth-filtered) models
+- 'all' mode uses all registered models
+- 'custom' mode filters available by canonical ID allowlist
+
 # [3.0.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v2.1.0...v3.0.0) (2026-03-25)
 
 
