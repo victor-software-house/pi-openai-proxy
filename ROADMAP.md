@@ -79,6 +79,18 @@ Validate response shapes against the official OpenAI Node SDK to catch field-lev
 - [ ] Non-streaming response conformance tests (`ChatCompletion` shape, `content` nullability, `tool_calls`)
 - [ ] SDK round-trip conformance tests using `openai` client with `_strict_response_validation: true`
 - [ ] Security tests (image URL blocking, oversized payloads)
+- [ ] Code audit identified gaps in tool_choice forwarding, strict mode, and PLAN.md drift — tracked in Phase 3C
+
+## Phase 3C — Known gaps and silent drops
+
+Address issues found by code audit that violate the project's policy of rejecting unsupported parameters clearly.
+
+- [ ] Fix `tool_choice` silent drop: forward via `onPayload` passthrough or reject with `422`
+- [ ] Fix `strict` on function tools: forward to pi SDK or reject with `422`
+- [ ] Document `parallel_tool_calls` rejection rationale (pi SDK limitation)
+- [ ] Update `PLAN.md` tool schema policy: `anyOf` is supported but documented as rejected
+- [ ] Evaluate proxy-side concurrency limits and circuit breakers for upstream protection
+- [ ] Document stateless/no-retry architecture as intentional design choice
 
 ## Phase 4 — Monorepo and proper CLI
 

@@ -316,6 +316,42 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Blocked private-range image URL returns error
 - [x] Oversized image payload rejected
 
+## Phase 3C — Known gaps and silent drops
+
+Issues identified by code audit. These violate the project's own policy of rejecting
+unsupported parameters clearly instead of silently ignoring them.
+
+### `tool_choice` silent drop
+
+- [ ] Forward `tool_choice` to upstream via `onPayload` passthrough in `collectPayloadFields()`
+- [ ] If forwarding is not feasible for the pi SDK, move `tool_choice` to `rejectedFields` and return `422`
+- [ ] Add unit test verifying `tool_choice` is included in `onPayload` passthrough
+- [ ] Add conformance test verifying `tool_choice` reaches the upstream provider
+
+### `strict` on function tools silent drop
+
+- [ ] Forward `strict` flag from tool definitions to pi SDK if supported
+- [ ] If not supported, either document as "accepted but ignored" or move to rejected with `422`
+- [ ] Add unit test for `strict` handling
+
+### `parallel_tool_calls` rejection documentation
+
+- [ ] Add inline code comment in `rejectedFields` explaining why `parallel_tool_calls` is rejected
+- [ ] Document in `PLAN.md` that the pi SDK does not expose parallel tool call control
+
+### Proxy-side resilience
+
+- [ ] Evaluate adding a concurrency limiter for upstream requests
+- [ ] Evaluate adding a simple circuit breaker for repeated upstream failures
+- [ ] Document the current stateless/no-retry architecture as an intentional design choice
+- [ ] Add structured logging for upstream overload (503) and rate limit (429) events
+
+### PLAN.md documentation drift
+
+- [ ] Update `PLAN.md` tool schema policy: `anyOf` is implemented but listed as rejected
+- [ ] Update `PLAN.md` to document `tool_choice` gap explicitly
+- [ ] Add "Known gaps" section to `PLAN.md`
+
 ## Phase 4 — Experimental agentic mode
 
 ### Contract
@@ -352,3 +388,5 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Keep `README.md` aligned with the supported endpoint and feature set
 - [x] Keep `ROADMAP.md` aligned with `PLAN.md`
 - [x] Keep this file focused on concrete action items only
+- [ ] Document all silent-drop fields and their resolution plan
+- [ ] Add "Known gaps" tracking to `PLAN.md`

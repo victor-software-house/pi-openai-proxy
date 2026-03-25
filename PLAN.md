@@ -329,17 +329,83 @@ Supported subset:
 - nullable types via `type: [T, "null"]`
 - `description` on any schema node
 - `additionalProperties` as boolean (not as schema)
+- `anyOf` for nullable types and simple unions (max 10 branches)
 
 Rejected:
 
 - `$ref`
-- `oneOf` / `allOf` / `anyOf`
+- `oneOf` / `allOf`
 - `if` / `then` / `else`
 - `patternProperties`
 - `not`
 - `additionalProperties` as a schema object
 - recursive schemas
 - non-string enum values
+
+## Known gaps and silent drops
+
+The following issues violate the project's own policy of rejecting unsupported parameters
+clearly instead of silently ignoring them. These should be addressed before the proxy is
+considered production-complete.
+
+### `tool_choice` accepted but not forwarded
+
+`tool_choice` is accepted by the Zod schema and documented as supported, but it is never
+read from the validated request or forwarded to the pi SDK. It is silently dropped on
+every request. Neither `routes.ts` nor `complete.ts` reference `tool_choice` after
+validation. This means `tool_choice: "required"` or `tool_choice: "none"` have no
+effect — the model always uses its default tool-calling behavior.
+
+Options:
+- Forward `tool_choice` via `onPayload` passthrough (same pattern as `top_p`, `seed`, etc.)
+- If pi SDK's `Context` or `SimpleStreamOptions` gains a `toolChoice` field, use that instead
+- If forwarding is not feasible, move `tool_choice` to the rejected list and return `422`
+
+### `strict` on function tools accepted but ignored
+
+`functionToolSchema` accepts `strict: z.boolean().nullable().optional()` on tool definitions,
+but `convertTools()` never reads or forwards it. OpenAI's `strict` mode enables structured
+outputs for tool call arguments. The field is silently accepted and discarded.
+
+Options:
+- If pi SDK supports strict tool schemas, forward the flag
+- Otherwise, move `strict` to a documented "accepted but ignored" list, or reject it with `422`
+
+### `parallel_tool_calls` rejected without explanation
+
+`parallel_tool_calls` is in the `rejectedFields` list (returns `422`), and the Zed model
+sync hardcodes `parallel_tool_calls: false`. The SSE streaming code can handle multiple
+tool calls per response (via `contentIndex` tracking), so the response side is capable.
+The rejection appears to be because the pi SDK's `completeSimple`/`streamSimple` interface
+does not expose parallel tool call control. This should be documented explicitly so the
+reason is clear.
+
+### No proxy-side concurrency or overload protection
+
+The proxy has no rate limiting, connection pooling, request queuing, concurrency caps, or
+circuit breakers. Every inbound request immediately fires an upstream provider call. Under
+load, the proxy will hammer upstream providers without any backpressure.
+
+Upstream overload is detected reactively via `mapUpstreamError()` (pattern-matching on error
+strings like "529", "overloaded" → 503), but the proxy itself does nothing to prevent
+causing that overload.
+
+The proxy does not retry failed requests. Any retry behavior visible to clients comes from
+the client itself (e.g. Zed's built-in retry logic), not from this proxy.
+
+### Stateless architecture — no session continuity
+
+The proxy is fully stateless. Each `POST /v1/chat/completions` request builds a fresh
+`Context` from the `messages` array and discards it after the response. There is no
+session persistence, no conversation memory, and no model-change detection across requests.
+
+This is by design (matches the standard OpenAI chat completions contract), but means:
+- The client is solely responsible for maintaining conversation history
+- Switching models between requests is invisible to the proxy
+- There is no server-side context caching or optimization
+
+The pi SDK's stateful `AgentSession` is not used. Phase 4 (experimental agentic mode)
+is intended to address this but is not started.
 
 ## Response contract
 
@@ -550,6 +616,11 @@ No production code imports it. Remove it along with its test file.
 `routes.ts` is the sole composition root (267 lines, 15 imports). The chat completions handler is ~170 lines covering body parse, validate, resolve model, convert messages, convert tools, check API key, and stream/non-stream branching. This is manageable for the current three-endpoint surface but should be decomposed if new endpoints or complex middleware (agentic mode) are added.
 
 `extensions/proxy.ts` (896 lines) mixes process management, config UI, model queries, verification logic, and TUI rendering. It is isolated from the core proxy. If it grows further (agentic mode controls), extract helpers into separate extension modules.
+
+The proxy has no concurrency controls. Bun's runtime handles request parallelism, but
+there are no semaphores, connection pools, or circuit breakers protecting upstream
+providers. This is acceptable for local single-user use but would need addressing for
+any multi-user or high-concurrency deployment.
 
 ## Delivery phases
 
