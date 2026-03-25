@@ -1,3 +1,10 @@
+# [4.3.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.6...v4.3.0) (2026-03-25)
+
+
+### Features
+
+* **ext:** add /proxy models command to list exposed models with public IDs ([6168b45](https://github.com/victor-software-house/pi-openai-proxy/commit/6168b4564862658c3666d5797799288cb5137208))
+
 ## [4.2.6](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.5...v4.2.6) (2026-03-25)
 
 
