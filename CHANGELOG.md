@@ -1,3 +1,11 @@
+## [4.0.5](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.4...v4.0.5) (2026-03-25)
+
+
+### Bug Fixes
+
+* make tests deterministic by removing loadConfig() dependency ([1cc1026](https://github.com/victor-software-house/pi-openai-proxy/commit/1cc10264ca83570c515a3fa9cadc80b92bbd015b))
+* restore local dist/ as first proxy binary lookup path ([d25b9d0](https://github.com/victor-software-house/pi-openai-proxy/commit/d25b9d01e457a5de645492c37a8085d3d0edc103))
+
 ## [4.0.4](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.3...v4.0.4) (2026-03-25)
 
 
