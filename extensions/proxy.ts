@@ -606,10 +606,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					done(`${String(selected.size)} selected`);
 					return;
 				}
-				if (data === "\x1B[A" && selectedIndex > 0) {
-					selectedIndex--;
-				} else if (data === "\x1B[B" && selectedIndex < models.length - 1) {
-					selectedIndex++;
+				if (models.length === 0) return;
+				if (data === "\x1B[A") {
+					selectedIndex = selectedIndex <= 0 ? models.length - 1 : selectedIndex - 1;
+				} else if (data === "\x1B[B") {
+					selectedIndex = selectedIndex >= models.length - 1 ? 0 : selectedIndex + 1;
 				} else if (data === " " || data === "\r") {
 					const m = models[selectedIndex];
 					if (m !== undefined) {
