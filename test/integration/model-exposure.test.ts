@@ -8,8 +8,9 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import type { ServerConfig } from "@proxy/config/env";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
+import { isRecord } from "@proxy/utils/guards";
 
-import { jsonBody, testApp, testConfig } from "../helpers";
+import { isErrorBody, isModelListBody, jsonBody, testApp, testConfig } from "../helpers";
 
 beforeAll(() => {
 	initRegistry();
@@ -33,9 +34,11 @@ describe("publicModelIdMode through HTTP", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelListBody(body)).toBe(true);
+		if (!isModelListBody(body)) return;
+
 		expect(body.data.length).toBeGreaterThan(0);
 
-		// Every ID should contain a slash (prefix/model-id)
 		for (const model of body.data) {
 			expect(model.id).toContain("/");
 		}
@@ -50,9 +53,11 @@ describe("publicModelIdMode through HTTP", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelListBody(body)).toBe(true);
+		if (!isModelListBody(body)) return;
+
 		if (body.data.length === 0) return;
 
-		// Check if there are actual collisions in the available models
 		const idCounts = new Map<string, number>();
 		for (const m of models) {
 			idCounts.set(m.id, (idCounts.get(m.id) ?? 0) + 1);
@@ -60,10 +65,7 @@ describe("publicModelIdMode through HTTP", () => {
 		const hasCollisions = [...idCounts.values()].some((c) => c > 1);
 
 		if (!hasCollisions) {
-			// No collisions: IDs should be raw (no provider prefix)
 			for (const model of body.data) {
-				// Raw IDs don't start with a known provider prefix
-				// Just verify they exist and are strings
 				expect(model.id).toBeString();
 			}
 		}
@@ -91,6 +93,9 @@ describe("modelExposureMode through HTTP", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelListBody(body)).toBe(true);
+		if (!isModelListBody(body)) return;
+
 		expect(body.data.length).toBe(1);
 	});
 
@@ -106,6 +111,9 @@ describe("modelExposureMode through HTTP", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelListBody(body)).toBe(true);
+		if (!isModelListBody(body)) return;
+
 		expect(body.data.length).toBe(available.length);
 	});
 
@@ -122,7 +130,10 @@ describe("modelExposureMode through HTTP", () => {
 		const scopedBody = await jsonBody(scopedRes);
 		const allBody = await jsonBody(allRes);
 
-		// Both use getAvailable(), scoped has no enabledModels filter in test
+		expect(isModelListBody(scopedBody)).toBe(true);
+		expect(isModelListBody(allBody)).toBe(true);
+		if (!isModelListBody(scopedBody) || !isModelListBody(allBody)) return;
+
 		expect(allBody.data.length).toBe(scopedBody.data.length);
 	});
 });
@@ -147,10 +158,10 @@ describe("providerPrefixes through HTTP", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
-		// Find the model from the first provider
-		const prefixedModel = body.data.find((m: Record<string, string>) =>
-			m["id"]?.startsWith("custom/"),
-		);
+		expect(isModelListBody(body)).toBe(true);
+		if (!isModelListBody(body)) return;
+
+		const prefixedModel = body.data.find((m) => m.id.startsWith("custom/"));
 		expect(prefixedModel).toBeDefined();
 	});
 });
@@ -168,13 +179,11 @@ describe("model resolution with exposure configs", () => {
 		const second = models[1];
 		if (first === undefined || second === undefined) return;
 
-		// Expose only the first model
 		const app = appWith({
 			modelExposureMode: "custom",
 			customModels: [`${first.provider}/${first.id}`],
 		});
 
-		// Try to use the second (hidden) model
 		const res = await app.request("/v1/chat/completions", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -186,6 +195,9 @@ describe("model resolution with exposure configs", () => {
 		expect(res.status).toBe(404);
 
 		const body = await jsonBody(res);
+		expect(isErrorBody(body)).toBe(true);
+		if (!isErrorBody(body)) return;
+
 		expect(body.error.code).toBe("model_not_found");
 	});
 
@@ -198,19 +210,25 @@ describe("model resolution with exposure configs", () => {
 
 		const app = appWith({ publicModelIdMode: "always-prefixed" });
 
-		// Get the public ID from the models list
 		const listRes = await app.request("/v1/models");
 		const listBody = await jsonBody(listRes);
+		expect(isModelListBody(listBody)).toBe(true);
+		if (!isModelListBody(listBody)) return;
+
 		if (listBody.data.length === 0) return;
 
-		const publicId: string = listBody.data[0].id;
+		const firstModel = listBody.data[0];
+		if (firstModel === undefined) return;
+		const publicId = firstModel.id;
 		const encodedId = encodeURIComponent(publicId);
 
-		// Resolve by public ID
 		const res = await app.request(`/v1/models/${encodedId}`);
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
-		expect(body.id).toBe(publicId);
+		expect(isRecord(body)).toBe(true);
+		if (!isRecord(body)) return;
+
+		expect(body["id"]).toBe(publicId);
 	});
 });

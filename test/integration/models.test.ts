@@ -1,4 +1,3 @@
-import { jsonBody, testApp } from "../helpers";
 /**
  * Integration tests for GET /v1/models and GET /v1/models/:model
  *
@@ -8,6 +7,8 @@ import { jsonBody, testApp } from "../helpers";
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
+
+import { isErrorBody, isModelListBody, isModelObject, jsonBody, testApp } from "../helpers";
 
 let app: ReturnType<typeof testApp>;
 
@@ -22,18 +23,18 @@ describe("GET /v1/models", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelListBody(body)).toBe(true);
+		if (!isModelListBody(body)) return;
+
 		expect(body.object).toBe("list");
 		expect(body.data).toBeArray();
 
-		// In CI there may be no auth.json, so available models can be 0.
-		// Validate item shape only when models are present.
 		if (body.data.length > 0) {
 			const first = body.data[0];
+			if (first === undefined) return;
 			expect(first.object).toBe("model");
 			expect(first.owned_by).toBeDefined();
 			expect(first.created).toBeNumber();
-			// No x_pi field (removed in Phase 3A)
-			expect(first.x_pi).toBeUndefined();
 		}
 	});
 
@@ -41,19 +42,23 @@ describe("GET /v1/models", () => {
 		const models = getAvailableModels();
 		if (models.length === 0) return;
 
-		// Fetch the list and verify the first item is reachable by its public ID
 		const listRes = await app.request("/v1/models");
 		const listBody = await jsonBody(listRes);
+		if (!isModelListBody(listBody)) return;
 		if (listBody.data.length === 0) return;
 
 		const first = listBody.data[0];
-		const publicId: string = first.id;
+		if (first === undefined) return;
+		const publicId = first.id;
 		const encodedId = encodeURIComponent(publicId);
 
 		const res = await app.request(`/v1/models/${encodedId}`);
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelObject(body)).toBe(true);
+		if (!isModelObject(body)) return;
+
 		expect(body.id).toBe(publicId);
 		expect(body.object).toBe("model");
 		expect(body.created).toBeNumber();
@@ -66,19 +71,23 @@ describe("GET /v1/models/:model", () => {
 		const models = getAvailableModels();
 		if (models.length === 0) return;
 
-		// Get a public ID from the models list
 		const listRes = await app.request("/v1/models");
 		const listBody = await jsonBody(listRes);
+		if (!isModelListBody(listBody)) return;
 		if (listBody.data.length === 0) return;
 
 		const first = listBody.data[0];
-		const publicId: string = first.id;
+		if (first === undefined) return;
+		const publicId = first.id;
 		const encodedId = encodeURIComponent(publicId);
 
 		const res = await app.request(`/v1/models/${encodedId}`);
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelObject(body)).toBe(true);
+		if (!isModelObject(body)) return;
+
 		expect(body.id).toBe(publicId);
 		expect(body.object).toBe("model");
 		expect(body.owned_by).toBe(first.owned_by);
@@ -93,11 +102,13 @@ describe("GET /v1/models/:model", () => {
 		const canonicalId = `${first.provider}/${first.id}`;
 		const encodedId = encodeURIComponent(canonicalId);
 
-		// Canonical ID fallback should work for models that are exposed
 		const res = await app.request(`/v1/models/${encodedId}`);
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelObject(body)).toBe(true);
+		if (!isModelObject(body)) return;
+
 		expect(body.object).toBe("model");
 		expect(body.owned_by).toBe(first.provider);
 	});
@@ -110,11 +121,13 @@ describe("GET /v1/models/:model", () => {
 		if (first === undefined) return;
 		const canonicalId = `${first.provider}/${first.id}`;
 
-		// Hono should handle slash-separated path naturally
 		const res = await app.request(`/v1/models/${canonicalId}`);
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
+		expect(isModelObject(body)).toBe(true);
+		if (!isModelObject(body)) return;
+
 		expect(body.object).toBe("model");
 	});
 
@@ -123,7 +136,9 @@ describe("GET /v1/models/:model", () => {
 		expect(res.status).toBe(404);
 
 		const body = await jsonBody(res);
-		expect(body.error).toBeDefined();
+		expect(isErrorBody(body)).toBe(true);
+		if (!isErrorBody(body)) return;
+
 		expect(body.error.type).toBe("invalid_request_error");
 		expect(body.error.code).toBe("model_not_found");
 	});

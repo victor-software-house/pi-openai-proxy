@@ -62,7 +62,7 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "bun run lint:biome && bun run lint:oxlint",
 		"lint:biome": "biome check .",
-		"lint:oxlint": "oxlint --import-plugin --type-aware --tsconfig=./tsconfig.json src/",
+		"lint:oxlint": "oxlint --import-plugin --type-aware --tsconfig=./tsconfig.json .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"test": "bun test",

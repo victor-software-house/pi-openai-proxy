@@ -23,5 +23,5 @@
 			"@proxy/*": ["./src/*"]
 		}
 	},
-	"include": ["src", "test"]
+	"include": ["**/*.ts"]
 }

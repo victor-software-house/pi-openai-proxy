@@ -100,22 +100,37 @@ export function getCheapestModel(): TestModel | undefined {
  * Uses a custom fetch that routes requests to app.request() instead of
  * making real HTTP calls. This lets the SDK's response parsing and
  * strict validation run against our response shapes.
+ *
+ * The Hono app.request() return type is compatible with globalThis.Response
+ * at runtime (same underlying Response class in Bun), but TypeScript sees
+ * them as distinct types because Hono re-exports its own Response type.
+ * We bridge this by constructing a new globalThis.Response from the Hono
+ * response body and status.
  */
 export function createTestClient(proxyApp: ReturnType<typeof testApp>): OpenAI {
 	return new OpenAI({
 		apiKey: "test-key-unused",
 		baseURL: "http://localhost:4141/v1",
 		maxRetries: 0,
-		// Route SDK requests through the Hono test app.
-		// The openai SDK's fetch type is compatible with Bun's global fetch.
-		fetch: async (input, init) => {
-			const url = typeof input === "string" ? input : String(input);
+		fetch: async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			const path = new URL(url).pathname;
-			return proxyApp.request(path, {
-				method: (init?.method as string) ?? "GET",
-				headers: init?.headers as Record<string, string>,
-				body: init?.body as string | undefined,
-			}) as unknown as globalThis.Response;
+			const method = init?.method ?? "GET";
+			const headers = init?.headers ?? {};
+			const body = init?.body ?? null;
+
+			const honoRes = await proxyApp.request(path, {
+				method,
+				headers,
+				body,
+			});
+
+			// Bridge Hono Response -> globalThis.Response for the SDK
+			return new globalThis.Response(honoRes.body, {
+				status: honoRes.status,
+				statusText: honoRes.statusText,
+				headers: Object.fromEntries(honoRes.headers.entries()),
+			});
 		},
 	});
 }

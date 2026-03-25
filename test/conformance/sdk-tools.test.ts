@@ -66,7 +66,9 @@ describe("SDK tool call conformance", () => {
 			if (tc !== undefined && tc.type === "function") {
 				expect(tc.function.name).toBeString();
 				expect(tc.function.arguments).toBeString();
-				expect(() => JSON.parse(tc.function.arguments)).not.toThrow();
+				expect(() => {
+					JSON.parse(tc.function.arguments);
+				}).not.toThrow();
 			}
 		}
 	});

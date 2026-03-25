@@ -31,6 +31,7 @@ import {
 	type ExtensionContext,
 	getSettingsListTheme,
 	ModelRegistry,
+	SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import {
 	type Component,
@@ -68,6 +69,17 @@ interface RuntimeStatus {
 	models: number;
 }
 
+interface ProbeBody {
+	data: unknown[];
+}
+
+function isProbeBody(value: unknown): value is ProbeBody {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+	if (!("data" in value)) return false;
+	const v: { data: unknown } = value;
+	return Array.isArray(v.data);
+}
+
 // ---------------------------------------------------------------------------
 // Extension
 // ---------------------------------------------------------------------------
@@ -83,22 +95,23 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	const cachedAuth = AuthStorage.create();
 	const cachedRegistry = new ModelRegistry(cachedAuth);
+	const settingsManager = SettingsManager.create();
 
 	function getAvailableModels(): Model<Api>[] {
 		cachedRegistry.refresh();
 		return cachedRegistry.getAvailable();
 	}
 
-	function getAllRegisteredModels(): Model<Api>[] {
-		cachedRegistry.refresh();
-		return cachedRegistry.getAll();
+	function getEnabledModels(): readonly string[] | undefined {
+		settingsManager.reload();
+		return settingsManager.getEnabledModels();
 	}
 
 	function buildExposureConfig(): ModelExposureConfig {
 		return {
 			publicModelIdMode: config.publicModelIdMode,
 			modelExposureMode: config.modelExposureMode,
-			scopedProviders: config.scopedProviders,
+			enabledModels: getEnabledModels(),
 			customModels: config.customModels,
 			providerPrefixes: config.providerPrefixes,
 		};
@@ -274,8 +287,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				headers,
 			});
 			if (res.ok) {
-				const body = (await res.json()) as { data?: unknown[] };
-				return { reachable: true, models: body.data?.length ?? 0 };
+				const body: unknown = await res.json();
+				let modelCount = 0;
+				if (isProbeBody(body)) {
+					modelCount = body.data.length;
+				}
+				return { reachable: true, models: modelCount };
 			}
 		} catch {
 			// not reachable
@@ -464,8 +481,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			`exposure: ${config.modelExposureMode}`,
 		];
 
-		if (config.modelExposureMode === "scoped" && config.scopedProviders.length > 0) {
-			exposureLines.push(`providers: ${config.scopedProviders.join(", ")}`);
+		if (config.modelExposureMode === "scoped") {
+			const enabledModels = getEnabledModels();
+			if (enabledModels !== undefined && enabledModels.length > 0) {
+				exposureLines.push(`enabled: ${String(enabledModels.length)} pi model(s)`);
+			}
 		}
 		if (config.modelExposureMode === "custom" && config.customModels.length > 0) {
 			exposureLines.push(`models: ${String(config.customModels.length)} custom`);
@@ -479,8 +499,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 		// Public ID preview (first 5 exposed models)
 		const models = getAvailableModels();
-		const allModels = getAllRegisteredModels();
-		const outcome = computeModelExposure(models, allModels, buildExposureConfig());
+		const outcome = computeModelExposure(models, buildExposureConfig());
 		if (outcome.ok && outcome.models.length > 0) {
 			const preview = outcome.models.slice(0, 5).map((m) => m.publicId);
 			const suffix =
@@ -500,8 +519,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	function showModels(ctx: ExtensionContext): void {
 		config = loadConfigFromFile();
 		const models = getAvailableModels();
-		const allModels = getAllRegisteredModels();
-		const outcome = computeModelExposure(models, allModels, buildExposureConfig());
+		const outcome = computeModelExposure(models, buildExposureConfig());
 
 		if (!outcome.ok) {
 			ctx.ui.notify(`Model exposure error: ${outcome.message}`, "warning");
@@ -548,8 +566,6 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		const models = getAvailableModels();
 		const issues: string[] = [];
 
-		const allModels = getAllRegisteredModels();
-
 		// Check available models
 		if (models.length === 0) {
 			issues.push("No models have auth configured. The proxy will expose 0 models.");
@@ -569,7 +585,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 
 		// Run the full exposure computation to catch ID/prefix errors
-		const outcome = computeModelExposure(models, allModels, buildExposureConfig());
+		const outcome = computeModelExposure(models, buildExposureConfig());
 		if (!outcome.ok) {
 			issues.push(outcome.message);
 		}
@@ -592,8 +608,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	 */
 	function runZedSync(dryRun: boolean): { ok: boolean; message: string } {
 		const available = getAvailableModels();
-		const allModels = getAllRegisteredModels();
-		const outcome = computeModelExposure(available, allModels, buildExposureConfig());
+		const outcome = computeModelExposure(available, buildExposureConfig());
 		if (!outcome.ok) {
 			return { ok: false, message: `Model exposure error: ${outcome.message}` };
 		}
@@ -709,12 +724,40 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		// Accesses private fields via bracket notation for provider jumping.
 		// Pinned to pi-tui behavior as of @mariozechner/pi-coding-agent ^0.62.0.
 		// Remove when SettingsList exposes a jumpTo/setSelectedIndex method.
+
+		// Isolated unsafe accessor for SettingsList private fields.
+		// Consolidated here so jumpProvider itself is fully type-safe.
+		function listGet(key: string): unknown {
+			return Reflect.get(list, key);
+		}
+		function listSet(key: string, value: unknown): void {
+			Reflect.set(list, key, value);
+		}
+
+		function getSettingsListItems(): SettingItem[] {
+			const rawSearch = listGet("searchEnabled");
+			const raw =
+				typeof rawSearch === "boolean" && rawSearch ? listGet("filteredItems") : listGet("items");
+			if (!Array.isArray(raw)) return [];
+			const result: SettingItem[] = [];
+			for (const item of raw) {
+				if (isSettingItem(item)) result.push(item);
+			}
+			return result;
+		}
+
+		function isSettingItem(value: unknown): value is SettingItem {
+			if (value === null || typeof value !== "object") return false;
+			if (!("id" in value)) return false;
+			const v: { id: unknown } = value;
+			return typeof v.id === "string";
+		}
+
 		function jumpProvider(direction: "prev" | "next"): void {
-			const sl = list as unknown as Record<string, unknown>;
-			const idx = sl["selectedIndex"] as number;
-			const display = (
-				(sl["searchEnabled"] as boolean) ? sl["filteredItems"] : sl["items"]
-			) as SettingItem[];
+			const rawIdx = listGet("selectedIndex");
+			if (typeof rawIdx !== "number") return;
+			const idx = rawIdx;
+			const display = getSettingsListItems();
 			if (display.length === 0) return;
 
 			const current = display[idx];
@@ -750,7 +793,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					}
 				}
 			}
-			sl["selectedIndex"] = target;
+			listSet("selectedIndex", target);
 		}
 
 		return {
@@ -878,7 +921,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				label: "Select models",
 				description: customModelsDescription(),
 				currentValue: customModelsDisplay(),
-				submenu: config.modelExposureMode === "custom" ? buildModelSelectorSubmenu : undefined,
+				...(config.modelExposureMode === "custom" ? { submenu: buildModelSelectorSubmenu } : {}),
 			},
 			// --- Zed sync ---
 			{

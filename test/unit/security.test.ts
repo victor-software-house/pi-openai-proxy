@@ -8,7 +8,7 @@
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
-import { jsonBody, testApp } from "../helpers";
+import { isErrorLike, jsonBody, testApp } from "../helpers";
 
 let app: ReturnType<typeof testApp>;
 let modelId: string | undefined;
@@ -24,9 +24,6 @@ beforeAll(() => {
 });
 
 function chatRequestWithImage(imageUrl: string): string {
-	// These tests validate image URL handling in message conversion.
-	// Model resolution must succeed first, so use a real model ID.
-	// If no models are available, the test will be skipped.
 	return JSON.stringify({
 		model: modelId ?? "unavailable/model",
 		messages: [
@@ -51,6 +48,8 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("Remote image URLs are not supported");
 	});
 
@@ -63,6 +62,8 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("Remote image URLs are not supported");
 	});
 
@@ -75,6 +76,8 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("Remote image URLs are not supported");
 	});
 
@@ -87,12 +90,13 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("Remote image URLs are not supported");
 	});
 
 	test("rejects oversized base64 payload", async () => {
 		if (modelId === undefined) return;
-		// Create a data URI larger than 20MB
 		const oversizedData = "A".repeat(21 * 1024 * 1024);
 		const res = await app.request("/v1/chat/completions", {
 			method: "POST",
@@ -101,6 +105,8 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("exceeds maximum size");
 	});
 
@@ -113,6 +119,8 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("Unsupported image MIME type");
 	});
 
@@ -125,6 +133,8 @@ describe("image URL security", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("Invalid base64 data URI");
 	});
 });

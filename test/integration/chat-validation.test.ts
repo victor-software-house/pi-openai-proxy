@@ -1,4 +1,3 @@
-import { jsonBody } from "../helpers";
 /**
  * Integration tests for POST /v1/chat/completions validation.
  *
@@ -9,7 +8,7 @@ import { jsonBody } from "../helpers";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
 
-import { testApp, testConfig } from "../helpers";
+import { isErrorBody, isErrorLike, jsonBody, testApp, testConfig } from "../helpers";
 
 let app: ReturnType<typeof testApp>;
 
@@ -27,6 +26,8 @@ describe("POST /v1/chat/completions - validation", () => {
 		});
 		expect(res.status).toBe(400);
 		const body = await jsonBody(res);
+		expect(isErrorBody(body)).toBe(true);
+		if (!isErrorBody(body)) return;
 		expect(body.error.type).toBe("invalid_request_error");
 	});
 
@@ -76,13 +77,10 @@ describe("POST /v1/chat/completions - validation", () => {
 				],
 			}),
 		});
-		// Should pass validation -- gets 404 because the model doesn't exist
 		expect(res.status).toBe(404);
 	});
 
 	test("rejects unsupported tool schemas with 422", async () => {
-		// Tool schema validation requires model resolution to succeed first.
-		// Skip if no models are available (no auth configured).
 		const models = getAvailableModels();
 		if (models.length === 0) return;
 
@@ -114,6 +112,8 @@ describe("POST /v1/chat/completions - validation", () => {
 		});
 		expect(res.status).toBe(422);
 		const body = await jsonBody(res);
+		expect(isErrorBody(body)).toBe(true);
+		if (!isErrorBody(body)) return;
 		expect(body.error.code).toBe("unsupported_parameter");
 	});
 
@@ -129,7 +129,10 @@ describe("POST /v1/chat/completions - validation", () => {
 		});
 		expect(res.status).toBe(422);
 		const body = await jsonBody(res);
-		expect(body.error.param).toBe("n");
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
+		const param = (body.error as Record<string, unknown>)["param"];
+		expect(param).toBe("n");
 	});
 
 	test("rejects unknown fields with 422", async () => {
@@ -156,6 +159,8 @@ describe("POST /v1/chat/completions - validation", () => {
 		});
 		expect(res.status).toBe(404);
 		const body = await jsonBody(res);
+		expect(isErrorBody(body)).toBe(true);
+		if (!isErrorBody(body)) return;
 		expect(body.error.code).toBe("model_not_found");
 	});
 
@@ -168,7 +173,6 @@ describe("POST /v1/chat/completions - validation", () => {
 				messages: [{ role: "user", content: "Hello" }],
 			}),
 		});
-		// Even on error, the request-id middleware should have set the header
 		const requestId = res.headers.get("x-request-id");
 		expect(requestId).toBeDefined();
 		expect(requestId).toStartWith("piproxy-");
@@ -225,7 +229,6 @@ describe("POST /v1/chat/completions - proxy auth", () => {
 				messages: [{ role: "user", content: "Hello" }],
 			}),
 		});
-		// Should get past auth (model not found is OK)
 		expect(res.status).toBe(404);
 	});
 });
@@ -250,6 +253,8 @@ describe("POST /v1/chat/completions - body size limit", () => {
 		});
 		expect(res.status).toBe(413);
 		const body = await jsonBody(res);
+		expect(isErrorLike(body)).toBe(true);
+		if (!isErrorLike(body)) return;
 		expect(body.error.message).toContain("too large");
 	});
 
@@ -265,7 +270,6 @@ describe("POST /v1/chat/completions - body size limit", () => {
 				messages: [{ role: "user", content: "Hello" }],
 			}),
 		});
-		// Should not be 413
 		expect(res.status).not.toBe(413);
 	});
 
@@ -298,7 +302,6 @@ describe("POST /v1/chat/completions - upstream API key override", () => {
 				messages: [{ role: "user", content: "Hello" }],
 			}),
 		});
-		// Model not found is expected (no such provider), but not 400/422 from the header
 		expect(res.status).toBe(404);
 	});
 });
@@ -311,6 +314,8 @@ describe("unsupported endpoints", () => {
 			const res = await app.request(endpoint, { method: "POST" });
 			expect(res.status).toBe(404);
 			const body = await jsonBody(res);
+			expect(isErrorLike(body)).toBe(true);
+			if (!isErrorLike(body)) return;
 			expect(body.error.message).toContain("not supported");
 		});
 	}

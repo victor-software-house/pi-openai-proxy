@@ -7,11 +7,33 @@
 
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage, AssistantMessageEvent, ToolCall, Usage } from "@mariozechner/pi-ai";
+import type { SSEChunk } from "@proxy/openai/sse";
 import { encodeDone, streamToSSE } from "@proxy/openai/sse";
+import { isRecord } from "@proxy/utils/guards";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Runtime type guard for SSEChunk shape.
+ * Validates the required fields that streamToSSE always emits.
+ */
+function isSSEChunk(value: unknown): value is SSEChunk {
+	if (!isRecord(value)) return false;
+	return (
+		typeof value["id"] === "string" &&
+		value["object"] === "chat.completion.chunk" &&
+		typeof value["created"] === "number" &&
+		typeof value["model"] === "string" &&
+		Array.isArray(value["choices"])
+	);
+}
+
+/** Sentinel value for the terminal [DONE] frame. */
+const DONE_SENTINEL = "[DONE]" as const;
+
+type ParsedFrame = SSEChunk | typeof DONE_SENTINEL | null;
 
 function makeUsage(): Usage {
 	return {
@@ -54,14 +76,30 @@ async function collectFrames(
 	return frames;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: test helper for untyped SSE chunk assertions
-function parseChunks(frames: string[]): any[] {
-	return frames.map((f) => {
+/**
+ * Parse SSE data frames into typed chunks.
+ * Returns SSEChunk for valid JSON, "[DONE]" for the terminal frame,
+ * or null for non-data frames.
+ */
+function parseChunks(frames: string[]): ParsedFrame[] {
+	return frames.map((f): ParsedFrame => {
 		if (!f.startsWith("data: ")) return null;
 		const json = f.slice(6).trim();
-		if (json === "[DONE]") return "[DONE]";
-		return JSON.parse(json);
+		if (json === "[DONE]") return DONE_SENTINEL;
+		const parsed: unknown = JSON.parse(json);
+		if (!isSSEChunk(parsed)) return null;
+		return parsed;
 	});
+}
+
+/** Filter parsed frames to only valid SSEChunk objects. */
+function chunkFrames(frames: ParsedFrame[]): SSEChunk[] {
+	return frames.filter((c): c is SSEChunk => c !== DONE_SENTINEL && c !== null);
+}
+
+/** Filter to chunks that have at least one choice. */
+function chunksWithChoices(frames: ParsedFrame[]): SSEChunk[] {
+	return chunkFrames(frames).filter((c) => c.choices.length > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,12 +137,9 @@ describe("SSE text streaming conformance", () => {
 
 	test("each chunk has required fields: id, object, created, model", async () => {
 		const frames = await collectFrames(textEvents);
-		const chunks = parseChunks(frames);
+		const chunks = chunkFrames(parseChunks(frames));
 
 		for (const chunk of chunks) {
-			if (chunk === "[DONE]" || chunk === null) continue;
-			if (chunk.error !== undefined) continue;
-
 			expect(chunk.id).toBe("req-1");
 			expect(chunk.object).toBe("chat.completion.chunk");
 			expect(chunk.created).toBeNumber();
@@ -115,38 +150,55 @@ describe("SSE text streaming conformance", () => {
 
 	test("first chunk has delta.role = assistant", async () => {
 		const frames = await collectFrames(textEvents);
-		const first = parseChunks(frames)[0];
-		expect(first.choices[0].delta.role).toBe("assistant");
+		const chunks = chunkFrames(parseChunks(frames));
+		const first = chunks[0];
+		expect(first).toBeDefined();
+		if (first === undefined) return;
+		const choice = first.choices[0];
+		expect(choice).toBeDefined();
+		if (choice === undefined) return;
+		expect(choice.delta.role).toBe("assistant");
 	});
 
 	test("delta.content is a string on text delta chunks", async () => {
 		const frames = await collectFrames(textEvents);
-		const chunks = parseChunks(frames);
+		const chunks = chunkFrames(parseChunks(frames));
 
-		const contentChunks = chunks.filter(
-			(c) => c !== "[DONE]" && c !== null && c.choices?.[0]?.delta?.content !== undefined,
-		);
+		const contentChunks = chunks.filter((c) => {
+			const choice = c.choices[0];
+			return choice !== undefined && choice.delta.content !== undefined;
+		});
 
 		expect(contentChunks.length).toBeGreaterThan(0);
 		for (const chunk of contentChunks) {
-			expect(chunk.choices[0].delta.content).toBeString();
+			const choice = chunk.choices[0];
+			expect(choice).toBeDefined();
+			if (choice === undefined) continue;
+			expect(choice.delta.content).toBeString();
 		}
 	});
 
 	test("finish_reason is null on intermediate chunks, set on final", async () => {
 		const frames = await collectFrames(textEvents);
-		const chunks = parseChunks(frames).filter(
-			(c) => c !== "[DONE]" && c !== null && Array.isArray(c.choices) && c.choices.length > 0,
-		);
+		const chunks = chunksWithChoices(parseChunks(frames));
 
 		// All but last should be null
 		for (let i = 0; i < chunks.length - 1; i++) {
-			expect(chunks[i].choices[0].finish_reason).toBeNull();
+			const chunk = chunks[i];
+			if (chunk === undefined) continue;
+			const choice = chunk.choices[0];
+			if (choice === undefined) continue;
+			expect(choice.finish_reason).toBeNull();
 		}
 
 		// Last chunk with choices should have finish_reason set
 		const last = chunks[chunks.length - 1];
-		expect(last.choices[0].finish_reason).toBe("stop");
+		expect(last).toBeDefined();
+		if (last === undefined) return;
+		const lastChoice = last.choices[0];
+		expect(lastChoice).toBeDefined();
+		if (lastChoice === undefined) return;
+		expect(lastChoice.finish_reason).toBe("stop");
 	});
 
 	test("final frame is data: [DONE]", async () => {
@@ -156,9 +208,8 @@ describe("SSE text streaming conformance", () => {
 
 	test("chunk id is stable across the full stream", async () => {
 		const frames = await collectFrames(textEvents);
-		const ids = parseChunks(frames)
-			.filter((c) => c !== "[DONE]" && c !== null)
-			.map((c) => c.id);
+		const chunks = chunkFrames(parseChunks(frames));
+		const ids = chunks.map((c) => c.id);
 
 		const unique = new Set(ids);
 		expect(unique.size).toBe(1);
@@ -188,13 +239,15 @@ describe("SSE usage chunk conformance", () => {
 
 	test("usage chunk has empty choices array and populated usage", async () => {
 		const frames = await collectFrames(events, true);
-		const chunks = parseChunks(frames).filter((c) => c !== "[DONE]" && c !== null);
+		const chunks = chunkFrames(parseChunks(frames));
 
-		const usageChunk = chunks.find((c) => Array.isArray(c.choices) && c.choices.length === 0);
+		const usageChunk = chunks.find((c) => c.choices.length === 0);
 
 		expect(usageChunk).toBeDefined();
+		if (usageChunk === undefined) return;
 		expect(usageChunk.choices).toEqual([]);
 		expect(usageChunk.usage).toBeDefined();
+		if (usageChunk.usage === undefined || usageChunk.usage === null) return;
 		expect(usageChunk.usage.prompt_tokens).toBeNumber();
 		expect(usageChunk.usage.completion_tokens).toBeNumber();
 		expect(usageChunk.usage.total_tokens).toBeNumber();
@@ -202,9 +255,9 @@ describe("SSE usage chunk conformance", () => {
 
 	test("usage chunk is absent when include_usage is false", async () => {
 		const frames = await collectFrames(events, false);
-		const chunks = parseChunks(frames).filter((c) => c !== "[DONE]" && c !== null);
+		const chunks = chunkFrames(parseChunks(frames));
 
-		const usageChunk = chunks.find((c) => Array.isArray(c.choices) && c.choices.length === 0);
+		const usageChunk = chunks.find((c) => c.choices.length === 0);
 		expect(usageChunk).toBeUndefined();
 	});
 });
@@ -257,47 +310,65 @@ describe("SSE tool call streaming conformance", () => {
 
 	test("tool call start chunk has index, id, type, function.name", async () => {
 		const frames = await collectFrames(toolEvents);
-		const chunks = parseChunks(frames).filter((c) => c !== "[DONE]" && c !== null);
+		const chunks = chunkFrames(parseChunks(frames));
 
-		const tcStartChunk = chunks.find(
-			(c) => c.choices?.[0]?.delta?.tool_calls?.[0]?.id !== undefined,
-		);
+		const tcStartChunk = chunks.find((c) => {
+			const tc = c.choices[0]?.delta.tool_calls?.[0];
+			return tc !== undefined && tc.id !== undefined;
+		});
 
 		expect(tcStartChunk).toBeDefined();
-		const tc = tcStartChunk.choices[0].delta.tool_calls[0];
+		if (tcStartChunk === undefined) return;
+		const choice = tcStartChunk.choices[0];
+		expect(choice).toBeDefined();
+		if (choice === undefined) return;
+		const tc = choice.delta.tool_calls?.[0];
+		expect(tc).toBeDefined();
+		if (tc === undefined) return;
 		expect(tc.index).toBeNumber();
 		expect(tc.index).toBe(0);
 		expect(tc.id).toBe("call_abc");
 		expect(tc.type).toBe("function");
+		expect(tc.function).toBeDefined();
+		if (tc.function === undefined) return;
 		expect(tc.function.name).toBe("get_weather");
 	});
 
 	test("tool call delta chunks have index and function.arguments", async () => {
 		const frames = await collectFrames(toolEvents);
-		const chunks = parseChunks(frames).filter((c) => c !== "[DONE]" && c !== null);
+		const chunks = chunkFrames(parseChunks(frames));
 
-		const deltaChunks = chunks.filter(
-			(c) =>
-				c.choices?.[0]?.delta?.tool_calls?.[0] !== undefined &&
-				c.choices[0].delta.tool_calls[0].id === undefined,
-		);
+		const deltaChunks = chunks.filter((c) => {
+			const tc = c.choices[0]?.delta.tool_calls?.[0];
+			return tc !== undefined && tc.id === undefined;
+		});
 
 		expect(deltaChunks.length).toBe(2);
 		for (const chunk of deltaChunks) {
-			const tc = chunk.choices[0].delta.tool_calls[0];
+			const choice = chunk.choices[0];
+			expect(choice).toBeDefined();
+			if (choice === undefined) continue;
+			const tc = choice.delta.tool_calls?.[0];
+			expect(tc).toBeDefined();
+			if (tc === undefined) continue;
 			expect(tc.index).toBeNumber();
+			expect(tc.function).toBeDefined();
+			if (tc.function === undefined) continue;
 			expect(tc.function.arguments).toBeString();
 		}
 	});
 
 	test("finish_reason is tool_calls on final chunk", async () => {
 		const frames = await collectFrames(toolEvents);
-		const chunks = parseChunks(frames).filter(
-			(c) => c !== "[DONE]" && c !== null && Array.isArray(c.choices) && c.choices.length > 0,
-		);
+		const chunks = chunksWithChoices(parseChunks(frames));
 
 		const last = chunks[chunks.length - 1];
-		expect(last.choices[0].finish_reason).toBe("tool_calls");
+		expect(last).toBeDefined();
+		if (last === undefined) return;
+		const lastChoice = last.choices[0];
+		expect(lastChoice).toBeDefined();
+		if (lastChoice === undefined) return;
+		expect(lastChoice.finish_reason).toBe("tool_calls");
 	});
 });
 
