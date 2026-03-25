@@ -1,3 +1,10 @@
+## [4.0.6](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.5...v4.0.6) (2026-03-25)
+
+
+### Bug Fixes
+
+* improve settings panel with dynamic descriptions and clearer labels ([88f8b9f](https://github.com/victor-software-house/pi-openai-proxy/commit/88f8b9f9bfc67d9a1c4929d60ce65a0209fe4a3d))
+
 ## [4.0.5](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.4...v4.0.5) (2026-03-25)
 
 
