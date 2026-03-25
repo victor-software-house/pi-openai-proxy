@@ -1,3 +1,10 @@
+## [4.2.6](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.5...v4.2.6) (2026-03-25)
+
+
+### Bug Fixes
+
+* use true/false for model selector toggle values ([755ad28](https://github.com/victor-software-house/pi-openai-proxy/commit/755ad28c039e8f1e5f8bfcd6395d096dad900870))
+
 ## [4.2.5](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.4...v4.2.5) (2026-03-25)
 
 
