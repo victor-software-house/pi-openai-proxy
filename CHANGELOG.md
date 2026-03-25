@@ -1,3 +1,10 @@
+## [4.3.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.3.0...v4.3.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* add prepare script so git installs build dist ([e25019e](https://github.com/victor-software-house/pi-openai-proxy/commit/e25019e2f7de40c9e0c5a0d29cc67f25d583848e))
+
 # [4.3.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.6...v4.3.0) (2026-03-25)
 
 
