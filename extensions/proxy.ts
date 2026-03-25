@@ -134,6 +134,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	const SUBCOMMANDS = [
 		"start",
 		"stop",
+		"restart",
 		"status",
 		"verify",
 		"config",
@@ -142,7 +143,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		"reset",
 		"help",
 	];
-	const USAGE = "/proxy [start|stop|status|verify|config|show|path|reset|help]";
+	const USAGE = "/proxy [start|stop|restart|status|verify|config|show|path|reset|help]";
 
 	pi.registerCommand("proxy", {
 		description: "Manage the OpenAI-compatible proxy",
@@ -160,6 +161,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					return;
 				case "stop":
 					await stopProxy(ctx);
+					return;
+				case "restart":
+					await stopProxy(ctx);
+					await new Promise((r) => setTimeout(r, 500));
+					await startProxy(ctx);
 					return;
 				case "status":
 					await showStatus(ctx);
