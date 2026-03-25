@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createTestClient, getCheapestModel, setup } from "./helpers.js";
+import { createTestClient, getCheapestModel, setup } from "./helpers";
 
 describe("SDK non-streaming chat conformance", () => {
 	test("simple text completion parses without SDK errors", async () => {

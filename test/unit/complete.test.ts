@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { mapFinishReason, mapUsage } from "@proxy/openai/responses.js";
+import { mapFinishReason, mapUsage } from "@proxy/openai/responses";
 
 // We test the mapping logic through responses.ts which re-exports the same maps.
 // The reasoning effort map is internal to complete.ts but we can verify

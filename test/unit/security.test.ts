@@ -7,17 +7,16 @@
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
-import { loadConfig } from "@proxy/config/env.js";
-import { getAvailableModels, initRegistry } from "@proxy/pi/registry.js";
-import { createApp } from "@proxy/server/app.js";
-import { jsonBody } from "../helpers.js";
+import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
+import { createApp } from "@proxy/server/app";
+import { jsonBody, testConfig } from "../helpers";
 
 let app: ReturnType<typeof createApp>;
 let modelId: string | undefined;
 
 beforeAll(() => {
 	initRegistry();
-	app = createApp(loadConfig());
+	app = createApp(testConfig());
 	const models = getAvailableModels();
 	const first = models[0];
 	if (first !== undefined) {

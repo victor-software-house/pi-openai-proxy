@@ -4,7 +4,7 @@ import {
 	mapUpstreamError,
 	modelNotFound,
 	unsupportedParameter,
-} from "@proxy/server/errors.js";
+} from "@proxy/server/errors";
 
 describe("error helpers", () => {
 	test("invalidRequest creates correct shape", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { jsonSchemaToTypebox } from "@proxy/openai/json-schema-to-typebox.js";
+import { jsonSchemaToTypebox } from "@proxy/openai/json-schema-to-typebox";
 
 describe("jsonSchemaToTypebox", () => {
 	describe("primitive types", () => {

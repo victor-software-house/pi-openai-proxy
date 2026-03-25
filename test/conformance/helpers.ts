@@ -5,10 +5,10 @@
  * and skip utilities for when no API credentials are available.
  */
 
-import { loadConfig } from "@proxy/config/env.js";
-import { getAvailableModels, initRegistry } from "@proxy/pi/registry.js";
-import { createApp } from "@proxy/server/app.js";
+import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
+import { createApp } from "@proxy/server/app";
 import OpenAI from "openai";
+import { testConfig } from "../helpers";
 
 let initialized = false;
 let app: ReturnType<typeof createApp> | undefined;
@@ -54,7 +54,7 @@ let resolvedModels: Map<string, TestModel> | undefined;
 export function setup(): { app: ReturnType<typeof createApp> } {
 	if (!initialized) {
 		initRegistry();
-		app = createApp(loadConfig());
+		app = createApp(testConfig());
 
 		const available = new Set(getAvailableModels().map((m) => `${m.provider}/${m.id}`));
 		resolvedModels = new Map();

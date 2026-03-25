@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type OpenAI from "openai";
-import { createTestClient, getTestModels, setup } from "./helpers.js";
+import { createTestClient, getTestModels, setup } from "./helpers";
 
 const weatherTool: OpenAI.ChatCompletionTool = {
 	type: "function",

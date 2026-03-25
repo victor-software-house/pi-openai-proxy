@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage, AssistantMessageEvent } from "@mariozechner/pi-ai";
-import { encodeDone, encodeSSE, streamToSSE } from "@proxy/openai/sse.js";
+import { encodeDone, encodeSSE, streamToSSE } from "@proxy/openai/sse";
 
 describe("encodeSSE", () => {
 	test("encodes a chunk as SSE data frame", () => {

@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage, TextContent, ToolCall, Usage } from "@mariozechner/pi-ai";
-import { buildChatCompletion } from "@proxy/openai/responses.js";
+import { buildChatCompletion } from "@proxy/openai/responses";
 
 // ---------------------------------------------------------------------------
 // Helpers

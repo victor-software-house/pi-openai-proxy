@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage, StopReason } from "@mariozechner/pi-ai";
-import { buildChatCompletion, mapFinishReason, mapUsage } from "@proxy/openai/responses.js";
+import { buildChatCompletion, mapFinishReason, mapUsage } from "@proxy/openai/responses";
 
 describe("mapFinishReason", () => {
 	const cases: [StopReason, string][] = [

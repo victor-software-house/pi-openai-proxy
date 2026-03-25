@@ -1,3 +1,5 @@
+import type { ServerConfig } from "@proxy/config/env";
+
 /**
  * Parse JSON response body for test assertions.
  *
@@ -8,4 +10,25 @@
 // biome-ignore lint/suspicious/noExplicitAny: test helper for response assertion
 export async function jsonBody(res: Response): Promise<any> {
 	return res.json();
+}
+
+/**
+ * Build a test-safe ServerConfig that does not read from the user's config file.
+ * Auth is disabled, defaults are used for all settings.
+ */
+export function testConfig(): ServerConfig {
+	return {
+		host: "127.0.0.1",
+		port: 4141,
+		proxyAuthToken: undefined,
+		agenticEnabled: false,
+		remoteImagesEnabled: false,
+		maxBodySize: 52428800,
+		upstreamTimeoutMs: 120000,
+		publicModelIdMode: "collision-prefixed",
+		modelExposureMode: "scoped",
+		scopedProviders: [],
+		customModels: [],
+		providerPrefixes: {},
+	};
 }

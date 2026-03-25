@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_CONFIG, normalizeConfig } from "@proxy/config/schema.js";
+import { DEFAULT_CONFIG, normalizeConfig } from "@proxy/config/schema";
 
 describe("normalizeConfig", () => {
 	test("returns defaults for null input", () => {

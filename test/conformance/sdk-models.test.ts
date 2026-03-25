@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createTestClient, getCheapestModel, hasCredentials, setup } from "./helpers.js";
+import { createTestClient, getCheapestModel, hasCredentials, setup } from "./helpers";
 
 describe("SDK models conformance", () => {
 	test("client.models.list() returns iterable model objects", async () => {

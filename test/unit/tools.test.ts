@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { convertTools } from "@proxy/openai/tools.js";
+import { convertTools } from "@proxy/openai/tools";
 
 describe("convertTools", () => {
 	test("converts a simple function tool", () => {

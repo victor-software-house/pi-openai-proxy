@@ -1,4 +1,4 @@
-import { jsonBody } from "../helpers.js";
+import { jsonBody } from "../helpers";
 /**
  * Integration tests for POST /v1/chat/completions validation.
  *
@@ -7,15 +7,15 @@ import { jsonBody } from "../helpers.js";
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
-import { loadConfig } from "@proxy/config/env.js";
-import { getAvailableModels, initRegistry } from "@proxy/pi/registry.js";
-import { createApp } from "@proxy/server/app.js";
+import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
+import { createApp } from "@proxy/server/app";
+import { testConfig } from "../helpers";
 
 let app: ReturnType<typeof createApp>;
 
 beforeAll(() => {
 	initRegistry();
-	app = createApp(loadConfig());
+	app = createApp(testConfig());
 });
 
 describe("POST /v1/chat/completions - validation", () => {
@@ -193,7 +193,7 @@ describe("POST /v1/chat/completions - validation", () => {
 describe("POST /v1/chat/completions - proxy auth", () => {
 	test("blocks requests when proxy auth is configured", async () => {
 		const authedApp = createApp({
-			...loadConfig(),
+			...testConfig(),
 			proxyAuthToken: "secret-token",
 		});
 
@@ -210,7 +210,7 @@ describe("POST /v1/chat/completions - proxy auth", () => {
 
 	test("accepts requests with correct proxy auth", async () => {
 		const authedApp = createApp({
-			...loadConfig(),
+			...testConfig(),
 			proxyAuthToken: "secret-token",
 		});
 
@@ -233,7 +233,7 @@ describe("POST /v1/chat/completions - proxy auth", () => {
 describe("POST /v1/chat/completions - body size limit", () => {
 	test("rejects requests exceeding body size limit", async () => {
 		const smallLimitApp = createApp({
-			...loadConfig(),
+			...testConfig(),
 			maxBodySize: 100,
 		});
 
@@ -271,7 +271,7 @@ describe("POST /v1/chat/completions - body size limit", () => {
 
 	test("does not apply body size limit to GET requests", async () => {
 		const smallLimitApp = createApp({
-			...loadConfig(),
+			...testConfig(),
 			maxBodySize: 10,
 		});
 

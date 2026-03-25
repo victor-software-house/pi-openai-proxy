@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage, AssistantMessageEvent, ToolCall, Usage } from "@mariozechner/pi-ai";
-import { encodeDone, streamToSSE } from "@proxy/openai/sse.js";
+import { encodeDone, streamToSSE } from "@proxy/openai/sse";
 
 // ---------------------------------------------------------------------------
 // Helpers
