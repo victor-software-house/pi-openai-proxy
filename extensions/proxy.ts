@@ -33,9 +33,6 @@ import {
 import {
 	type Component,
 	Container,
-	fuzzyFilter,
-	getKeybindings,
-	Input,
 	type SettingItem,
 	SettingsList,
 	Text,
@@ -553,180 +550,104 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		_currentValue: string,
 		done: (selectedValue?: string) => void,
 	): Component {
-		interface ModelEntry {
-			canonical: string;
-			provider: string;
-		}
-
-		const models: ModelEntry[] = getAvailableModels().map((m) => ({
-			canonical: `${m.provider}/${m.id}`,
-			provider: m.provider,
-		}));
-
+		const models = getAvailableModels();
 		const selected = new Set(config.customModels);
-		let selectedIndex = 0;
-		const searchInput = new Input();
-		let filtered: ModelEntry[] = models;
-		const maxVisible = 20;
 
-		// Precompute provider boundary indices in the full list
-		function providerBoundaries(list: ModelEntry[]): {
-			firstOf: Map<string, number>;
-			lastOf: Map<string, number>;
-		} {
-			const firstOf = new Map<string, number>();
-			const lastOf = new Map<string, number>();
-			for (let i = 0; i < list.length; i++) {
-				const entry = list[i];
-				if (entry === undefined) continue;
-				if (!firstOf.has(entry.provider)) firstOf.set(entry.provider, i);
-				lastOf.set(entry.provider, i);
-			}
-			return { firstOf, lastOf };
+		// Build provider order from sorted model list
+		const providerOrder: string[] = [];
+		for (const m of models) {
+			if (!providerOrder.includes(m.provider)) providerOrder.push(m.provider);
 		}
 
+		const items: SettingItem[] = models.map((m) => {
+			const canonical = `${m.provider}/${m.id}`;
+			return {
+				id: canonical,
+				label: canonical,
+				description: `Provider: ${m.provider}  |  Left/Right: jump provider`,
+				currentValue: selected.has(canonical) ? "[x]" : "[ ]",
+				values: ["[x]", "[ ]"],
+			};
+		});
+
+		const list = new SettingsList(
+			items,
+			Math.min(items.length + 2, 20),
+			getSettingsListTheme(),
+			(id: string, newValue: string) => {
+				if (newValue === "[x]") {
+					selected.add(id);
+				} else {
+					selected.delete(id);
+				}
+				config = { ...config, customModels: [...selected] };
+				saveConfigToFile(config);
+				config = loadConfigFromFile();
+			},
+			() => done(`${String(selected.size)} selected`),
+			{ enableSearch: true },
+		);
+
+		// SettingsList has no public selectedIndex setter.
+		// Access internals via bracket notation for provider jumping.
 		function jumpProvider(direction: "prev" | "next"): void {
-			if (filtered.length === 0) return;
-			const { firstOf, lastOf } = providerBoundaries(filtered);
-			const current = filtered[selectedIndex];
+			const sl = list as unknown as Record<string, unknown>;
+			const idx = sl["selectedIndex"] as number;
+			const display = (
+				(sl["searchEnabled"] as boolean) ? sl["filteredItems"] : sl["items"]
+			) as SettingItem[];
+			if (display.length === 0) return;
+
+			const current = display[idx];
 			if (current === undefined) return;
+			const currentProv = current.id.split("/")[0] ?? "";
+			const provIdx = providerOrder.indexOf(currentProv);
 
-			const providers = [...firstOf.keys()]; // insertion-order = list order
-			const provIdx = providers.indexOf(current.provider);
-
+			let target: number;
 			if (direction === "prev") {
 				if (provIdx <= 0) {
-					selectedIndex = 0;
+					target = 0;
 				} else {
-					const prevProvider = providers[provIdx - 1];
-					if (prevProvider !== undefined) {
-						selectedIndex = lastOf.get(prevProvider) ?? 0;
+					const prev = providerOrder[provIdx - 1] ?? "";
+					target = 0;
+					for (let i = display.length - 1; i >= 0; i--) {
+						if (display[i]?.id.startsWith(`${prev}/`) === true) {
+							target = i;
+							break;
+						}
 					}
 				}
 			} else {
-				if (provIdx >= providers.length - 1) {
-					selectedIndex = filtered.length - 1;
+				if (provIdx >= providerOrder.length - 1) {
+					target = display.length - 1;
 				} else {
-					const nextProvider = providers[provIdx + 1];
-					if (nextProvider !== undefined) {
-						selectedIndex = firstOf.get(nextProvider) ?? filtered.length - 1;
+					const next = providerOrder[provIdx + 1] ?? "";
+					target = display.length - 1;
+					for (let i = 0; i < display.length; i++) {
+						if (display[i]?.id.startsWith(`${next}/`) === true) {
+							target = i;
+							break;
+						}
 					}
 				}
 			}
+			sl["selectedIndex"] = target;
 		}
-
-		function toggle(idx: number): void {
-			const entry = filtered[idx];
-			if (entry === undefined) return;
-			if (selected.has(entry.canonical)) {
-				selected.delete(entry.canonical);
-			} else {
-				selected.add(entry.canonical);
-			}
-			config = { ...config, customModels: [...selected] };
-			saveConfigToFile(config);
-			config = loadConfigFromFile();
-		}
-
-		function applyFilter(query: string): void {
-			if (query === "") {
-				filtered = models;
-			} else {
-				filtered = fuzzyFilter(models, query, (m) => m.canonical);
-			}
-			selectedIndex = 0;
-		}
-
-		const theme = getSettingsListTheme();
 
 		return {
 			render(width: number): string[] {
-				const lines: string[] = [];
-				lines.push(...searchInput.render(width));
-				lines.push("");
-
-				if (filtered.length === 0) {
-					lines.push(theme.hint("  No matching models"));
-					lines.push("");
-					lines.push(theme.hint("  Type to filter | Left/Right: jump provider | Esc: done"));
-					return lines;
-				}
-
-				const start = Math.max(
-					0,
-					Math.min(selectedIndex - Math.floor(maxVisible / 2), filtered.length - maxVisible),
-				);
-				const end = Math.min(start + maxVisible, filtered.length);
-
-				let lastProvider = "";
-				for (let i = start; i < end; i++) {
-					const entry = filtered[i];
-					if (entry === undefined) continue;
-
-					// Provider separator
-					if (entry.provider !== lastProvider) {
-						if (lastProvider !== "") lines.push("");
-						lastProvider = entry.provider;
-					}
-
-					const check = selected.has(entry.canonical) ? "[x]" : "[ ]";
-					const cursor = i === selectedIndex ? theme.cursor : "  ";
-					const label =
-						i === selectedIndex
-							? theme.label(`${check} ${entry.canonical}`, true)
-							: theme.label(`${check} ${entry.canonical}`, false);
-					lines.push(`${cursor}${label}`.slice(0, width));
-				}
-
-				if (start > 0 || end < filtered.length) {
-					lines.push(theme.hint(`  (${String(selectedIndex + 1)}/${String(filtered.length)})`));
-				}
-
-				lines.push("");
-				lines.push(
-					theme.description(`  ${String(selected.size)} of ${String(models.length)} selected`),
-				);
-				lines.push("");
-				lines.push(
-					theme.hint("  Type to filter | Space: toggle | Left/Right: jump provider | Esc: done"),
-				);
-				return lines;
+				return list.render(width);
 			},
-			invalidate(): void {},
+			invalidate(): void {
+				list.invalidate();
+			},
 			handleInput(data: string): void {
-				const kb = getKeybindings();
-
-				if (kb.matches(data, "tui.select.cancel")) {
-					done(`${String(selected.size)} selected`);
-					return;
-				}
-				if (filtered.length === 0) {
-					// Still allow typing to refine filter
-					const sanitized = data.replace(/ /g, "");
-					if (sanitized !== "") {
-						searchInput.handleInput(sanitized);
-						applyFilter(searchInput.getValue());
-					}
-					return;
-				}
-				if (kb.matches(data, "tui.select.up")) {
-					selectedIndex = selectedIndex <= 0 ? filtered.length - 1 : selectedIndex - 1;
-				} else if (kb.matches(data, "tui.select.down")) {
-					selectedIndex = selectedIndex >= filtered.length - 1 ? 0 : selectedIndex + 1;
-				} else if (data === "\x1B[D") {
-					// Left arrow: previous provider
+				if (data === "\x1B[D") {
 					jumpProvider("prev");
 				} else if (data === "\x1B[C") {
-					// Right arrow: next provider
 					jumpProvider("next");
-				} else if (kb.matches(data, "tui.select.confirm") || data === " ") {
-					toggle(selectedIndex);
 				} else {
-					const sanitized = data.replace(/ /g, "");
-					if (sanitized !== "") {
-						searchInput.handleInput(sanitized);
-						applyFilter(searchInput.getValue());
-					}
+					list.handleInput(data);
 				}
 			},
 		};
