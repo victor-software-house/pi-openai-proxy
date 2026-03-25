@@ -19,7 +19,7 @@
 				"noExplicitAny": "error",
 				"noImplicitAnyLet": "error",
 				"noConfusingVoidType": {
-					"level": "warn",
+					"level": "error",
 					"fix": "none"
 				},
 				"noDeprecatedImports": "error"

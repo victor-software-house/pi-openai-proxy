@@ -49,11 +49,11 @@
 		"zod/prefer-enum-over-literal-union": "error",
 		"zod/prefer-meta": "error",
 		"zod/prefer-meta-last": "error",
-		"zod/prefer-string-schema-with-trim": "warn",
+		"zod/prefer-string-schema-with-trim": "error",
 		"zod/require-brand-type-parameter": "error",
 		"zod/require-error-message": "error",
 		"zod/require-schema-suffix": "error",
-		"zod/schema-error-property-style": "warn",
+		"zod/schema-error-property-style": "error",
 		"@limegrass/import-alias/import-alias": "error"
 	},
 	"overrides": [
