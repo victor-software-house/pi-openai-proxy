@@ -565,8 +565,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				id: canonical,
 				label: canonical,
 				description: `Provider: ${m.provider}  |  Left/Right: jump provider`,
-				currentValue: selected.has(canonical) ? "on" : "off",
-				values: ["on", "off"],
+				currentValue: selected.has(canonical) ? "true" : "false",
+				values: ["true", "false"],
 			};
 		});
 
@@ -575,7 +575,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			Math.min(items.length + 2, 20),
 			getSettingsListTheme(),
 			(id: string, newValue: string) => {
-				if (newValue === "on") {
+				if (newValue === "true") {
 					selected.add(id);
 				} else {
 					selected.delete(id);
