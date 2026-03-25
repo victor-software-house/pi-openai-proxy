@@ -1,3 +1,10 @@
+# [4.5.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.4.1...v4.5.0) (2026-03-25)
+
+
+### Features
+
+* **zed-sync:** add zed config section with auto-sync ([8b9a779](https://github.com/victor-software-house/pi-openai-proxy/commit/8b9a7792e927fda1fb5671dedc37642648698f62))
+
 ## [4.4.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.4.0...v4.4.1) (2026-03-25)
 
 
