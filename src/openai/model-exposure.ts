@@ -68,9 +68,15 @@ function filterExposedModels(
 	config: ModelExposureConfig,
 ): Model<Api>[] {
 	switch (config.modelExposureMode) {
-		case "scoped":
-			// Default: expose pi's available (auth-configured) models
-			return [...available];
+		case "scoped": {
+			// Expose auth-configured models, optionally filtered to selected providers.
+			// When scopedProviders is empty, all available models are exposed.
+			if (config.scopedProviders.length === 0) {
+				return [...available];
+			}
+			const allowed = new Set(config.scopedProviders);
+			return available.filter((m) => allowed.has(m.provider));
+		}
 
 		case "all":
 			// Expose all registered models regardless of auth status

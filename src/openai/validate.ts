@@ -9,6 +9,7 @@ import {
 	chatCompletionRequestSchema,
 	rejectedFields,
 } from "@proxy/openai/schemas";
+import { isRecord } from "@proxy/utils/guards";
 
 export interface ValidationSuccess {
 	readonly ok: true;
@@ -23,10 +24,6 @@ export interface ValidationError {
 }
 
 export type ValidationResult = ValidationSuccess | ValidationError;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /**
  * Validate a raw request body against the Phase 1 schema.

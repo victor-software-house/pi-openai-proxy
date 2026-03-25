@@ -26,6 +26,7 @@ export interface OpenAIChatCompletion {
 	readonly object: "chat.completion";
 	readonly created: number;
 	readonly model: string;
+	readonly system_fingerprint: string | null;
 	readonly choices: OpenAIChatCompletionChoice[];
 	readonly usage: OpenAIUsage;
 	readonly x_pi?: {
@@ -114,6 +115,7 @@ export function buildChatCompletion(
 		object: "chat.completion",
 		created: Math.floor(Date.now() / 1000),
 		model: canonicalModelId,
+		system_fingerprint: null,
 		choices: [
 			{
 				index: 0,

@@ -15,6 +15,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { isRecord } from "@proxy/utils/guards";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -88,12 +89,6 @@ export const DEFAULT_CONFIG: Readonly<ProxyConfig> = {
 // Normalization
 // ---------------------------------------------------------------------------
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return (
-		value !== null && value !== undefined && typeof value === "object" && !Array.isArray(value)
-	);
-}
-
 function clampInt(raw: unknown, min: number, max: number, fallback: number): number {
 	if (typeof raw !== "number" || !Number.isFinite(raw)) return fallback;
 	return Math.max(min, Math.min(max, Math.round(raw)));
@@ -105,13 +100,13 @@ const VALID_PUBLIC_ID_MODES = new Set<string>([
 	"always-prefixed",
 ]);
 
-function isPublicModelIdMode(value: string): value is PublicModelIdMode {
+export function isPublicModelIdMode(value: string): value is PublicModelIdMode {
 	return VALID_PUBLIC_ID_MODES.has(value);
 }
 
 const VALID_EXPOSURE_MODES = new Set<string>(["all", "scoped", "custom"]);
 
-function isModelExposureMode(value: string): value is ModelExposureMode {
+export function isModelExposureMode(value: string): value is ModelExposureMode {
 	return VALID_EXPOSURE_MODES.has(value);
 }
 
@@ -177,8 +172,7 @@ export function normalizeConfig(raw: unknown): ProxyConfig {
 // ---------------------------------------------------------------------------
 
 export function getConfigPath(): string {
-	const piDir =
-		process.env["PI_CODING_AGENT_DIR"] ?? resolve(process.env["HOME"] ?? "~", ".pi", "agent");
+	const piDir = process.env.PI_CODING_AGENT_DIR ?? resolve(process.env.HOME ?? "~", ".pi", "agent");
 	return resolve(piDir, "proxy-config.json");
 }
 

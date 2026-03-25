@@ -76,18 +76,19 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	const extensionDir = dirname(fileURLToPath(import.meta.url));
 	const packageRoot = resolve(extensionDir, "..");
 
-	// --- Model registry access (for verify/show/selectors) ---
+	// --- Model registry access (cached, refreshed per call) ---
+
+	const cachedAuth = AuthStorage.create();
+	const cachedRegistry = new ModelRegistry(cachedAuth);
 
 	function getAvailableModels(): Model<Api>[] {
-		const auth = AuthStorage.create();
-		const registry = new ModelRegistry(auth);
-		return registry.getAvailable();
+		cachedRegistry.refresh();
+		return cachedRegistry.getAvailable();
 	}
 
 	function getAllRegisteredModels(): Model<Api>[] {
-		const auth = AuthStorage.create();
-		const registry = new ModelRegistry(auth);
-		return registry.getAll();
+		cachedRegistry.refresh();
+		return cachedRegistry.getAll();
 	}
 
 	function buildExposureConfig(): ModelExposureConfig {
@@ -256,8 +257,13 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	async function probe(): Promise<RuntimeStatus> {
 		try {
+			const headers: Record<string, string> = {};
+			if (config.authToken.length > 0) {
+				headers["authorization"] = `Bearer ${config.authToken}`;
+			}
 			const res = await fetch(`${proxyUrl()}/v1/models`, {
 				signal: AbortSignal.timeout(2000),
+				headers,
 			});
 			if (res.ok) {
 				const body = (await res.json()) as { data?: unknown[] };
@@ -639,8 +645,10 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			{ enableSearch: true },
 		);
 
-		// SettingsList has no public selectedIndex setter.
-		// Access internals via bracket notation for provider jumping.
+		// HACK: SettingsList has no public API for jumping to an index.
+		// Accesses private fields via bracket notation for provider jumping.
+		// Pinned to pi-tui behavior as of @mariozechner/pi-coding-agent ^0.62.0.
+		// Remove when SettingsList exposes a jumpTo/setSelectedIndex method.
 		function jumpProvider(direction: "prev" | "next"): void {
 			const sl = list as unknown as Record<string, unknown>;
 			const idx = sl["selectedIndex"] as number;
@@ -837,16 +845,14 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 	}
 
-	const VALID_ID_MODES = new Set<string>(["collision-prefixed", "universal", "always-prefixed"]);
-
+	// Local type guards — the extension resolves against the built dist, so it
+	// cannot import these from the source config module during development.
 	function isPublicModelIdMode(v: string): v is PublicModelIdMode {
-		return VALID_ID_MODES.has(v);
+		return v === "collision-prefixed" || v === "universal" || v === "always-prefixed";
 	}
 
-	const VALID_EXPOSURE_MODES = new Set<string>(["all", "scoped", "custom"]);
-
 	function isModelExposureMode(v: string): v is ModelExposureMode {
-		return VALID_EXPOSURE_MODES.has(v);
+		return v === "all" || v === "scoped" || v === "custom";
 	}
 
 	function applySetting(id: string, value: string): void {

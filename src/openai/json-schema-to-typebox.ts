@@ -24,6 +24,7 @@
  * - if/then/else
  */
 
+import { isRecord } from "@proxy/utils/guards";
 import type { TSchema } from "@sinclair/typebox";
 import { Type } from "@sinclair/typebox";
 
@@ -39,10 +40,6 @@ export interface SchemaConversionError {
 }
 
 export type SchemaConversionResult = SchemaConversionSuccess | SchemaConversionError;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /**
  * Unsupported JSON Schema keywords that we reject explicitly.

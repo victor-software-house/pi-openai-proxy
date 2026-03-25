@@ -7,7 +7,7 @@
 import type {
 	Api,
 	AssistantMessage,
-	AssistantMessageEvent,
+	AssistantMessageEventStream,
 	Context,
 	Model,
 	SimpleStreamOptions,
@@ -16,10 +16,7 @@ import type {
 import { completeSimple, streamSimple } from "@mariozechner/pi-ai";
 import type { ChatCompletionRequest } from "@proxy/openai/schemas";
 import { getRegistry } from "@proxy/pi/registry";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+import { isRecord } from "@proxy/utils/guards";
 
 /**
  * Map OpenAI reasoning_effort to pi ThinkingLevel.
@@ -199,14 +196,14 @@ export async function piComplete(
 }
 
 /**
- * Streaming completion: returns an async iterable of events.
+ * Streaming completion: returns an event stream with abort capability.
  */
 export async function piStream(
 	model: Model<Api>,
 	context: Context,
 	request: ChatCompletionRequest,
 	options: CompletionOptions,
-): Promise<AsyncIterable<AssistantMessageEvent>> {
+): Promise<AssistantMessageEventStream> {
 	const opts = await buildStreamOptions(model, request, options);
 	return streamSimple(model, context, opts);
 }

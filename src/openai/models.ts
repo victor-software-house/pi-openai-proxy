@@ -7,6 +7,9 @@
 
 import type { ExposedModel } from "@proxy/openai/model-exposure";
 
+/** Unix timestamp (seconds) from when the module was first loaded. */
+const MODULE_CREATED = Math.floor(Date.now() / 1000);
+
 export interface OpenAIModel {
 	readonly id: string;
 	readonly object: "model";
@@ -26,7 +29,7 @@ export function toOpenAIModel(exposed: ExposedModel): OpenAIModel {
 	return {
 		id: exposed.publicId,
 		object: "model",
-		created: 0,
+		created: MODULE_CREATED,
 		owned_by: exposed.provider,
 	};
 }
