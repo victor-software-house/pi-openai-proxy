@@ -50,7 +50,7 @@
 					"fix": "safe"
 				},
 				"noUnusedVariables": {
-					"level": "warn",
+					"level": "error",
 					"fix": "none"
 				},
 				"noUnusedFunctionParameters": {
