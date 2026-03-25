@@ -1,3 +1,11 @@
+## [4.0.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.1...v4.0.2) (2026-03-25)
+
+
+### Bug Fixes
+
+* promote noUnusedVariables from warn to error in biome config ([808926e](https://github.com/victor-software-house/pi-openai-proxy/commit/808926e6172abc529b714e369e79b02361a0651c))
+* remove unused getUniqueProviders function from extension ([a6710bc](https://github.com/victor-software-house/pi-openai-proxy/commit/a6710bc18a175c9f2f97f9a70f292de50298be73))
+
 ## [4.0.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.0...v4.0.1) (2026-03-25)
 
 
