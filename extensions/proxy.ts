@@ -552,71 +552,44 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	): Component {
 		const models = getAvailableModels();
 		const selected = new Set(config.customModels);
-		let selectedIndex = 0;
 
-		function toggle(canonicalId: string): void {
-			if (selected.has(canonicalId)) {
-				selected.delete(canonicalId);
-			} else {
-				selected.add(canonicalId);
-			}
-			config = { ...config, customModels: [...selected] };
-			saveConfigToFile(config);
-			config = loadConfigFromFile();
-		}
+		const items: SettingItem[] = models.map((m) => {
+			const canonical = `${m.provider}/${m.id}`;
+			return {
+				id: canonical,
+				label: canonical,
+				currentValue: selected.has(canonical) ? "[x]" : "[ ]",
+				values: ["[x]", "[ ]"],
+			};
+		});
+
+		const list = new SettingsList(
+			items,
+			Math.min(items.length + 2, 20),
+			getSettingsListTheme(),
+			(id: string, newValue: string) => {
+				if (newValue === "[x]") {
+					selected.add(id);
+				} else {
+					selected.delete(id);
+				}
+				config = { ...config, customModels: [...selected] };
+				saveConfigToFile(config);
+				config = loadConfigFromFile();
+			},
+			() => done(`${String(selected.size)} selected`),
+			{ enableSearch: true },
+		);
 
 		return {
 			render(width: number): string[] {
-				const lines: string[] = [];
-				lines.push("  Select models (Space: toggle, Esc: done)");
-				lines.push("");
-
-				if (models.length === 0) {
-					lines.push("  No models available (no auth configured)");
-					return lines;
-				}
-
-				const maxVisible = 15;
-				const start = Math.max(
-					0,
-					Math.min(selectedIndex - Math.floor(maxVisible / 2), models.length - maxVisible),
-				);
-				const end = Math.min(start + maxVisible, models.length);
-
-				for (let i = start; i < end; i++) {
-					const m = models[i];
-					if (m === undefined) continue;
-					const canonical = `${m.provider}/${m.id}`;
-					const check = selected.has(canonical) ? "[x]" : "[ ]";
-					const cursor = i === selectedIndex ? "> " : "  ";
-					const line = `${cursor}${check} ${canonical}`;
-					const truncated = line.length > width ? line.slice(0, width - 1) : line;
-					lines.push(truncated);
-				}
-
-				lines.push("");
-				lines.push(`  ${String(selected.size)} of ${String(models.length)} selected`);
-				return lines;
+				return list.render(width);
 			},
 			invalidate(): void {
-				// no-op
+				list.invalidate();
 			},
 			handleInput(data: string): void {
-				if (data === "\x1B" || data === "q") {
-					done(`${String(selected.size)} selected`);
-					return;
-				}
-				if (models.length === 0) return;
-				if (data === "\x1B[A") {
-					selectedIndex = selectedIndex <= 0 ? models.length - 1 : selectedIndex - 1;
-				} else if (data === "\x1B[B") {
-					selectedIndex = selectedIndex >= models.length - 1 ? 0 : selectedIndex + 1;
-				} else if (data === " " || data === "\r") {
-					const m = models[selectedIndex];
-					if (m !== undefined) {
-						toggle(`${m.provider}/${m.id}`);
-					}
-				}
+				list.handleInput(data);
 			},
 		};
 	}
