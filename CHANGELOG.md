@@ -1,3 +1,11 @@
+# [4.1.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.6...v4.1.0) (2026-03-25)
+
+
+### Features
+
+* hot-reload exposure config from file on each request ([3409d52](https://github.com/victor-software-house/pi-openai-proxy/commit/3409d5254ca3e3f9e3bbb87caa6d850ff1892836))
+* hot-reload model exposure config without proxy restart ([a0e444b](https://github.com/victor-software-house/pi-openai-proxy/commit/a0e444be7f73dfb495521d1f8897d35ca64250d6))
+
 ## [4.0.6](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.5...v4.0.6) (2026-03-25)
 
 
