@@ -302,13 +302,13 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### SDK round-trip conformance (requires credentials, skip otherwise)
 
-- [ ] `client.models.list()` succeeds and returns iterable model objects
-- [ ] `client.models.retrieve(id)` succeeds for an exposed model
-- [ ] Non-streaming text completion parses without SDK errors
-- [ ] Streaming text completion parses all chunks without SDK errors
-- [ ] Non-streaming tool call parses without SDK errors
-- [ ] Streaming tool call parses all chunks without SDK errors
-- [ ] `stream_options.include_usage` usage chunk parses without SDK errors
+- [x] `client.models.list()` succeeds and returns iterable model objects
+- [x] `client.models.retrieve(id)` succeeds for an exposed model
+- [x] Non-streaming text completion parses without SDK errors
+- [x] Streaming text completion parses all chunks without SDK errors
+- [x] Non-streaming tool call parses without SDK errors
+- [x] Streaming tool call parses all chunks without SDK errors
+- [x] `stream_options.include_usage` usage chunk parses without SDK errors
 
 ### Security tests (no credentials)
 
