@@ -137,6 +137,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		config = loadConfigFromFile();
+		maybeAutoSyncZed(ctx);
 		await refreshStatus(ctx);
 	});
 
