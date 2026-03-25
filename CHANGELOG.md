@@ -1,3 +1,10 @@
+## [4.0.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.2...v4.0.3) (2026-03-25)
+
+
+### Bug Fixes
+
+* promote all warn-level lint rules to error ([32988b5](https://github.com/victor-software-house/pi-openai-proxy/commit/32988b58acd08042c5594484c82cdb3b1fb99d01))
+
 ## [4.0.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.0.1...v4.0.2) (2026-03-25)
 
 
