@@ -33,10 +33,12 @@ export type PublicModelIdMode = "collision-prefixed" | "universal" | "always-pre
 
 /**
  * Which models are exposed on the public HTTP API.
+ * All modes only expose auth-configured models (pi's getAvailable()).
  *
- * - "all": every available model
- * - "scoped": all available models from selected providers only
- * - "custom": explicit allowlist of canonical model IDs
+ * - "all": every available model, no filter
+ * - "scoped": delegates to pi's global `enabledModels` setting (from `/scoped-models` Ctrl+S)
+ * - "custom": same per-model filtering as "scoped" but independently managed
+ *   via the proxy's own `customModels` config
  */
 export type ModelExposureMode = "all" | "scoped" | "custom";
 
@@ -57,10 +59,8 @@ export interface ProxyConfig {
 	readonly lifetime: "detached" | "session";
 	/** How public model IDs are generated. Default: "collision-prefixed" */
 	readonly publicModelIdMode: PublicModelIdMode;
-	/** Which models are exposed. Default: "all" */
+	/** Which models are exposed. Default: "scoped" */
 	readonly modelExposureMode: ModelExposureMode;
-	/** Provider keys to expose when modelExposureMode is "scoped". */
-	readonly scopedProviders: readonly string[];
 	/** Canonical model IDs to expose when modelExposureMode is "custom". */
 	readonly customModels: readonly string[];
 	/** Provider key -> custom public prefix label. Default prefix = provider key. */
@@ -94,7 +94,6 @@ export const DEFAULT_CONFIG: Readonly<ProxyConfig> = {
 	lifetime: "detached",
 	publicModelIdMode: "collision-prefixed",
 	modelExposureMode: "scoped",
-	scopedProviders: [],
 	customModels: [],
 	providerPrefixes: {},
 	zed: {
@@ -179,7 +178,6 @@ export function normalizeConfig(raw: unknown): ProxyConfig {
 			typeof rawExposureMode === "string" && isModelExposureMode(rawExposureMode)
 				? rawExposureMode
 				: DEFAULT_CONFIG.modelExposureMode,
-		scopedProviders: normalizeStringArray(v["scopedProviders"]),
 		customModels: normalizeStringArray(v["customModels"]),
 		providerPrefixes: normalizeStringRecord(v["providerPrefixes"]),
 		zed: parseZedSyncConfig(v["zed"]),

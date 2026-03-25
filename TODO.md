@@ -225,7 +225,8 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Remove `x_pi` from `/v1/models` and `/v1/models/{model}`
 - [x] Add `publicModelIdMode`: `collision-prefixed` | `universal` | `always-prefixed`
 - [x] Add `modelExposureMode`: `all` | `scoped` | `custom`
-- [x] Add `scopedProviders`, `customModels`, and `providerPrefixes` to shared config
+- [x] Add `customModels` and `providerPrefixes` to shared config
+- [x] Delegate `scoped` mode to pi's `SettingsManager.getEnabledModels()`
 - [x] Normalize and persist custom model selections as canonical IDs only
 - [x] Validate duplicate prefix labels explicitly
 - [x] Validate invalid `universal` mode collisions explicitly

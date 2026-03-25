@@ -119,21 +119,6 @@ describe("normalizeConfig", () => {
 		expect(result.modelExposureMode).toBe(DEFAULT_CONFIG.modelExposureMode);
 	});
 
-	test("normalizes scopedProviders from array", () => {
-		const result = normalizeConfig({ scopedProviders: ["openai", "anthropic"] });
-		expect(result.scopedProviders).toEqual(["openai", "anthropic"]);
-	});
-
-	test("filters non-string items from scopedProviders", () => {
-		const result = normalizeConfig({ scopedProviders: ["openai", 123, null, "anthropic", ""] });
-		expect(result.scopedProviders).toEqual(["openai", "anthropic"]);
-	});
-
-	test("returns empty array for non-array scopedProviders", () => {
-		expect(normalizeConfig({ scopedProviders: "not-array" }).scopedProviders).toEqual([]);
-		expect(normalizeConfig({ scopedProviders: 42 }).scopedProviders).toEqual([]);
-	});
-
 	test("normalizes customModels from array", () => {
 		const result = normalizeConfig({ customModels: ["openai/gpt-4o", "anthropic/claude"] });
 		expect(result.customModels).toEqual(["openai/gpt-4o", "anthropic/claude"]);
@@ -164,7 +149,6 @@ describe("normalizeConfig", () => {
 			upstreamTimeoutSec: 300,
 			publicModelIdMode: "always-prefixed",
 			modelExposureMode: "custom",
-			scopedProviders: ["openai"],
 			customModels: ["openai/gpt-4o"],
 			providerPrefixes: { openai: "oai" },
 		};
@@ -178,7 +162,6 @@ describe("normalizeConfig", () => {
 		expect(result.upstreamTimeoutSec).toBe(300);
 		expect(result.publicModelIdMode).toBe("always-prefixed");
 		expect(result.modelExposureMode).toBe("custom");
-		expect(result.scopedProviders).toEqual(["openai"]);
 		expect(result.customModels).toEqual(["openai/gpt-4o"]);
 		expect(result.providerPrefixes).toEqual({ openai: "oai" });
 	});
@@ -230,7 +213,6 @@ describe("normalizeConfig", () => {
 			upstreamTimeoutSec: 300,
 			publicModelIdMode: "always-prefixed",
 			modelExposureMode: "custom",
-			scopedProviders: ["openai"],
 			customModels: ["openai/gpt-4o"],
 			providerPrefixes: { openai: "oai" },
 			zed: { providerName: "Custom Name", autoSync: true },

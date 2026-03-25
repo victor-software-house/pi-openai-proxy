@@ -9,10 +9,12 @@
  *   - "universal": raw model IDs only; duplicates are a config error
  *   - "always-prefixed": always prefix with <public-prefix>/<model-id>
  *
- * Exposure modes:
+ * Exposure modes (all modes only expose auth-configured models):
  *   - "all": expose every available model
- *   - "scoped": expose models from selected providers only
- *   - "custom": expose an explicit allowlist of canonical IDs
+ *   - "scoped": delegates to pi's global `enabledModels` setting
+ *     (the canonical IDs persisted by `/scoped-models` Ctrl+S in pi)
+ *   - "custom": same per-model filtering as "scoped" but independently
+ *     managed via the proxy's own `customModels` config
  */
 
 import type { Api, Model } from "@mariozechner/pi-ai";
@@ -36,7 +38,13 @@ export interface ExposedModel {
 export interface ModelExposureConfig {
 	readonly publicModelIdMode: PublicModelIdMode;
 	readonly modelExposureMode: ModelExposureMode;
-	readonly scopedProviders: readonly string[];
+	/**
+	 * Canonical model IDs from pi's global `enabledModels` setting.
+	 * Read from `SettingsManager.getEnabledModels()` at request time.
+	 * Undefined or empty means no filter (all available models exposed).
+	 * Used only when modelExposureMode is "scoped".
+	 */
+	readonly enabledModels: readonly string[] | undefined;
 	readonly customModels: readonly string[];
 	readonly providerPrefixes: Readonly<Record<string, string>>;
 }
@@ -64,25 +72,32 @@ export type ModelExposureOutcome = ModelExposureResult | ModelExposureError;
 
 function filterExposedModels(
 	available: readonly Model<Api>[],
-	allRegistered: readonly Model<Api>[],
 	config: ModelExposureConfig,
 ): Model<Api>[] {
 	switch (config.modelExposureMode) {
+		case "all":
+			// Expose all auth-configured models — same as pi's getAvailable().
+			return [...available];
+
 		case "scoped": {
-			// Expose auth-configured models, optionally filtered to selected providers.
-			// When scopedProviders is empty, all available models are exposed.
-			if (config.scopedProviders.length === 0) {
+			// Delegates to pi's global `enabledModels` setting — the canonical IDs
+			// persisted by `/scoped-models` (Ctrl+S) in pi's interactive mode.
+			// When no filter is configured, all available models are exposed.
+			const enabled = config.enabledModels;
+			if (enabled === undefined || enabled.length === 0) {
 				return [...available];
 			}
-			const allowed = new Set(config.scopedProviders);
-			return available.filter((m) => allowed.has(m.provider));
+			const allowed = new Set(enabled);
+			return available.filter((m) => allowed.has(`${m.provider}/${m.id}`));
 		}
 
-		case "all":
-			// Expose all registered models regardless of auth status
-			return [...allRegistered];
-
 		case "custom": {
+			// Same per-model canonical ID filtering as "scoped", but from the
+			// proxy's own `customModels` config instead of pi's settings.
+			// When empty, all available models are exposed.
+			if (config.customModels.length === 0) {
+				return [...available];
+			}
 			const allowed = new Set(config.customModels);
 			return available.filter((m) => allowed.has(`${m.provider}/${m.id}`));
 		}
@@ -296,18 +311,16 @@ function validatePrefixUniqueness(
  * Compute the full model-exposure result from config and available models.
  *
  * @param available - Models with auth configured (pi's getAvailable())
- * @param allRegistered - All registered models regardless of auth (pi's getAll())
  * @param config - Model exposure configuration
  *
  * Call this at startup and whenever config or the model registry changes.
  */
 export function computeModelExposure(
 	available: readonly Model<Api>[],
-	allRegistered: readonly Model<Api>[],
 	config: ModelExposureConfig,
 ): ModelExposureOutcome {
 	// 1. Filter to exposed set
-	const exposed = filterExposedModels(available, allRegistered, config);
+	const exposed = filterExposedModels(available, config);
 
 	// 2. Validate prefix uniqueness (before generating IDs)
 	const prefixError = validatePrefixUniqueness(

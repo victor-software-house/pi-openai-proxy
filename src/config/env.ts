@@ -30,8 +30,6 @@ export interface ServerConfig {
 	readonly publicModelIdMode: PublicModelIdMode;
 	/** Which models are exposed. */
 	readonly modelExposureMode: ModelExposureMode;
-	/** Provider keys for "scoped" exposure mode. */
-	readonly scopedProviders: readonly string[];
 	/** Canonical model IDs for "custom" exposure mode. */
 	readonly customModels: readonly string[];
 	/** Provider key -> custom public prefix label. */
@@ -95,7 +93,6 @@ export function loadConfig(cli: CliOverrides = {}): ServerConfig {
 		upstreamTimeoutMs,
 		publicModelIdMode: file.publicModelIdMode,
 		modelExposureMode: file.modelExposureMode,
-		scopedProviders: file.scopedProviders,
 		customModels: file.customModels,
 		providerPrefixes: file.providerPrefixes,
 	};

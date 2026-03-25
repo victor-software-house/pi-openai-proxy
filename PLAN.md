@@ -187,15 +187,17 @@ Required settings:
 
 - `publicModelIdMode`: `collision-prefixed` | `universal` | `always-prefixed`
 - `modelExposureMode`: `all` | `scoped` | `custom`
-- `scopedProviders`: string[]
 - `customModels`: string[] — canonical model IDs only
 - `providerPrefixes`: record of provider key -> public prefix label
+
+Note: `scoped` mode delegates to pi's global `enabledModels` setting (from `/scoped-models` Ctrl+S).
+No proxy-side config is needed — the proxy reads `SettingsManager.getEnabledModels()` at request time.
 
 Settings-panel requirements:
 
 - the main `/proxy` panel remains the default no-arg entry point
 - enum settings for public ID mode and exposure mode must persist immediately
-- provider selection for `scoped` mode should use a focused selector UI
+- `scoped` mode is managed via pi's `/scoped-models` command, not a proxy-specific UI
 - model selection for `custom` mode should use a searchable selector UI
 - prefix overrides should be editable without requiring manual JSON editing
 - `/proxy verify` should validate collisions, invalid universal mode, unknown providers, and missing custom models

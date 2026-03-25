@@ -29,7 +29,6 @@ export function testConfig(): ServerConfig {
 		upstreamTimeoutMs: 120000,
 		publicModelIdMode: "collision-prefixed",
 		modelExposureMode: "scoped",
-		scopedProviders: [],
 		customModels: [],
 		providerPrefixes: {},
 	};
@@ -44,7 +43,7 @@ export function testApp(config?: ServerConfig): ReturnType<typeof createApp> {
 	const reader: ExposureConfigReader = () => ({
 		publicModelIdMode: c.publicModelIdMode,
 		modelExposureMode: c.modelExposureMode,
-		scopedProviders: c.scopedProviders,
+		enabledModels: undefined,
 		customModels: c.customModels,
 		providerPrefixes: c.providerPrefixes,
 	});

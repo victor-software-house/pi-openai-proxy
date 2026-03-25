@@ -22,7 +22,7 @@ import { streamToSSE } from "@proxy/openai/sse";
 import { convertTools } from "@proxy/openai/tools";
 import { validateChatRequest } from "@proxy/openai/validate";
 import { piComplete, piStream } from "@proxy/pi/complete";
-import { getAllModels, getAvailableModels, getRegistry } from "@proxy/pi/registry";
+import { getAvailableModels, getEnabledModels, getRegistry } from "@proxy/pi/registry";
 import {
 	authenticationError,
 	invalidRequest,
@@ -47,7 +47,7 @@ function fileConfigReader(): ModelExposureConfig {
 	return {
 		publicModelIdMode: file.publicModelIdMode,
 		modelExposureMode: file.modelExposureMode,
-		scopedProviders: file.scopedProviders,
+		enabledModels: getEnabledModels(),
 		customModels: file.customModels,
 		providerPrefixes: file.providerPrefixes,
 	};
@@ -59,8 +59,7 @@ export function createRoutes(
 ): Hono<ProxyEnv> {
 	function getExposure(): ModelExposureResult {
 		const available = getAvailableModels();
-		const allRegistered = getAllModels();
-		const outcome = computeModelExposure(available, allRegistered, configReader());
+		const outcome = computeModelExposure(available, configReader());
 		if (!outcome.ok) {
 			throw new Error(`Model exposure configuration error: ${outcome.message}`);
 		}

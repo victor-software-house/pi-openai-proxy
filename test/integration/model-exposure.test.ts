@@ -7,7 +7,7 @@
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import type { ServerConfig } from "@proxy/config/env";
-import { getAllModels, getAvailableModels, initRegistry } from "@proxy/pi/registry";
+import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
 
 import { jsonBody, testApp, testConfig } from "../helpers";
 
@@ -94,7 +94,10 @@ describe("modelExposureMode through HTTP", () => {
 		expect(body.data.length).toBe(1);
 	});
 
-	test("custom mode with empty list exposes zero models", async () => {
+	test("custom mode with empty list exposes all available models", async () => {
+		const available = getAvailableModels();
+		if (available.length === 0) return;
+
 		const app = appWith({
 			modelExposureMode: "custom",
 			customModels: [],
@@ -103,15 +106,12 @@ describe("modelExposureMode through HTTP", () => {
 		expect(res.status).toBe(200);
 
 		const body = await jsonBody(res);
-		expect(body.data.length).toBe(0);
+		expect(body.data.length).toBe(available.length);
 	});
 
-	test("all mode exposes more models than scoped when unauthed models exist", async () => {
+	test("all mode exposes same count as scoped with no filter", async () => {
 		const available = getAvailableModels();
-		const all = getAllModels();
-
-		// Only meaningful if there are unauthed models
-		if (all.length <= available.length) return;
+		if (available.length === 0) return;
 
 		const scopedApp = appWith({ modelExposureMode: "scoped" });
 		const allApp = appWith({ modelExposureMode: "all" });
@@ -122,7 +122,8 @@ describe("modelExposureMode through HTTP", () => {
 		const scopedBody = await jsonBody(scopedRes);
 		const allBody = await jsonBody(allRes);
 
-		expect(allBody.data.length).toBeGreaterThan(scopedBody.data.length);
+		// Both use getAvailable(), scoped has no enabledModels filter in test
+		expect(allBody.data.length).toBe(scopedBody.data.length);
 	});
 });
 

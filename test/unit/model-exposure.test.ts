@@ -38,7 +38,7 @@ function defaultConfig(overrides: Partial<ModelExposureConfig> = {}): ModelExpos
 	return {
 		publicModelIdMode: "collision-prefixed",
 		modelExposureMode: "scoped",
-		scopedProviders: [],
+		enabledModels: undefined,
 		customModels: [],
 		providerPrefixes: {},
 		...overrides,
@@ -46,15 +46,13 @@ function defaultConfig(overrides: Partial<ModelExposureConfig> = {}): ModelExpos
 }
 
 /**
- * Helper: call computeModelExposure with the same array for both available and allRegistered.
- * Most tests don't distinguish between the two.
+ * Helper: call computeModelExposure with the given available models.
  */
 function expose(
 	models: readonly Model<Api>[],
 	config: ModelExposureConfig,
-	allRegistered?: readonly Model<Api>[],
 ): ReturnType<typeof computeModelExposure> {
-	return computeModelExposure(models, allRegistered ?? models, config);
+	return computeModelExposure(models, config);
 }
 
 // ---------------------------------------------------------------------------
@@ -69,24 +67,53 @@ describe("exposure filtering", () => {
 		makeModel("google", "gemini-2.5-pro"),
 	];
 
-	test("scoped mode (default) exposes all available models", () => {
+	test("scoped mode with no enabledModels exposes all available models", () => {
 		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.models.length).toBe(4);
 	});
 
-	test("all mode exposes all registered models including unauthenticated", () => {
-		const available = [makeModel("openai", "gpt-4o")];
-		const allRegistered = [
-			makeModel("openai", "gpt-4o"),
-			makeModel("anthropic", "claude-sonnet-4-20250514"),
-			makeModel("google", "gemini-2.5-pro"),
-		];
-		const result = expose(available, defaultConfig({ modelExposureMode: "all" }), allRegistered);
+	test("scoped mode with empty enabledModels exposes all available models", () => {
+		const result = expose(models, defaultConfig({ enabledModels: [] }));
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
-		expect(result.models.length).toBe(3);
+		expect(result.models.length).toBe(4);
+	});
+
+	test("scoped mode filters by enabledModels canonical IDs", () => {
+		const result = expose(
+			models,
+			defaultConfig({
+				enabledModels: ["openai/gpt-4o", "google/gemini-2.5-pro"],
+			}),
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.models.length).toBe(2);
+		const ids = result.models.map((m) => m.canonicalId);
+		expect(ids).toContain("openai/gpt-4o");
+		expect(ids).toContain("google/gemini-2.5-pro");
+	});
+
+	test("scoped mode ignores enabledModels entries not in available set", () => {
+		const result = expose(
+			models,
+			defaultConfig({
+				enabledModels: ["openai/gpt-4o", "fake/nonexistent"],
+			}),
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.models.length).toBe(1);
+		expect(result.models[0]?.canonicalId).toBe("openai/gpt-4o");
+	});
+
+	test("all mode exposes all available (auth-configured) models", () => {
+		const result = expose(models, defaultConfig({ modelExposureMode: "all" }));
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.models.length).toBe(4);
 	});
 
 	test("custom mode exposes only allowlisted canonical IDs", () => {
@@ -103,6 +130,19 @@ describe("exposure filtering", () => {
 		const ids = result.models.map((m) => m.canonicalId);
 		expect(ids).toContain("openai/gpt-4o");
 		expect(ids).toContain("anthropic/claude-sonnet-4-20250514");
+	});
+
+	test("custom mode with empty list exposes all available models", () => {
+		const result = expose(
+			models,
+			defaultConfig({
+				modelExposureMode: "custom",
+				customModels: [],
+			}),
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.models.length).toBe(4);
 	});
 
 	test("custom mode ignores non-existent canonical IDs", () => {
