@@ -62,6 +62,7 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"test": "bun test",
+		"test:ci": "bun test test/unit/ test/integration/",
 		"prepack": "bun run build",
 		"prepublishOnly": "bun test && bun run build"
 	},
