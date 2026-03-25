@@ -1,3 +1,10 @@
+## [4.2.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.0...v4.2.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* wrap around arrow keys in model selector submenu ([340e173](https://github.com/victor-software-house/pi-openai-proxy/commit/340e173af36c5085142ac37f3a4f8a4254ba6db6))
+
 # [4.2.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.1.0...v4.2.0) (2026-03-25)
 
 
