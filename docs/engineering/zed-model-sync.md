@@ -1,24 +1,171 @@
-# Zed Model Sync — Design Notes
+# Client Model Sync — Design Notes
 
-Research notes for a future extension that syncs pi-openai-proxy's exposed models
-into Zed's `settings.json` so users don't manually enumerate them.
+Design for a modular sync system that pushes pi-openai-proxy's exposed models
+into editor/tool configuration files. Follows pi-maestro's monorepo patterns:
+contracts for plugin boundaries, per-client adapters, thin extension wiring.
 
-## Current state
+## Problem
 
-Zed's `openai_compatible` provider does **not** auto-discover models from the
-server. It never calls `GET /v1/models`. Users must manually list every model in
-`settings.json` with context window sizes and capability flags.
+Editors like Zed and Continue.dev require manual model enumeration in their
+config files. They never call `GET /v1/models`. Users must hand-write every
+model with context window sizes and capability flags. When the proxy's model
+set changes (new provider authenticated, model exposure config adjusted), the
+editor config goes stale.
 
-The proxy already exposes all available models via `GET /v1/models`, but the
-response only carries the OpenAI-standard fields (`id`, `object`, `created`,
-`owned_by`). Zed needs more metadata per model.
+## Architecture
 
-## Zed's model format
+```text
+packages/
+├── proxy/                  # Standalone proxy server, CLI, config schema
+│   └── (exposes model metadata via x_pi on GET /v1/models)
+│
+├── sync/
+│   ├── contracts/          # SyncTarget interface, ModelInfo, SyncResult
+│   ├── engine/             # Fetch models from proxy, diff, orchestrate sync
+│   ├── target-zed/         # Zed settings.json adapter
+│   └── target-continue/    # Continue config.yaml adapter (future)
+│
+└── pi-extension/           # Pi extension: /proxy commands + sync wiring
+```
+
+### Package responsibilities
+
+| Package | Scope | Depends on |
+|---|---|---|
+| `@proxy/sync-contracts` | `SyncTarget` interface, `ModelInfo` type, `SyncResult`, `SyncOptions` | nothing (pure types + Zod) |
+| `@proxy/sync-engine` | Fetch models from proxy, map to `ModelInfo[]`, diff against current state, call `SyncTarget.apply()` | `sync-contracts` |
+| `@proxy/target-zed` | Read/write Zed's JSONC settings, implement `SyncTarget` | `sync-contracts`, `jsonc-parser` |
+| `@proxy/target-continue` | Read/write Continue's YAML config, implement `SyncTarget` | `sync-contracts` |
+| `pi-extension` | Wire sync targets, register `/proxy zed-sync` etc. | `sync-engine`, all targets, proxy config |
+
+### Comparison with pi-maestro
+
+| pi-maestro | pi-openai-proxy sync |
+|---|---|
+| `core/contracts` (ProviderAdapter, SecretBackend) | `sync/contracts` (SyncTarget) |
+| `core/engine` (AccountManager, selection) | `sync/engine` (fetch, diff, orchestrate) |
+| `providers/anthropic`, `providers/gemini` | `sync/target-zed`, `sync/target-continue` |
+| `secrets/secret-keychain`, `secret-age` | (n/a — no secret backends needed) |
+| `pi-maestro` (extension wiring) | `pi-extension` (extension wiring) |
+
+## Contracts
+
+```typescript
+// sync/contracts/src/model-info.ts
+
+/** Provider-agnostic model metadata produced by the sync engine. */
+interface ModelInfo {
+  /** Public model ID (what the editor sends in API requests). */
+  id: string;
+  /** Human-readable display name. */
+  displayName: string;
+  /** Provider key (e.g. "anthropic", "openai"). */
+  provider: string;
+  /** Context window size in tokens. */
+  contextWindow: number;
+  /** Max output/completion tokens. */
+  maxOutputTokens: number;
+  /** Whether the model supports image inputs. */
+  supportsImages: boolean;
+  /** Whether the model supports tool/function calling. */
+  supportsTools: boolean;
+  /** Whether the model is a reasoning/thinking model. */
+  reasoning: boolean;
+}
+```
+
+```typescript
+// sync/contracts/src/sync-target.ts
+
+interface SyncTarget {
+  /** Unique target identifier (e.g. "zed", "continue"). */
+  readonly id: string;
+  /** Human-readable name for UI/notifications. */
+  readonly displayName: string;
+
+  /** Detect whether this target is installed/configured on the system. */
+  detect(): Promise<DetectResult>;
+
+  /** Read the current model list from the target's config. */
+  read(): Promise<ReadResult>;
+
+  /** Write updated models to the target's config. */
+  apply(models: readonly ModelInfo[], options: SyncOptions): Promise<SyncResult>;
+}
+
+interface DetectResult {
+  readonly found: boolean;
+  /** Resolved path to the config file, if found. */
+  readonly configPath?: string | undefined;
+}
+
+interface SyncOptions {
+  /** Provider name in the target's config (e.g. "Pi Proxy"). */
+  readonly providerName: string;
+  /** API URL to write into the target's config. */
+  readonly apiUrl: string;
+  /** Dry run — return what would change without writing. */
+  readonly dryRun: boolean;
+}
+
+interface SyncResult {
+  readonly ok: boolean;
+  /** Number of models added/updated/removed. */
+  readonly added: number;
+  readonly updated: number;
+  readonly removed: number;
+  /** Human-readable summary. */
+  readonly summary: string;
+  /** Error message if !ok. */
+  readonly error?: string | undefined;
+}
+
+interface ReadResult {
+  readonly ok: boolean;
+  readonly models: readonly ModelInfo[];
+  readonly error?: string | undefined;
+}
+```
+
+## Proxy model metadata
+
+Add `x_pi` to `GET /v1/models` and `GET /v1/models/{model}` responses:
+
+```json
+{
+  "id": "anthropic/claude-sonnet-4-20250514",
+  "object": "model",
+  "created": 1742867000,
+  "owned_by": "anthropic",
+  "x_pi": {
+    "display_name": "Claude Sonnet 4",
+    "context_window": 200000,
+    "max_output_tokens": 64000,
+    "reasoning": true,
+    "input_modalities": ["text", "image"]
+  }
+}
+```
+
+This is the only change needed in the proxy package itself. The sync engine
+reads this and maps to `ModelInfo[]`.
+
+### Field mapping: pi Model -> x_pi
+
+| `x_pi` field | Source |
+|---|---|
+| `display_name` | `Model.name` |
+| `context_window` | `Model.contextWindow` |
+| `max_output_tokens` | `Model.maxTokens` |
+| `reasoning` | `Model.reasoning` |
+| `input_modalities` | `Model.input` (e.g. `["text", "image"]`) |
+
+## Target: Zed
+
+### Config format
 
 ```jsonc
-// ~/.config/zed/settings.json (macOS with XDG)
-// ~/Library/Application Support/Zed/settings.json (macOS default)
-// ~/.config/zed/settings.json (Linux)
+// ~/.config/zed/settings.json (JSONC with comments)
 {
   "language_models": {
     "openai_compatible": {
@@ -45,94 +192,25 @@ response only carries the OpenAI-standard fields (`id`, `object`, `created`,
 }
 ```
 
-### Field mapping: pi Model -> Zed AvailableModel
+### Field mapping: ModelInfo -> Zed AvailableModel
 
-| Zed field | Source | Notes |
-|---|---|---|
-| `name` | `ExposedModel.publicId` | The model ID Zed sends in requests |
-| `display_name` | `Model.name` | Optional; `name` is used if omitted |
-| `max_tokens` | `Model.contextWindow` | Context window size in tokens |
-| `max_output_tokens` | `Model.maxTokens` | Max generation tokens |
-| `max_completion_tokens` | `Model.maxTokens` | Alternative field; same value |
-| `capabilities.tools` | `true` | All proxy-exposed models support tool calling |
-| `capabilities.images` | `Model.input.includes("image")` | From pi's input array |
-| `capabilities.parallel_tool_calls` | `false` | Not universally supported |
-| `capabilities.prompt_cache_key` | `false` | Not applicable |
-| `capabilities.chat_completions` | `true` | Always; proxy only speaks chat completions |
-
-## Required proxy changes
-
-### Option A: Extended model endpoint (preferred)
-
-Add an `x_pi` extension to `GET /v1/models` and `GET /v1/models/{model}`:
-
-```json
-{
-  "id": "anthropic/claude-sonnet-4-20250514",
-  "object": "model",
-  "created": 1742867000,
-  "owned_by": "anthropic",
-  "x_pi": {
-    "display_name": "Claude Sonnet 4",
-    "context_window": 200000,
-    "max_output_tokens": 64000,
-    "reasoning": true,
-    "input_modalities": ["text", "image"]
-  }
-}
-```
-
-Pros: single source of truth, standard endpoint, useful for any integration.
-Cons: non-standard extension on a standard endpoint.
-
-### Option B: Dedicated capabilities endpoint
-
-`GET /pi/models` returning an array with full metadata. Keeps the OpenAI
-endpoint pure and provides a pi-specific surface for tooling.
-
-### Recommendation
-
-Option A. The `x_pi` namespace is already used in completion responses. Clients
-that don't understand it ignore it. The sync tool only needs one HTTP call.
-
-## Sync extension architecture
-
-A separate pi extension (`pi-openai-proxy-zed-sync` or similar) that:
-
-1. Imports the config from `@victor-software-house/pi-openai-proxy/config`
-2. Queries `GET /v1/models` (with `x_pi` metadata) from the running proxy
-3. Maps each model to Zed's `AvailableModel` format
-4. Reads Zed's `settings.json` as JSONC
-5. Merges the `language_models.openai_compatible["Pi Proxy"].available_models`
-   array — preserving all other settings and comments
-6. Writes back atomically
-
-### Command surface
-
-```
-/proxy zed-sync     Sync exposed models into Zed settings
-/proxy zed-show     Show what would be written without changing anything
-```
-
-Or as a separate extension:
-
-```
-/zed sync           Sync proxy models to Zed
-/zed show           Dry-run preview
-```
+| Zed field | Source |
+|---|---|
+| `name` | `ModelInfo.id` |
+| `display_name` | `ModelInfo.displayName` |
+| `max_tokens` | `ModelInfo.contextWindow` |
+| `max_output_tokens` | `ModelInfo.maxOutputTokens` |
+| `capabilities.tools` | `ModelInfo.supportsTools` |
+| `capabilities.images` | `ModelInfo.supportsImages` |
+| `capabilities.parallel_tool_calls` | `false` |
+| `capabilities.prompt_cache_key` | `false` |
+| `capabilities.chat_completions` | `true` |
 
 ### JSONC handling
 
-Zed settings is JSONC (comments preserved). Options:
-
-- **jsonc-parser** (npm) — Microsoft's JSONC parser with `modify()` for
-  surgical edits that preserve comments and formatting. Used by VS Code
-  internals. This is the right tool.
-- **json5** — supports comments but reformats on serialize.
-- **strip-json-comments** + `JSON.parse` — loses comments on write-back.
-
-Use `jsonc-parser` with `ModificationOptions` to replace only the
-`available_models` array at the correct JSON path.
+Use `jsonc-parser` (Microsoft's parser with `modify()` for surgical edits that
+preserve comments and formatting). Replace only the `available_models` array at
+the correct JSON path.
 
 ### Settings file discovery
 
@@ -143,24 +221,40 @@ Linux:  $XDG_CONFIG_HOME/zed/settings.json
         ~/.config/zed/settings.json
 ```
 
-Check both paths, prefer whichever exists. Error if neither found.
+Check both paths, prefer whichever exists. Support Zed Preview via a separate
+config directory.
 
-### Zed Preview vs Stable
+## Target: Continue.dev (future)
 
-Zed Preview uses a separate config directory (`Zed Preview` on macOS). The sync
-should support both or let the user specify.
+Continue uses `~/.continue/config.yaml` (YAML with inline comments):
 
-## Continue.dev / other clients
+```yaml
+models:
+  - name: Claude Sonnet 4
+    provider: openai
+    model: anthropic/claude-sonnet-4-20250514
+    apiBase: http://127.0.0.1:4141/v1
+    contextLength: 200000
+    capabilities:
+      - tool_use
+      - image_input
+```
 
-Continue.dev uses a similar pattern — `config.yaml` with explicit model entries,
-`contextLength`, and `capabilities`. The same `x_pi` metadata from the proxy
-enables sync for Continue too, via a separate command or extension.
+Same `ModelInfo` input, different serialization target.
 
-The proxy's extended model metadata is client-agnostic. Each sync target is a
-thin adapter that maps `x_pi` fields to the client's format.
+## Extension commands
+
+```
+/proxy sync           Sync to all detected targets
+/proxy sync zed       Sync to Zed only
+/proxy sync --dry-run Preview without writing
+/proxy sync --list    Show detected targets and their config paths
+```
 
 ## Implementation phases
 
-1. **Add `x_pi` metadata to model endpoints** — in pi-openai-proxy itself
-2. **Build Zed sync as `/proxy zed-sync` subcommand** — in the existing extension
-3. **Extract to separate extension** — when it grows or gains Continue support
+1. **Add `x_pi` metadata to model endpoints** — proxy package only
+2. **Scaffold sync monorepo packages** — contracts, engine, target-zed
+3. **Implement Zed target** — JSONC read/write with `jsonc-parser`
+4. **Wire into extension** — `/proxy sync` commands
+5. **Add Continue target** — when demand exists
