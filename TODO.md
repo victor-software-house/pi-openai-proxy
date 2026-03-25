@@ -278,27 +278,27 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Pre-work
 
-- [ ] Remove dead `src/pi/resolve-model.ts` and `test/unit/resolve-model.test.ts`
-- [ ] Add `openai` as explicit devDependency (currently transitive via pi-ai)
+- [x] Remove dead `src/pi/resolve-model.ts` and `test/unit/resolve-model.test.ts`
+- [x] Add `openai` as explicit devDependency (currently transitive via pi-ai)
 
 ### Wire-level SSE conformance (no credentials)
 
-- [ ] Each chunk has `id`, `object: "chat.completion.chunk"`, `created` (number), `model`
-- [ ] `delta.role` is `"assistant"` on first chunk only
-- [ ] `delta.content` is a string, never `undefined` when text is present
-- [ ] `finish_reason` is `null` on intermediate chunks, correct value on final content chunk
-- [ ] Tool call delta chunks: `delta.tool_calls[n].index`, `.id`, `.type`, `.function.name`, `.function.arguments`
-- [ ] Usage chunk: `choices` is empty array, `usage` has `prompt_tokens`, `completion_tokens`, `total_tokens`
-- [ ] Final line is `data: [DONE]\n\n`
+- [x] Each chunk has `id`, `object: "chat.completion.chunk"`, `created` (number), `model`
+- [x] `delta.role` is `"assistant"` on first chunk only
+- [x] `delta.content` is a string, never `undefined` when text is present
+- [x] `finish_reason` is `null` on intermediate chunks, correct value on final content chunk
+- [x] Tool call delta chunks: `delta.tool_calls[n].index`, `.id`, `.type`, `.function.name`, `.function.arguments`
+- [x] Usage chunk: `choices` is empty array, `usage` has `prompt_tokens`, `completion_tokens`, `total_tokens`
+- [x] Final line is `data: [DONE]\n\n`
 
 ### Non-streaming response conformance (no credentials)
 
-- [ ] Required fields: `id`, `object: "chat.completion"`, `created`, `model`, `choices`, `usage`
-- [ ] `choices[0].finish_reason` is never `null`
-- [ ] `choices[0].message.role` is `"assistant"`
-- [ ] `choices[0].message.content` is `string | null` (explicitly `null` when tool_calls present)
-- [ ] `choices[0].message.tool_calls` shape: `id`, `type: "function"`, `function.name`, `function.arguments`
-- [ ] `usage` fields are all numbers
+- [x] Required fields: `id`, `object: "chat.completion"`, `created`, `model`, `choices`, `usage`
+- [x] `choices[0].finish_reason` is never `null`
+- [x] `choices[0].message.role` is `"assistant"`
+- [x] `choices[0].message.content` is `string | null` (explicitly `null` when tool_calls present)
+- [x] `choices[0].message.tool_calls` shape: `id`, `type: "function"`, `function.name`, `function.arguments`
+- [x] `usage` fields are all numbers
 
 ### SDK round-trip conformance (requires credentials, skip otherwise)
 
@@ -312,9 +312,9 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Security tests (no credentials)
 
-- [ ] Blocked localhost image URL returns error
-- [ ] Blocked private-range image URL returns error
-- [ ] Oversized image payload rejected
+- [x] Blocked localhost image URL returns error
+- [x] Blocked private-range image URL returns error
+- [x] Oversized image payload rejected
 
 ## Phase 4 — Experimental agentic mode
 
