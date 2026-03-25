@@ -64,16 +64,17 @@ export type ModelExposureOutcome = ModelExposureResult | ModelExposureError;
 
 function filterExposedModels(
 	available: readonly Model<Api>[],
+	allRegistered: readonly Model<Api>[],
 	config: ModelExposureConfig,
 ): Model<Api>[] {
 	switch (config.modelExposureMode) {
-		case "all":
+		case "scoped":
+			// Default: expose pi's available (auth-configured) models
 			return [...available];
 
-		case "scoped": {
-			const providers = new Set(config.scopedProviders);
-			return available.filter((m) => providers.has(m.provider));
-		}
+		case "all":
+			// Expose all registered models regardless of auth status
+			return [...allRegistered];
 
 		case "custom": {
 			const allowed = new Set(config.customModels);
@@ -288,14 +289,19 @@ function validatePrefixUniqueness(
 /**
  * Compute the full model-exposure result from config and available models.
  *
+ * @param available - Models with auth configured (pi's getAvailable())
+ * @param allRegistered - All registered models regardless of auth (pi's getAll())
+ * @param config - Model exposure configuration
+ *
  * Call this at startup and whenever config or the model registry changes.
  */
 export function computeModelExposure(
 	available: readonly Model<Api>[],
+	allRegistered: readonly Model<Api>[],
 	config: ModelExposureConfig,
 ): ModelExposureOutcome {
 	// 1. Filter to exposed set
-	const exposed = filterExposedModels(available, config);
+	const exposed = filterExposedModels(available, allRegistered, config);
 
 	// 2. Validate prefix uniqueness (before generating IDs)
 	const prefixError = validatePrefixUniqueness(

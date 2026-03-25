@@ -21,7 +21,7 @@ import { streamToSSE } from "@proxy/openai/sse";
 import { convertTools } from "@proxy/openai/tools";
 import { validateChatRequest } from "@proxy/openai/validate";
 import { piComplete, piStream } from "@proxy/pi/complete";
-import { getAvailableModels, getRegistry } from "@proxy/pi/registry";
+import { getAllModels, getAvailableModels, getRegistry } from "@proxy/pi/registry";
 import {
 	authenticationError,
 	invalidRequest,
@@ -52,9 +52,10 @@ function buildExposureConfig(config: ServerConfig): ModelExposureConfig {
  * Returns the exposure result or throws on config errors.
  */
 function getExposure(config: ServerConfig): ModelExposureResult {
-	const models = getAvailableModels();
+	const available = getAvailableModels();
+	const allRegistered = getAllModels();
 	const exposureConfig = buildExposureConfig(config);
-	const outcome = computeModelExposure(models, exposureConfig);
+	const outcome = computeModelExposure(available, allRegistered, exposureConfig);
 	if (!outcome.ok) {
 		// Config validation error -- surface as 500 to callers
 		throw new Error(`Model exposure configuration error: ${outcome.message}`);

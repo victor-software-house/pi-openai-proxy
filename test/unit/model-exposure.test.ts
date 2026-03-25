@@ -37,12 +37,24 @@ function makeModel(provider: string, id: string): Model<Api> {
 function defaultConfig(overrides: Partial<ModelExposureConfig> = {}): ModelExposureConfig {
 	return {
 		publicModelIdMode: "collision-prefixed",
-		modelExposureMode: "all",
+		modelExposureMode: "scoped",
 		scopedProviders: [],
 		customModels: [],
 		providerPrefixes: {},
 		...overrides,
 	};
+}
+
+/**
+ * Helper: call computeModelExposure with the same array for both available and allRegistered.
+ * Most tests don't distinguish between the two.
+ */
+function expose(
+	models: readonly Model<Api>[],
+	config: ModelExposureConfig,
+	allRegistered?: readonly Model<Api>[],
+): ReturnType<typeof computeModelExposure> {
+	return computeModelExposure(models, allRegistered ?? models, config);
 }
 
 // ---------------------------------------------------------------------------
@@ -57,39 +69,28 @@ describe("exposure filtering", () => {
 		makeModel("google", "gemini-2.5-pro"),
 	];
 
-	test("all mode exposes every model", () => {
-		const result = computeModelExposure(models, defaultConfig());
+	test("scoped mode (default) exposes all available models", () => {
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.models.length).toBe(4);
 	});
 
-	test("scoped mode exposes only selected providers", () => {
-		const result = computeModelExposure(
-			models,
-			defaultConfig({ modelExposureMode: "scoped", scopedProviders: ["openai"] }),
-		);
-		expect(result.ok).toBe(true);
-		if (!result.ok) return;
-		expect(result.models.length).toBe(2);
-		expect(result.models.every((m) => m.provider === "openai")).toBe(true);
-	});
-
-	test("scoped mode with multiple providers", () => {
-		const result = computeModelExposure(
-			models,
-			defaultConfig({
-				modelExposureMode: "scoped",
-				scopedProviders: ["openai", "google"],
-			}),
-		);
+	test("all mode exposes all registered models including unauthenticated", () => {
+		const available = [makeModel("openai", "gpt-4o")];
+		const allRegistered = [
+			makeModel("openai", "gpt-4o"),
+			makeModel("anthropic", "claude-sonnet-4-20250514"),
+			makeModel("google", "gemini-2.5-pro"),
+		];
+		const result = expose(available, defaultConfig({ modelExposureMode: "all" }), allRegistered);
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.models.length).toBe(3);
 	});
 
 	test("custom mode exposes only allowlisted canonical IDs", () => {
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
 				modelExposureMode: "custom",
@@ -105,7 +106,7 @@ describe("exposure filtering", () => {
 	});
 
 	test("custom mode ignores non-existent canonical IDs", () => {
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
 				modelExposureMode: "custom",
@@ -118,7 +119,7 @@ describe("exposure filtering", () => {
 	});
 
 	test("empty available models produces empty exposure", () => {
-		const result = computeModelExposure([], defaultConfig());
+		const result = expose([], defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.models.length).toBe(0);
@@ -137,7 +138,7 @@ describe("public ID modes -- no collisions", () => {
 	];
 
 	test("collision-prefixed uses raw IDs when no collisions", () => {
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -148,7 +149,7 @@ describe("public ID modes -- no collisions", () => {
 	});
 
 	test("universal uses raw IDs when no collisions", () => {
-		const result = computeModelExposure(models, defaultConfig({ publicModelIdMode: "universal" }));
+		const result = expose(models, defaultConfig({ publicModelIdMode: "universal" }));
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -158,10 +159,7 @@ describe("public ID modes -- no collisions", () => {
 	});
 
 	test("always-prefixed uses provider/model-id for all", () => {
-		const result = computeModelExposure(
-			models,
-			defaultConfig({ publicModelIdMode: "always-prefixed" }),
-		);
+		const result = expose(models, defaultConfig({ publicModelIdMode: "always-prefixed" }));
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -187,7 +185,7 @@ describe("public ID modes -- with collisions", () => {
 	];
 
 	test("collision-prefixed prefixes all models in conflict group", () => {
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -203,7 +201,7 @@ describe("public ID modes -- with collisions", () => {
 	});
 
 	test("universal mode fails on collision", () => {
-		const result = computeModelExposure(models, defaultConfig({ publicModelIdMode: "universal" }));
+		const result = expose(models, defaultConfig({ publicModelIdMode: "universal" }));
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
 		expect(result.message).toContain("gpt-4o");
@@ -212,10 +210,7 @@ describe("public ID modes -- with collisions", () => {
 	});
 
 	test("always-prefixed works despite collisions", () => {
-		const result = computeModelExposure(
-			models,
-			defaultConfig({ publicModelIdMode: "always-prefixed" }),
-		);
+		const result = expose(models, defaultConfig({ publicModelIdMode: "always-prefixed" }));
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -240,7 +235,7 @@ describe("connected conflict groups", () => {
 			makeModel("provD", "unique-d"), // no collision
 		];
 
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -268,7 +263,7 @@ describe("provider prefix overrides", () => {
 	];
 
 	test("collision-prefixed uses custom prefix labels", () => {
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({ providerPrefixes: { openai: "oai", codex: "cx" } }),
 		);
@@ -283,7 +278,7 @@ describe("provider prefix overrides", () => {
 	});
 
 	test("always-prefixed uses custom prefix labels", () => {
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
 				publicModelIdMode: "always-prefixed",
@@ -306,7 +301,7 @@ describe("provider prefix overrides", () => {
 describe("prefix uniqueness validation", () => {
 	test("duplicate prefix labels fail in collision-prefixed mode", () => {
 		const models = [makeModel("openai", "gpt-4o"), makeModel("codex", "gpt-4o")];
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({ providerPrefixes: { openai: "same", codex: "same" } }),
 		);
@@ -318,7 +313,7 @@ describe("prefix uniqueness validation", () => {
 
 	test("duplicate prefix labels fail in always-prefixed mode", () => {
 		const models = [makeModel("openai", "gpt-4o"), makeModel("anthropic", "claude")];
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
 				publicModelIdMode: "always-prefixed",
@@ -333,7 +328,7 @@ describe("prefix uniqueness validation", () => {
 	test("no error when non-conflicting providers share prefix labels in collision-prefixed", () => {
 		// If providers don't collide, they don't get prefixed, so no prefix conflict
 		const models = [makeModel("openai", "gpt-4o"), makeModel("anthropic", "claude")];
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({ providerPrefixes: { openai: "same", anthropic: "same" } }),
 		);
@@ -355,7 +350,7 @@ describe("resolveExposedModel", () => {
 	];
 
 	test("resolves by public ID", () => {
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -367,7 +362,7 @@ describe("resolveExposedModel", () => {
 	});
 
 	test("resolves unprefixed public ID for non-conflicting provider", () => {
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -377,7 +372,7 @@ describe("resolveExposedModel", () => {
 	});
 
 	test("resolves by canonical ID fallback for exposed models", () => {
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -388,11 +383,11 @@ describe("resolveExposedModel", () => {
 	});
 
 	test("hidden models are not reachable via canonical fallback", () => {
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
-				modelExposureMode: "scoped",
-				scopedProviders: ["openai"],
+				modelExposureMode: "custom",
+				customModels: ["openai/gpt-4o", "openai/gpt-4o-mini"],
 			}),
 		);
 		expect(result.ok).toBe(true);
@@ -404,11 +399,11 @@ describe("resolveExposedModel", () => {
 	});
 
 	test("hidden models are not reachable via raw ID", () => {
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
-				modelExposureMode: "scoped",
-				scopedProviders: ["openai"],
+				modelExposureMode: "custom",
+				customModels: ["openai/gpt-4o", "openai/gpt-4o-mini"],
 			}),
 		);
 		expect(result.ok).toBe(true);
@@ -419,7 +414,7 @@ describe("resolveExposedModel", () => {
 	});
 
 	test("returns undefined for completely unknown model", () => {
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -435,25 +430,25 @@ describe("resolveExposedModel", () => {
 describe("universal mode validation", () => {
 	test("rejects duplicate raw model IDs", () => {
 		const models = [makeModel("openai", "gpt-4o"), makeModel("codex", "gpt-4o")];
-		const result = computeModelExposure(models, defaultConfig({ publicModelIdMode: "universal" }));
+		const result = expose(models, defaultConfig({ publicModelIdMode: "universal" }));
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
 		expect(result.message).toContain("Universal mode conflict");
 		expect(result.message).toContain("gpt-4o");
 	});
 
-	test("succeeds when scoped exposure removes collisions", () => {
+	test("succeeds when custom exposure removes collisions", () => {
 		const models = [
 			makeModel("openai", "gpt-4o"),
 			makeModel("codex", "gpt-4o"),
 			makeModel("anthropic", "claude"),
 		];
-		const result = computeModelExposure(
+		const result = expose(
 			models,
 			defaultConfig({
 				publicModelIdMode: "universal",
-				modelExposureMode: "scoped",
-				scopedProviders: ["openai", "anthropic"],
+				modelExposureMode: "custom",
+				customModels: ["openai/gpt-4o", "anthropic/claude"],
 			}),
 		);
 		expect(result.ok).toBe(true);
@@ -473,10 +468,7 @@ describe("universal mode validation", () => {
 describe("edge cases", () => {
 	test("model with nested slashes in ID (openrouter-style)", () => {
 		const models = [makeModel("openrouter", "anthropic/claude-sonnet-4-20250514")];
-		const result = computeModelExposure(
-			models,
-			defaultConfig({ publicModelIdMode: "always-prefixed" }),
-		);
+		const result = expose(models, defaultConfig({ publicModelIdMode: "always-prefixed" }));
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -486,7 +478,7 @@ describe("edge cases", () => {
 
 	test("canonical fallback works for prefixed models", () => {
 		const models = [makeModel("openai", "gpt-4o"), makeModel("codex", "gpt-4o")];
-		const result = computeModelExposure(models, defaultConfig());
+		const result = expose(models, defaultConfig());
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
@@ -505,7 +497,7 @@ describe("edge cases", () => {
 		const models = [makeModel("openai", "gpt-4o")];
 
 		for (const mode of ["collision-prefixed", "universal", "always-prefixed"] as const) {
-			const result = computeModelExposure(models, defaultConfig({ publicModelIdMode: mode }));
+			const result = expose(models, defaultConfig({ publicModelIdMode: mode }));
 			expect(result.ok).toBe(true);
 			if (!result.ok) continue;
 			expect(result.models.length).toBe(1);

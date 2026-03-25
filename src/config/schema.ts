@@ -78,7 +78,7 @@ export const DEFAULT_CONFIG: Readonly<ProxyConfig> = {
 	upstreamTimeoutSec: 120,
 	lifetime: "detached",
 	publicModelIdMode: "collision-prefixed",
-	modelExposureMode: "all",
+	modelExposureMode: "scoped",
 	scopedProviders: [],
 	customModels: [],
 	providerPrefixes: {},

@@ -30,7 +30,13 @@ import {
 	getSettingsListTheme,
 	ModelRegistry,
 } from "@mariozechner/pi-coding-agent";
-import { Container, type SettingItem, SettingsList, Text } from "@mariozechner/pi-tui";
+import {
+	type Component,
+	Container,
+	type SettingItem,
+	SettingsList,
+	Text,
+} from "@mariozechner/pi-tui";
 
 // Config schema -- single source of truth
 import {
@@ -532,27 +538,92 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	let lastGeneratedToken = "";
 
-	function buildSettingItems(): SettingItem[] {
-		// Build dynamic choices for scoped providers and custom models
+	function customModelsDisplay(): string {
+		if (config.modelExposureMode !== "custom") return "n/a";
+		return config.customModels.length > 0
+			? `${String(config.customModels.length)} selected`
+			: "(none)";
+	}
+
+	/**
+	 * Build a submenu Component for selecting custom models.
+	 * Shows all available models as a toggleable checklist.
+	 */
+	function buildModelSelectorSubmenu(
+		_currentValue: string,
+		done: (selectedValue?: string) => void,
+	): Component {
 		const models = getAvailableModels();
-		const availableProviders = getUniqueProviders(models);
+		const selected = new Set(config.customModels);
+		let selectedIndex = 0;
 
-		// Scoped providers: show available + current selection indicator
-		const scopedSet = new Set(config.scopedProviders);
-		const scopedDisplay =
-			config.scopedProviders.length > 0 ? config.scopedProviders.join(", ") : "(none)";
+		function toggle(canonicalId: string): void {
+			if (selected.has(canonicalId)) {
+				selected.delete(canonicalId);
+			} else {
+				selected.add(canonicalId);
+			}
+			config = { ...config, customModels: [...selected] };
+			saveConfigToFile(config);
+			config = loadConfigFromFile();
+		}
 
-		// Custom models: show count
-		const customDisplay =
-			config.customModels.length > 0 ? `${String(config.customModels.length)} selected` : "(none)";
+		return {
+			render(width: number): string[] {
+				const lines: string[] = [];
+				lines.push("  Select models (Space: toggle, Esc: done)");
+				lines.push("");
 
-		// Prefix overrides: show current
-		const prefixKeys = Object.keys(config.providerPrefixes);
-		const prefixDisplay =
-			prefixKeys.length > 0
-				? prefixKeys.map((k) => `${k}=${config.providerPrefixes[k] ?? k}`).join(", ")
-				: "(defaults)";
+				if (models.length === 0) {
+					lines.push("  No models available (no auth configured)");
+					return lines;
+				}
 
+				const maxVisible = 15;
+				const start = Math.max(
+					0,
+					Math.min(selectedIndex - Math.floor(maxVisible / 2), models.length - maxVisible),
+				);
+				const end = Math.min(start + maxVisible, models.length);
+
+				for (let i = start; i < end; i++) {
+					const m = models[i];
+					if (m === undefined) continue;
+					const canonical = `${m.provider}/${m.id}`;
+					const check = selected.has(canonical) ? "[x]" : "[ ]";
+					const cursor = i === selectedIndex ? "> " : "  ";
+					const line = `${cursor}${check} ${canonical}`;
+					const truncated = line.length > width ? line.slice(0, width - 1) : line;
+					lines.push(truncated);
+				}
+
+				lines.push("");
+				lines.push(`  ${String(selected.size)} of ${String(models.length)} selected`);
+				return lines;
+			},
+			invalidate(): void {
+				// no-op
+			},
+			handleInput(data: string): void {
+				if (data === "\x1B" || data === "q") {
+					done(`${String(selected.size)} selected`);
+					return;
+				}
+				if (data === "\x1B[A" && selectedIndex > 0) {
+					selectedIndex--;
+				} else if (data === "\x1B[B" && selectedIndex < models.length - 1) {
+					selectedIndex++;
+				} else if (data === " " || data === "\r") {
+					const m = models[selectedIndex];
+					if (m !== undefined) {
+						toggle(`${m.provider}/${m.id}`);
+					}
+				}
+			},
+		};
+	}
+
+	function buildSettingItems(): SettingItem[] {
 		return [
 			// --- Server ---
 			{
@@ -618,65 +689,22 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 			{
 				id: "modelExposureMode",
 				label: "Exposure mode",
-				description: "Which models are exposed on the API",
+				description:
+					"scoped = pi's available models, all = all registered, custom = manual selection",
 				currentValue: config.modelExposureMode,
-				values: ["all", "scoped", "custom"],
-			},
-			{
-				id: "scopedProviders",
-				label: "Scoped providers",
-				description: `Toggle providers for scoped mode. Available: ${availableProviders.join(", ") || "(none)"}`,
-				currentValue: scopedDisplay,
-				values: availableProviders.map((p) => {
-					const selected = scopedSet.has(p);
-					return selected ? `[-] ${p}` : `[+] ${p}`;
-				}),
+				values: ["scoped", "all", "custom"],
 			},
 			{
 				id: "customModels",
-				label: "Custom models",
-				description: "Toggle individual models for custom mode",
-				currentValue: customDisplay,
-				values: buildCustomModelValues(models),
-			},
-			{
-				id: "providerPrefixes",
-				label: "Prefix overrides",
-				description: "Custom prefix labels for providers (provider=label)",
-				currentValue: prefixDisplay,
-				values: buildPrefixValues(availableProviders),
+				label: "Select models",
+				description:
+					config.modelExposureMode === "custom"
+						? "Press Enter to open model selector"
+						: "Switch exposure mode to 'custom' to select models",
+				currentValue: customModelsDisplay(),
+				submenu: config.modelExposureMode === "custom" ? buildModelSelectorSubmenu : undefined,
 			},
 		];
-	}
-
-	/**
-	 * Build toggle values for custom model selection.
-	 * Each model is shown as "[+] provider/id" or "[-] provider/id".
-	 */
-	function buildCustomModelValues(models: readonly Model<Api>[]): string[] {
-		const customSet = new Set(config.customModels);
-		return models.map((m) => {
-			const canonical = `${m.provider}/${m.id}`;
-			const selected = customSet.has(canonical);
-			return selected ? `[-] ${canonical}` : `[+] ${canonical}`;
-		});
-	}
-
-	/**
-	 * Build toggle values for prefix override editing.
-	 * Each provider is shown as "provider=label" or "provider (default)".
-	 */
-	function buildPrefixValues(providers: readonly string[]): string[] {
-		const values: string[] = [];
-		for (const p of providers) {
-			const override = config.providerPrefixes[p];
-			if (override !== undefined && override.length > 0) {
-				values.push(`clear ${p}`);
-			} else {
-				values.push(`set ${p}`);
-			}
-		}
-		return values;
 	}
 
 	const VALID_ID_MODES = new Set<string>(["collision-prefixed", "universal", "always-prefixed"]);
@@ -743,14 +771,8 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 					config = { ...config, modelExposureMode: value };
 				}
 				break;
-			case "scopedProviders":
-				applyScopedProviderToggle(value);
-				break;
 			case "customModels":
-				applyCustomModelToggle(value);
-				break;
-			case "providerPrefixes":
-				applyPrefixAction(value);
+				// Handled by submenu -- no cycling
 				break;
 		}
 		saveConfigToFile(config);
@@ -758,70 +780,32 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	}
 
 	/**
-	 * Toggle a provider in/out of the scoped providers list.
-	 * Value format: "[+] provider" to add, "[-] provider" to remove.
+	 * Get the display value for a setting after it has been applied.
 	 */
-	function applyScopedProviderToggle(value: string): void {
-		const match = /^\[([+-])\]\s+(.+)$/.exec(value);
-		if (match === null) return;
-		const action = match[1];
-		const provider = match[2];
-		if (provider === undefined) return;
-
-		const current = new Set(config.scopedProviders);
-		if (action === "+") {
-			current.add(provider);
-		} else {
-			current.delete(provider);
-		}
-		config = { ...config, scopedProviders: [...current] };
-	}
-
-	/**
-	 * Toggle a model in/out of the custom models list.
-	 * Value format: "[+] provider/model-id" to add, "[-] provider/model-id" to remove.
-	 */
-	function applyCustomModelToggle(value: string): void {
-		const match = /^\[([+-])\]\s+(.+)$/.exec(value);
-		if (match === null) return;
-		const action = match[1];
-		const canonicalId = match[2];
-		if (canonicalId === undefined) return;
-
-		const current = new Set(config.customModels);
-		if (action === "+") {
-			current.add(canonicalId);
-		} else {
-			current.delete(canonicalId);
-		}
-		config = { ...config, customModels: [...current] };
-	}
-
-	/**
-	 * Apply a prefix override action.
-	 * Value format: "set provider" to prompt for a label, "clear provider" to remove override.
-	 */
-	function applyPrefixAction(value: string): void {
-		const clearMatch = /^clear\s+(.+)$/.exec(value);
-		if (clearMatch !== null) {
-			const provider = clearMatch[1];
-			if (provider === undefined) return;
-			const next = { ...config.providerPrefixes };
-			delete next[provider];
-			config = { ...config, providerPrefixes: next };
-			return;
-		}
-
-		// "set provider" -- set a simple abbreviated prefix
-		const setMatch = /^set\s+(.+)$/.exec(value);
-		if (setMatch !== null) {
-			const provider = setMatch[1];
-			if (provider === undefined) return;
-			// Use first 3 characters as a short prefix (user can edit JSON for custom values)
-			const shortPrefix = provider.slice(0, 3);
-			const next = { ...config.providerPrefixes };
-			next[provider] = shortPrefix;
-			config = { ...config, providerPrefixes: next };
+	function getDisplayValue(id: string): string {
+		switch (id) {
+			case "lifetime":
+				return config.lifetime;
+			case "host":
+				return config.host;
+			case "port":
+				return String(config.port);
+			case "authToken":
+				return config.authToken.length > 0 ? "enabled" : "disabled";
+			case "remoteImages":
+				return config.remoteImages ? "on" : "off";
+			case "maxBodySizeMb":
+				return `${String(config.maxBodySizeMb)} MB`;
+			case "upstreamTimeoutSec":
+				return `${String(config.upstreamTimeoutSec)}s`;
+			case "publicModelIdMode":
+				return config.publicModelIdMode;
+			case "modelExposureMode":
+				return config.modelExposureMode;
+			case "customModels":
+				return customModelsDisplay();
+			default:
+				return "";
 		}
 	}
 
@@ -830,54 +814,57 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 		await ctx.ui.custom<void>(
 			(tui, theme, _kb, done) => {
-				function build(): { container: Container; settingsList: SettingsList } {
-					const container = new Container();
-					container.addChild(new Text(theme.fg("accent", theme.bold("Proxy Settings")), 1, 0));
-					container.addChild(new Text(theme.fg("dim", getConfigPath()), 1, 0));
+				const container = new Container();
+				container.addChild(new Text(theme.fg("accent", theme.bold("Proxy Settings")), 1, 0));
+				container.addChild(new Text(theme.fg("dim", getConfigPath()), 1, 0));
 
-					const settingsList = new SettingsList(
-						buildSettingItems(),
-						10,
-						getSettingsListTheme(),
-						(id, newValue) => {
-							lastGeneratedToken = "";
-							applySetting(id, newValue);
-							if (lastGeneratedToken.length > 0) {
-								ctx.ui.notify(`Auth token: ${lastGeneratedToken}`, "info");
-							}
-							current = build();
-							tui.requestRender();
-						},
-						() => done(undefined),
-						{ enableSearch: true },
-					);
+				const items = buildSettingItems();
+				const settingsList = new SettingsList(
+					items,
+					12,
+					getSettingsListTheme(),
+					(id, newValue) => {
+						lastGeneratedToken = "";
+						applySetting(id, newValue);
+						if (lastGeneratedToken.length > 0) {
+							ctx.ui.notify(`Auth token: ${lastGeneratedToken}`, "info");
+						}
 
-					container.addChild(settingsList);
-					container.addChild(
-						new Text(
-							theme.fg(
-								"dim",
-								"Esc: close | Arrow keys: navigate | Space: toggle | Restart proxy to apply",
-							),
-							1,
-							0,
+						// Update display value in-place (no rebuild, preserves selection)
+						settingsList.updateValue(id, getDisplayValue(id));
+
+						// When exposure mode changes, update the "Select models" item
+						if (id === "modelExposureMode") {
+							settingsList.updateValue("customModels", customModelsDisplay());
+						}
+
+						tui.requestRender();
+					},
+					() => done(undefined),
+					{ enableSearch: true },
+				);
+
+				container.addChild(settingsList);
+				container.addChild(
+					new Text(
+						theme.fg(
+							"dim",
+							"Esc: close | Arrow keys: navigate | Space: toggle | Restart proxy to apply",
 						),
-					);
-
-					return { container, settingsList };
-				}
-
-				let current = build();
+						1,
+						0,
+					),
+				);
 
 				return {
 					render(width: number): string[] {
-						return current.container.render(width);
+						return container.render(width);
 					},
 					invalidate(): void {
-						current.container.invalidate();
+						container.invalidate();
 					},
 					handleInput(data: string): void {
-						current.settingsList.handleInput?.(data);
+						settingsList.handleInput?.(data);
 						tui.requestRender();
 					},
 				};
