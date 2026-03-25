@@ -1,31 +1,47 @@
 # Monorepo Restructuring Plan
 
-Restructure pi-openai-proxy from a single package into a pnpm monorepo,
-following pi-maestro's patterns where applicable.
+Restructure pi-openai-proxy into a pnpm monorepo where
+`@victor-software-house/pi-openai-proxy` remains the single installable
+package — a thin aggregator that re-exports and wires internal workspace
+modules.
 
-## Key difference from pi-maestro
+## Distribution model
 
-pi-maestro is private, ships `.ts` source, and is installed only via `git:`.
-No build step needed.
+### Key constraints
 
-pi-openai-proxy has **two distribution channels**:
+1. **npm sub-path exports are NOT separate packages.** You cannot
+   `npm install @scope/pkg/subpath`. Sub-paths like `./config` are entry
+   points within a single package. Separate publishable packages need
+   separate names.
 
-1. **npm** — published `@victor-software-house/pi-openai-proxy` with built
-   `dist/`, a CLI binary, and sub-path exports (`./config`, `./exposure`).
-   Consumers import built `.mjs` files.
-2. **git** — `pi install git:github.com/...` clones and runs `npm install` +
-   `prepare` (which builds `dist/`). Extension loaded via jiti.
+2. **Pi install must be a single command.** Users run
+   `pi install git:github.com/victor-software-house/pi-openai-proxy` or
+   `pi install npm:@victor-software-house/pi-openai-proxy`. No follow-up
+   installs.
 
-This means the proxy package needs a build step (tsdown). Internal workspace
-packages used only by the extension can ship `.ts` source (jiti-loaded, like
-pi-maestro). The sync packages fall into this second category.
+3. **Pi finds extensions via root `package.json`.** For git installs, pi
+   reads `pi.extensions` from the cloned repo root. The root can point into
+   workspace packages: `"pi": { "extensions": ["./packages/pi-extension/src"] }`.
+
+### Answer: aggregator package at the root
+
+`@victor-software-house/pi-openai-proxy` stays the published npm package name.
+It becomes a thin aggregator that depends on internal workspace packages.
+Internal packages are private and never published separately.
+
+For npm distribution, internal packages are included via `bundledDependencies`.
+For git distribution, pnpm workspace resolution handles it.
+
+This matches how pi-mono works: one monorepo, multiple packages, each published
+separately under `@mariozechner/*`. The difference here is that only ONE
+package is published (the aggregator) and the rest are bundled inside it.
 
 ## Target structure
 
 ```text
 pi-openai-proxy/
 ├── packages/
-│   ├── proxy/                          # The npm-published proxy
+│   ├── proxy/                          # Standalone proxy server + CLI
 │   │   ├── src/
 │   │   │   ├── config/                 # Config schema, env loading
 │   │   │   ├── openai/                 # Schemas, messages, SSE, tools, etc.
@@ -37,29 +53,36 @@ pi-openai-proxy/
 │   │   ├── test/
 │   │   ├── tsdown.config.ts
 │   │   ├── tsconfig.json
-│   │   └── package.json                # @pi-proxy/server (public npm)
+│   │   └── package.json                # @pi-proxy/server (private)
 │   │
 │   ├── sync/
 │   │   ├── contracts/                  # SyncTarget, ModelInfo (pure types)
 │   │   │   ├── src/
 │   │   │   ├── tsconfig.json
-│   │   │   └── package.json            # @pi-proxy/sync-contracts
+│   │   │   └── package.json            # @pi-proxy/sync-contracts (private)
 │   │   │
 │   │   ├── engine/                     # Fetch, diff, orchestrate
 │   │   │   ├── src/
 │   │   │   ├── tsconfig.json
-│   │   │   └── package.json            # @pi-proxy/sync-engine
+│   │   │   └── package.json            # @pi-proxy/sync-engine (private)
 │   │   │
 │   │   └── target-zed/                 # Zed settings.json adapter
 │   │       ├── src/
 │   │       ├── tsconfig.json
-│   │       └── package.json            # @pi-proxy/target-zed
+│   │       └── package.json            # @pi-proxy/target-zed (private)
 │   │
-│   └── pi-extension/                   # Pi extension (wires proxy + sync)
+│   └── pi-extension/                   # Pi extension (wires everything)
 │       ├── src/
-│       │   └── extension.ts
+│       │   └── extension.ts            # Thin aggregator: imports from siblings
 │       ├── tsconfig.json
-│       └── package.json                # @pi-proxy/pi-extension
+│       └── package.json                # @pi-proxy/pi-extension (private)
+│
+├── package.json                        # @victor-software-house/pi-openai-proxy
+│                                       #   (PUBLIC — the only published package)
+│                                       #   pi.extensions -> pi-extension
+│                                       #   bin -> proxy CLI
+│                                       #   sub-path exports -> proxy config/exposure
+│                                       #   bundledDependencies -> all @pi-proxy/*
 │
 ├── pnpm-workspace.yaml
 ├── turbo.json
@@ -67,29 +90,100 @@ pi-openai-proxy/
 ├── biome.json
 ├── .oxlintrc.json
 ├── lefthook.yml
-├── package.json                        # Root (private, workspace scripts)
 ├── PLAN.md
 ├── ROADMAP.md
 └── docs/
 ```
 
-## Package details
+## The aggregator: root package.json
+
+```json
+{
+  "name": "@victor-software-house/pi-openai-proxy",
+  "version": "5.0.0",
+  "type": "module",
+  "description": "OpenAI-compatible HTTP proxy for pi's multi-provider model registry",
+  "pi": {
+    "extensions": ["./packages/pi-extension/src"]
+  },
+  "bin": {
+    "pi-openai-proxy": "./packages/proxy/dist/index.mjs"
+  },
+  "exports": {
+    "./config": {
+      "import": "./packages/proxy/dist/config.mjs",
+      "types": "./packages/proxy/dist/config.d.mts"
+    },
+    "./exposure": {
+      "import": "./packages/proxy/dist/exposure.mjs",
+      "types": "./packages/proxy/dist/exposure.d.mts"
+    }
+  },
+  "files": [
+    "packages/*/dist",
+    "packages/*/src",
+    "packages/*/package.json",
+    "packages/*/*/dist",
+    "packages/*/*/src",
+    "packages/*/*/package.json"
+  ],
+  "dependencies": {
+    "@pi-proxy/server": "workspace:*",
+    "@pi-proxy/sync-contracts": "workspace:*",
+    "@pi-proxy/sync-engine": "workspace:*",
+    "@pi-proxy/target-zed": "workspace:*",
+    "@pi-proxy/pi-extension": "workspace:*"
+  },
+  "bundledDependencies": [
+    "@pi-proxy/server",
+    "@pi-proxy/sync-contracts",
+    "@pi-proxy/sync-engine",
+    "@pi-proxy/target-zed",
+    "@pi-proxy/pi-extension"
+  ],
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "biome check packages/",
+    "prepare": "turbo run build"
+  }
+}
+```
+
+### How each install channel works
+
+| Channel | What happens |
+|---|---|
+| `pi install git:github.com/...` | Clone, `npm install` (resolves pnpm workspace), `prepare` builds proxy dist. Pi reads `pi.extensions` from root, loads `packages/pi-extension/src/extension.ts` via jiti. Workspace `@pi-proxy/*` imports resolve to sibling source `.ts` files. |
+| `pi install npm:@victor-software-house/pi-openai-proxy` | Downloads tarball. `bundledDependencies` includes all `@pi-proxy/*` packages inside `node_modules/`. Pi reads `pi.extensions` from root, loads extension. Extension imports resolve to bundled packages. |
+| `npm install -g @victor-software-house/pi-openai-proxy` | Installs globally. `pi-openai-proxy` CLI binary available via `packages/proxy/dist/index.mjs`. |
+| External consumers: `import { ... } from "@victor-software-house/pi-openai-proxy/config"` | Resolves to `packages/proxy/dist/config.mjs` via root `exports`. |
+
+## Internal packages
+
+All private. Never published to npm independently.
 
 ### `@pi-proxy/server` (packages/proxy)
 
-The standalone proxy. Published to npm. Built with tsdown.
+The standalone proxy server and CLI. Only package with a build step (tsdown).
 
 ```json
 {
   "name": "@pi-proxy/server",
-  "version": "5.0.0",
+  "private": true,
   "type": "module",
-  "bin": { "pi-proxy": "dist/index.mjs" },
   "exports": {
     ".":          { "import": "./dist/index.mjs",    "types": "./dist/index.d.mts" },
     "./config":   { "import": "./dist/config.mjs",   "types": "./dist/config.d.mts" },
     "./exposure": { "import": "./dist/exposure.mjs",  "types": "./dist/exposure.d.mts" }
   },
+  "scripts": { "build": "tsdown" },
   "dependencies": {
     "@sinclair/typebox": "catalog:",
     "citty": "catalog:",
@@ -103,15 +197,12 @@ The standalone proxy. Published to npm. Built with tsdown.
 }
 ```
 
-Moves pi-ai and pi-coding-agent from `dependencies` to `peerDependencies`
-(like pi-maestro). The proxy runs inside pi's process (when used as extension)
-or standalone (CLI), where the consumer provides these.
-
 Contains everything currently in `src/`. No structural changes to server code.
+The `@proxy/*` import alias stays scoped to this package's tsconfig.
 
 ### `@pi-proxy/sync-contracts` (packages/sync/contracts)
 
-Pure types and Zod schemas. No runtime dependencies beyond zod.
+Pure types and Zod schemas. No build step — ships `.ts` source.
 
 ```json
 {
@@ -126,12 +217,9 @@ Pure types and Zod schemas. No runtime dependencies beyond zod.
 }
 ```
 
-Ships `.ts` source — only consumed by workspace siblings, loaded via jiti.
-
 ### `@pi-proxy/sync-engine` (packages/sync/engine)
 
-Fetches models from a running proxy (including `x_pi` metadata), maps to
-`ModelInfo[]`, diffs against current target state, calls `target.apply()`.
+Fetch from proxy, map to `ModelInfo[]`, diff, call `SyncTarget.apply()`.
 
 ```json
 {
@@ -158,15 +246,14 @@ Implements `SyncTarget` for Zed's JSONC `settings.json`.
   "exports": { ".": "./src/adapter.ts" },
   "dependencies": {
     "@pi-proxy/sync-contracts": "workspace:*",
-    "jsonc-parser": "^3.3.1"
+    "jsonc-parser": "catalog:"
   }
 }
 ```
 
 ### `@pi-proxy/pi-extension` (packages/pi-extension)
 
-The Pi extension. Wires proxy config, sync engine, and targets. Registers
-`/proxy` command family.
+The pi extension. Thin wiring layer — imports from workspace siblings.
 
 ```json
 {
@@ -188,9 +275,6 @@ The Pi extension. Wires proxy config, sync engine, and targets. Registers
   }
 }
 ```
-
-The extension imports config from `@pi-proxy/server/config` (workspace
-resolution — no self-reference issue). Ships `.ts` source like pi-maestro.
 
 ## Root configuration
 
@@ -244,8 +328,6 @@ catalog:
 
 ### tsconfig.base.json
 
-Extracted from current `tsconfig.json`, matching pi-maestro:
-
 ```json
 {
   "compilerOptions": {
@@ -267,52 +349,30 @@ Extracted from current `tsconfig.json`, matching pi-maestro:
 }
 ```
 
-### biome.json + .oxlintrc.json
-
-Stay at root. biome scopes to `packages/`. oxlint runs per-package via turbo.
-
 ## Migration steps
 
-1. **Init workspace** — add `pnpm-workspace.yaml`, `turbo.json`,
-   `tsconfig.base.json`, root `package.json`
+1. **Init workspace** — `pnpm-workspace.yaml`, `turbo.json`,
+   `tsconfig.base.json`
 2. **Move proxy** — `src/`, `test/`, `tsdown.config.ts` -> `packages/proxy/`
-3. **Move extension** — `extensions/proxy.ts` -> `packages/pi-extension/src/extension.ts`
-4. **Fix extension imports** — change from `@victor-software-house/pi-openai-proxy/config`
-   to `@pi-proxy/server/config` (workspace resolution, no build needed)
-5. **Scaffold sync packages** — contracts, engine, target-zed (can be empty initially)
-6. **Update CI** — turbo-based build/test/typecheck pipeline
-7. **Update npm publish** — only `@pi-proxy/server` publishes to npm
-8. **Update `pi install`** — root `package.json` gets `pi.extensions` pointing
-   to `packages/pi-extension/src/extension.ts`
+3. **Move extension** — `extensions/proxy.ts` ->
+   `packages/pi-extension/src/extension.ts`
+4. **Fix extension imports** — from
+   `@victor-software-house/pi-openai-proxy/config` to
+   `@pi-proxy/server/config` (workspace resolution)
+5. **Update root package.json** — aggregator with `bundledDependencies`,
+   `pi.extensions`, `bin`, `exports` pointing into workspace packages
+6. **Scaffold sync packages** — contracts, engine, target-zed (empty
+   initially, filled when implementing sync)
+7. **Update CI** — turbo-based build/test/typecheck pipeline
+8. **Update `prepare`** — `turbo run build` (builds only proxy, the
+   only package with a build step)
+9. **Test both channels** — `pi install git:...` and `npm pack` +
+   `pi install npm:...`
 
-## What changes for consumers
+## What does NOT change for consumers
 
-| Channel | Before | After |
-|---|---|---|
-| npm install | `@victor-software-house/pi-openai-proxy` | `@pi-proxy/server` (new name) |
-| pi install git | same repo URL | same repo URL (root `pi.extensions` discovered) |
-| pi install npm | `npm:@victor-software-house/pi-openai-proxy` | `npm:@pi-proxy/server` or dedicated extension package |
-
-## Open question: npm package name
-
-Options for the proxy package:
-- `@pi-proxy/server` — clean scope, matches monorepo naming
-- `pi-openai-proxy` — unscoped, memorable, `npx pi-openai-proxy`
-- Keep `@victor-software-house/pi-openai-proxy` — continuity but long
-
-The extension package could be:
-- Published separately as `@pi-proxy/pi-extension` if users want npm install
-- Or kept private (git install only, like pi-maestro)
-
-## Open question: pi install from monorepo
-
-When `pi install git:github.com/victor-software-house/pi-openai-proxy` clones
-the monorepo, pi needs to find the extension. Options:
-
-1. Root `package.json` declares `pi.extensions` pointing to the extension package
-2. Root `package.json` uses `pi.packages` to point to `packages/pi-extension`
-
-Need to verify which pattern pi supports for monorepo git installs. Pi-maestro
-uses `"pi": { "extensions": ["./src/extension.ts"] }` in the leaf package, and
-gets installed by pointing at the leaf package path. But pi-openai-proxy is
-installed by pointing at the repo root.
+- Package name: `@victor-software-house/pi-openai-proxy`
+- Install command: `pi install git:github.com/victor-software-house/pi-openai-proxy`
+- Sub-path imports: `@victor-software-house/pi-openai-proxy/config`
+- CLI binary: `pi-openai-proxy`
+- Extension commands: `/proxy start`, `/proxy stop`, etc.
