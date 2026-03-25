@@ -1,3 +1,10 @@
+## [4.2.4](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.3...v4.2.4) (2026-03-25)
+
+
+### Bug Fixes
+
+* use SettingsList for model selector, add provider jumping ([0b5a342](https://github.com/victor-software-house/pi-openai-proxy/commit/0b5a3424f3756492c75cb462779673c9c1399a46))
+
 ## [4.2.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.2.2...v4.2.3) (2026-03-25)
 
 
