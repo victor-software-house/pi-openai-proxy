@@ -8,15 +8,14 @@
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
-import { createApp } from "@proxy/server/app";
-import { jsonBody, testConfig } from "../helpers";
+import { jsonBody, testApp } from "../helpers";
 
-let app: ReturnType<typeof createApp>;
+let app: ReturnType<typeof testApp>;
 let modelId: string | undefined;
 
 beforeAll(() => {
 	initRegistry();
-	app = createApp(testConfig());
+	app = testApp();
 	const models = getAvailableModels();
 	const first = models[0];
 	if (first !== undefined) {

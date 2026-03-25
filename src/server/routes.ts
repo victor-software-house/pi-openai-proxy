@@ -7,7 +7,6 @@
  * - POST /v1/chat/completions
  */
 
-import { F } from "@mobily/ts-belt";
 import type { ServerConfig } from "@proxy/config/env";
 import { loadConfigFromFile } from "@proxy/config/schema";
 import { convertMessages } from "@proxy/openai/messages";
@@ -37,48 +36,31 @@ import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
 
 /**
- * Builds a function that returns the current ModelExposureConfig,
- * re-reading from the config file at most once every 2s.
- * The boot-time config is used as the initial value.
+ * Read exposure config. In production this re-reads the config file on each
+ * request (<1KB JSON, negligible vs upstream API latency). Tests pass a
+ * configReader that returns fixed values.
  */
-function createExposureConfigLoader(bootConfig: ServerConfig): () => ModelExposureConfig {
-	let current: ModelExposureConfig = {
-		publicModelIdMode: bootConfig.publicModelIdMode,
-		modelExposureMode: bootConfig.modelExposureMode,
-		scopedProviders: bootConfig.scopedProviders,
-		customModels: bootConfig.customModels,
-		providerPrefixes: bootConfig.providerPrefixes,
-	};
+export type ExposureConfigReader = () => ModelExposureConfig;
 
-	let firstCall = true;
-	const reload = F.throttle(() => {
-		const file = loadConfigFromFile();
-		current = {
-			publicModelIdMode: file.publicModelIdMode,
-			modelExposureMode: file.modelExposureMode,
-			scopedProviders: file.scopedProviders,
-			customModels: file.customModels,
-			providerPrefixes: file.providerPrefixes,
-		};
-	}, 2000);
-
-	return () => {
-		if (firstCall) {
-			firstCall = false;
-		} else {
-			reload();
-		}
-		return current;
+function fileConfigReader(): ModelExposureConfig {
+	const file = loadConfigFromFile();
+	return {
+		publicModelIdMode: file.publicModelIdMode,
+		modelExposureMode: file.modelExposureMode,
+		scopedProviders: file.scopedProviders,
+		customModels: file.customModels,
+		providerPrefixes: file.providerPrefixes,
 	};
 }
 
-export function createRoutes(config: ServerConfig): Hono<ProxyEnv> {
-	const getExposureConfig = createExposureConfigLoader(config);
-
+export function createRoutes(
+	config: ServerConfig,
+	configReader: ExposureConfigReader = fileConfigReader,
+): Hono<ProxyEnv> {
 	function getExposure(): ModelExposureResult {
 		const available = getAvailableModels();
 		const allRegistered = getAllModels();
-		const outcome = computeModelExposure(available, allRegistered, getExposureConfig());
+		const outcome = computeModelExposure(available, allRegistered, configReader());
 		if (!outcome.ok) {
 			throw new Error(`Model exposure configuration error: ${outcome.message}`);
 		}

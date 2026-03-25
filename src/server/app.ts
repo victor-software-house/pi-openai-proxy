@@ -9,11 +9,14 @@ import {
 	proxyAuthMiddleware,
 	requestIdMiddleware,
 } from "@proxy/server/middleware";
-import { createRoutes } from "@proxy/server/routes";
+import { createRoutes, type ExposureConfigReader } from "@proxy/server/routes";
 import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 
-export function createApp(config: ServerConfig): Hono<ProxyEnv> {
+export function createApp(
+	config: ServerConfig,
+	configReader?: ExposureConfigReader,
+): Hono<ProxyEnv> {
 	const app = new Hono<ProxyEnv>();
 
 	// Global middleware
@@ -23,7 +26,7 @@ export function createApp(config: ServerConfig): Hono<ProxyEnv> {
 	app.use("/v1/*", proxyAuthMiddleware(config));
 
 	// Routes
-	app.route("/", createRoutes(config));
+	app.route("/", createRoutes(config, configReader));
 
 	return app;
 }

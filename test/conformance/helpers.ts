@@ -6,12 +6,11 @@
  */
 
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
-import { createApp } from "@proxy/server/app";
 import OpenAI from "openai";
-import { testConfig } from "../helpers";
+import { testApp } from "../helpers";
 
 let initialized = false;
-let app: ReturnType<typeof createApp> | undefined;
+let app: ReturnType<typeof testApp> | undefined;
 
 /**
  * Curated test model matrix.
@@ -51,10 +50,10 @@ let resolvedModels: Map<string, TestModel> | undefined;
 /**
  * Initialize the registry and app once.
  */
-export function setup(): { app: ReturnType<typeof createApp> } {
+export function setup(): { app: ReturnType<typeof testApp> } {
 	if (!initialized) {
 		initRegistry();
-		app = createApp(testConfig());
+		app = testApp();
 
 		const available = new Set(getAvailableModels().map((m) => `${m.provider}/${m.id}`));
 		resolvedModels = new Map();
@@ -102,7 +101,7 @@ export function getCheapestModel(): TestModel | undefined {
  * making real HTTP calls. This lets the SDK's response parsing and
  * strict validation run against our response shapes.
  */
-export function createTestClient(testApp: ReturnType<typeof createApp>): OpenAI {
+export function createTestClient(proxyApp: ReturnType<typeof testApp>): OpenAI {
 	return new OpenAI({
 		apiKey: "test-key-unused",
 		baseURL: "http://localhost:4141/v1",
@@ -112,7 +111,7 @@ export function createTestClient(testApp: ReturnType<typeof createApp>): OpenAI 
 		fetch: async (input, init) => {
 			const url = typeof input === "string" ? input : String(input);
 			const path = new URL(url).pathname;
-			return testApp.request(path, {
+			return proxyApp.request(path, {
 				method: (init?.method as string) ?? "GET",
 				headers: init?.headers as Record<string, string>,
 				body: init?.body as string | undefined,

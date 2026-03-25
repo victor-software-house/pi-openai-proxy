@@ -1,4 +1,6 @@
 import type { ServerConfig } from "@proxy/config/env";
+import { createApp } from "@proxy/server/app";
+import type { ExposureConfigReader } from "@proxy/server/routes";
 
 /**
  * Parse JSON response body for test assertions.
@@ -31,4 +33,20 @@ export function testConfig(): ServerConfig {
 		customModels: [],
 		providerPrefixes: {},
 	};
+}
+
+/**
+ * Create a test app that uses the given ServerConfig for both server
+ * settings and exposure config. Never reads from the user's config file.
+ */
+export function testApp(config?: ServerConfig): ReturnType<typeof createApp> {
+	const c = config ?? testConfig();
+	const reader: ExposureConfigReader = () => ({
+		publicModelIdMode: c.publicModelIdMode,
+		modelExposureMode: c.modelExposureMode,
+		scopedProviders: c.scopedProviders,
+		customModels: c.customModels,
+		providerPrefixes: c.providerPrefixes,
+	});
+	return createApp(c, reader);
 }

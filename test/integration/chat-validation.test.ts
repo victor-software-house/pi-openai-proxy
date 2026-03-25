@@ -8,14 +8,14 @@ import { jsonBody } from "../helpers";
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
-import { createApp } from "@proxy/server/app";
-import { testConfig } from "../helpers";
 
-let app: ReturnType<typeof createApp>;
+import { testApp, testConfig } from "../helpers";
+
+let app: ReturnType<typeof testApp>;
 
 beforeAll(() => {
 	initRegistry();
-	app = createApp(testConfig());
+	app = testApp();
 });
 
 describe("POST /v1/chat/completions - validation", () => {
@@ -192,7 +192,7 @@ describe("POST /v1/chat/completions - validation", () => {
 
 describe("POST /v1/chat/completions - proxy auth", () => {
 	test("blocks requests when proxy auth is configured", async () => {
-		const authedApp = createApp({
+		const authedApp = testApp({
 			...testConfig(),
 			proxyAuthToken: "secret-token",
 		});
@@ -209,7 +209,7 @@ describe("POST /v1/chat/completions - proxy auth", () => {
 	});
 
 	test("accepts requests with correct proxy auth", async () => {
-		const authedApp = createApp({
+		const authedApp = testApp({
 			...testConfig(),
 			proxyAuthToken: "secret-token",
 		});
@@ -232,7 +232,7 @@ describe("POST /v1/chat/completions - proxy auth", () => {
 
 describe("POST /v1/chat/completions - body size limit", () => {
 	test("rejects requests exceeding body size limit", async () => {
-		const smallLimitApp = createApp({
+		const smallLimitApp = testApp({
 			...testConfig(),
 			maxBodySize: 100,
 		});
@@ -270,7 +270,7 @@ describe("POST /v1/chat/completions - body size limit", () => {
 	});
 
 	test("does not apply body size limit to GET requests", async () => {
-		const smallLimitApp = createApp({
+		const smallLimitApp = testApp({
 			...testConfig(),
 			maxBodySize: 10,
 		});

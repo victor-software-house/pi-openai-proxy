@@ -8,15 +8,15 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import type { ServerConfig } from "@proxy/config/env";
 import { getAllModels, getAvailableModels, initRegistry } from "@proxy/pi/registry";
-import { createApp } from "@proxy/server/app";
-import { jsonBody, testConfig } from "../helpers";
+
+import { jsonBody, testApp, testConfig } from "../helpers";
 
 beforeAll(() => {
 	initRegistry();
 });
 
-function appWith(overrides: Partial<ServerConfig>): ReturnType<typeof createApp> {
-	return createApp({ ...testConfig(), ...overrides });
+function appWith(overrides: Partial<ServerConfig>): ReturnType<typeof testApp> {
+	return testApp({ ...testConfig(), ...overrides });
 }
 
 // ---------------------------------------------------------------------------

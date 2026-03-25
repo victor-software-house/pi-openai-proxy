@@ -1,4 +1,4 @@
-import { jsonBody } from "../helpers";
+import { jsonBody, testApp } from "../helpers";
 /**
  * Integration tests for GET /v1/models and GET /v1/models/:model
  *
@@ -8,14 +8,12 @@ import { jsonBody } from "../helpers";
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getAvailableModels, initRegistry } from "@proxy/pi/registry";
-import { createApp } from "@proxy/server/app";
-import { testConfig } from "../helpers";
 
-let app: ReturnType<typeof createApp>;
+let app: ReturnType<typeof testApp>;
 
 beforeAll(() => {
 	initRegistry();
-	app = createApp(testConfig());
+	app = testApp();
 });
 
 describe("GET /v1/models", () => {
