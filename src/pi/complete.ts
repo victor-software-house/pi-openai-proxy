@@ -38,33 +38,31 @@ const REASONING_EFFORT_MAP: Record<string, ThinkingLevel> = {
 /**
  * APIs that use the OpenAI chat completions wire format and accept standard
  * passthrough fields (stop, seed, top_p, tool_choice, etc.) in the payload.
- *
- * Only these APIs receive injected fields via onPayload. All other APIs
- * (anthropic-messages, google-*, bedrock-*, openai-codex-responses) use
- * different payload schemas that reject unknown fields.
  */
-const OPENAI_COMPLETIONS_COMPATIBLE_APIS = new Set([
+const OPENAI_COMPATIBLE_APIS = new Set([
 	"openai-completions",
 	"openai-responses",
 	"azure-openai-responses",
 	"mistral-conversations",
 ]);
 
+const ANTHROPIC_APIS = new Set(["anthropic-messages"]);
+
+const GOOGLE_APIS = new Set(["google-generative-ai", "google-gemini-cli", "google-vertex"]);
+
+// ---------------------------------------------------------------------------
+// OpenAI-compatible payload fields
+// ---------------------------------------------------------------------------
+
 /**
- * Collect fields that need to be injected via onPayload.
- * Only injects for APIs that use the OpenAI chat completions wire format.
- * Non-compatible APIs (Anthropic, Google, Bedrock, Codex) reject unknown fields.
+ * Collect OpenAI-format fields for OpenAI-compatible APIs.
+ * Fields are injected as flat top-level properties on the payload.
  *
  * @internal Exported for unit testing only.
  */
-export function collectPayloadFields(
+export function collectOpenAIPayloadFields(
 	request: ChatCompletionRequest,
-	api: string,
 ): Record<string, unknown> | undefined {
-	if (!OPENAI_COMPLETIONS_COMPATIBLE_APIS.has(api)) {
-		return undefined;
-	}
-
 	const fields: Record<string, unknown> = {};
 	let hasFields = false;
 
@@ -114,6 +112,248 @@ export function collectPayloadFields(
 	}
 
 	return hasFields ? fields : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Anthropic payload translation
+// ---------------------------------------------------------------------------
+
+/**
+ * Translate OpenAI tool_choice to Anthropic tool_choice format.
+ *
+ * OpenAI "auto" -> { type: "auto" }
+ * OpenAI "none" -> { type: "none" } (Anthropic skips tool calling)
+ * OpenAI "required" -> { type: "any" } (force tool use)
+ * OpenAI { type: "function", function: { name } } -> { type: "tool", name }
+ *
+ * @internal Exported for unit testing only.
+ */
+export function translateToolChoiceForAnthropic(
+	toolChoice: ChatCompletionRequest["tool_choice"],
+): Record<string, unknown> | undefined {
+	if (toolChoice === undefined) {
+		return undefined;
+	}
+	if (toolChoice === "auto") {
+		return { type: "auto" };
+	}
+	if (toolChoice === "none") {
+		return { type: "none" };
+	}
+	if (toolChoice === "required") {
+		return { type: "any" };
+	}
+	// Named function choice: { type: "function", function: { name } }
+	return { type: "tool", name: toolChoice.function.name };
+}
+
+/**
+ * Collect Anthropic-format fields translated from the OpenAI request.
+ *
+ * Supported translations:
+ * - top_p -> top_p (same name, natively supported)
+ * - stop -> stop_sequences (different field name)
+ * - tool_choice -> Anthropic tool_choice format (object with type)
+ * - parallel_tool_calls: false -> disable_parallel_tool_use on tool_choice
+ * - user -> metadata.user_id
+ *
+ * Not supported (silently skipped — these concepts don't exist in Anthropic):
+ * - seed, frequency_penalty, presence_penalty, response_format, prediction, metadata (arbitrary keys)
+ *
+ * @internal Exported for unit testing only.
+ */
+export function collectAnthropicPayloadFields(
+	request: ChatCompletionRequest,
+): Record<string, unknown> | undefined {
+	const fields: Record<string, unknown> = {};
+	let hasFields = false;
+
+	if (request.top_p !== undefined) {
+		fields["top_p"] = request.top_p;
+		hasFields = true;
+	}
+
+	if (request.stop !== undefined) {
+		const sequences = Array.isArray(request.stop) ? request.stop : [request.stop];
+		fields["stop_sequences"] = sequences;
+		hasFields = true;
+	}
+
+	// Build tool_choice with optional disable_parallel_tool_use
+	const toolChoice = translateToolChoiceForAnthropic(request.tool_choice);
+	const disableParallel = request.parallel_tool_calls === false;
+
+	if (toolChoice !== undefined) {
+		if (disableParallel) {
+			toolChoice["disable_parallel_tool_use"] = true;
+		}
+		fields["tool_choice"] = toolChoice;
+		hasFields = true;
+	} else if (disableParallel) {
+		// No explicit tool_choice but parallel disabled: set auto with flag
+		fields["tool_choice"] = { type: "auto", disable_parallel_tool_use: true };
+		hasFields = true;
+	}
+
+	// Map user to metadata.user_id (Anthropic only accepts user_id in metadata)
+	if (request.user !== undefined) {
+		fields["metadata"] = { user_id: request.user };
+		hasFields = true;
+	}
+
+	return hasFields ? fields : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Google payload translation
+// ---------------------------------------------------------------------------
+
+/**
+ * Translate OpenAI tool_choice to Google FunctionCallingConfigMode string.
+ *
+ * OpenAI "auto" -> "AUTO"
+ * OpenAI "none" -> "NONE"
+ * OpenAI "required" -> "ANY"
+ * Named function choice -> "ANY" (Google doesn't support per-function forcing
+ * in the same way, but ANY forces tool use)
+ */
+function translateToolChoiceForGoogle(
+	toolChoice: ChatCompletionRequest["tool_choice"],
+): string | undefined {
+	if (toolChoice === undefined) {
+		return undefined;
+	}
+	if (toolChoice === "auto") {
+		return "AUTO";
+	}
+	if (toolChoice === "none") {
+		return "NONE";
+	}
+	// "required" or named function -> force tool use
+	return "ANY";
+}
+
+/**
+ * Patch Google's nested payload structure with translated fields.
+ *
+ * Google's payload shape: { model, contents, config: { generationConfig, toolConfig, ... } }
+ * Fields go into config.generationConfig (camelCase) or config.toolConfig.
+ *
+ * Supported translations:
+ * - top_p -> config.generationConfig.topP (camelCase, nested)
+ * - stop -> config.generationConfig.stopSequences (array, nested)
+ * - seed -> config.generationConfig.seed (nested)
+ * - frequency_penalty -> config.generationConfig.frequencyPenalty (nested)
+ * - presence_penalty -> config.generationConfig.presencePenalty (nested)
+ * - tool_choice -> config.toolConfig.functionCallingConfig.mode (nested)
+ *
+ * Not supported (silently skipped):
+ * - response_format, metadata, prediction, parallel_tool_calls, user
+ *
+ * @internal Exported for unit testing only.
+ */
+export function patchGooglePayload(
+	payload: Record<string, unknown>,
+	request: ChatCompletionRequest,
+): boolean {
+	let patched = false;
+
+	// Access or create config.generationConfig
+	const config = isRecord(payload["config"]) ? payload["config"] : undefined;
+	if (config === undefined) {
+		return false;
+	}
+
+	// Ensure generationConfig exists
+	let genConfig = isRecord(config["generationConfig"]) ? config["generationConfig"] : undefined;
+
+	if (request.top_p !== undefined) {
+		genConfig ??= {};
+		genConfig["topP"] = request.top_p;
+		patched = true;
+	}
+	if (request.stop !== undefined) {
+		genConfig ??= {};
+		const sequences = Array.isArray(request.stop) ? request.stop : [request.stop];
+		genConfig["stopSequences"] = sequences;
+		patched = true;
+	}
+	if (request.seed !== undefined) {
+		genConfig ??= {};
+		genConfig["seed"] = request.seed;
+		patched = true;
+	}
+	if (request.frequency_penalty !== undefined) {
+		genConfig ??= {};
+		genConfig["frequencyPenalty"] = request.frequency_penalty;
+		patched = true;
+	}
+	if (request.presence_penalty !== undefined) {
+		genConfig ??= {};
+		genConfig["presencePenalty"] = request.presence_penalty;
+		patched = true;
+	}
+
+	if (genConfig !== undefined && patched) {
+		config["generationConfig"] = genConfig;
+	}
+
+	// Tool choice -> toolConfig.functionCallingConfig.mode
+	const mode = translateToolChoiceForGoogle(request.tool_choice);
+	if (mode !== undefined) {
+		let toolConfig = isRecord(config["toolConfig"]) ? config["toolConfig"] : undefined;
+		toolConfig ??= {};
+		let funcConfig = isRecord(toolConfig["functionCallingConfig"])
+			? toolConfig["functionCallingConfig"]
+			: undefined;
+		funcConfig ??= {};
+		funcConfig["mode"] = mode;
+		toolConfig["functionCallingConfig"] = funcConfig;
+		config["toolConfig"] = toolConfig;
+		patched = true;
+	}
+
+	return patched;
+}
+
+// ---------------------------------------------------------------------------
+// Unified dispatch
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect API-specific payload fields from an OpenAI request.
+ *
+ * Dispatches to the appropriate translator based on the target API:
+ * - OpenAI-compatible: flat field injection (same names)
+ * - Anthropic: translated field names and formats
+ * - Google: nested generationConfig patching (handled separately in onPayload)
+ * - Others (Bedrock, Codex): no passthrough
+ *
+ * For Google APIs, returns undefined (patching is done directly in onPayload
+ * via patchGooglePayload because the payload structure is nested).
+ *
+ * @internal Exported for unit testing only.
+ */
+export function collectPayloadFields(
+	request: ChatCompletionRequest,
+	api: string,
+): Record<string, unknown> | undefined {
+	if (OPENAI_COMPATIBLE_APIS.has(api)) {
+		return collectOpenAIPayloadFields(request);
+	}
+	if (ANTHROPIC_APIS.has(api)) {
+		return collectAnthropicPayloadFields(request);
+	}
+	// Google and others: no flat field collection
+	// (Google uses patchGooglePayload directly in the onPayload callback)
+	return undefined;
+}
+
+/**
+ * Whether the given API requires Google-style nested payload patching.
+ */
+function isGoogleApi(api: string): boolean {
+	return GOOGLE_APIS.has(api);
 }
 
 /**
@@ -258,15 +498,22 @@ async function buildStreamOptions(
 	// Inject passthrough fields and tool strict flags via onPayload
 	const payloadFields = collectPayloadFields(request, model.api);
 	const strictFlags = collectToolStrictFlags(request.tools);
+	const needsGooglePatch = isGoogleApi(model.api);
 
-	if (payloadFields !== undefined || strictFlags !== undefined) {
+	if (payloadFields !== undefined || strictFlags !== undefined || needsGooglePatch) {
 		opts.onPayload = (payload: unknown) => {
 			if (isRecord(payload)) {
+				// Flat field injection (OpenAI-compatible and Anthropic)
 				if (payloadFields !== undefined) {
 					for (const [key, value] of Object.entries(payloadFields)) {
 						payload[key] = value;
 					}
 				}
+				// Google nested generationConfig patching
+				if (needsGooglePatch) {
+					patchGooglePayload(payload, request);
+				}
+				// Tool strict flag patching (OpenAI-compatible only)
 				if (strictFlags !== undefined) {
 					applyToolStrictFlags(payload, strictFlags);
 				}

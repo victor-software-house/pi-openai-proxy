@@ -445,29 +445,65 @@ This is by design (matches the standard OpenAI chat completions contract), but m
 The pi SDK's stateful `AgentSession` is not used. Phase 4 (experimental agentic mode)
 is intended to address this but is not started.
 
-### API-aware passthrough design
+### API-aware payload translation
 
-Passthrough fields (`top_p`, `seed`, `tool_choice`, `parallel_tool_calls`, `metadata`,
-`prediction`, `frequency_penalty`, `presence_penalty`, `stop`, `user`, `response_format`)
-are injected into the upstream payload via `onPayload` only for APIs that use the OpenAI
-chat completions wire format:
+The proxy translates OpenAI request fields into the correct format for each provider API.
+Fields that have no equivalent in a target API are silently skipped — the request succeeds
+and the provider's default behavior applies.
 
-- `openai-completions` — standard OpenAI chat completions
-- `openai-responses` — OpenAI Responses API
-- `azure-openai-responses` — Azure-hosted OpenAI Responses API
-- `mistral-conversations` — Mistral (uses OpenAI-compatible format)
+#### OpenAI-compatible APIs
 
-All other APIs reject unknown payload fields. The proxy skips passthrough injection for:
+`openai-completions`, `openai-responses`, `azure-openai-responses`, `mistral-conversations`
 
-- `anthropic-messages` — rejects with "Extra inputs are not permitted"
-- `google-generative-ai`, `google-gemini-cli`, `google-vertex` — rejects with "Unknown name"
-- `bedrock-converse-stream` — different payload schema
-- `openai-codex-responses` — uses Responses API with different field names
+All passthrough fields injected directly as flat top-level properties (same names):
+`stop`, `user`, `top_p`, `frequency_penalty`, `presence_penalty`, `seed`,
+`response_format`, `tool_choice`, `parallel_tool_calls`, `metadata`, `prediction`.
 
-The fields are still accepted by the proxy's request schema. When sent to a non-compatible
-provider, they have no effect — the provider's default behavior applies. This is intentional:
-the proxy should not reject a request with `seed: 42` just because the user happens to be
-targeting a Claude model. The field is simply irrelevant for that provider.
+#### Anthropic (`anthropic-messages`)
+
+Fields translated to Anthropic's wire format:
+
+| OpenAI field | Anthropic translation |
+|---|---|
+| `top_p` | `top_p` (same name, natively supported) |
+| `stop` | `stop_sequences` (string or array → always array) |
+| `user` | `metadata: { user_id }` |
+| `tool_choice: "auto"` | `tool_choice: { type: "auto" }` |
+| `tool_choice: "none"` | `tool_choice: { type: "none" }` |
+| `tool_choice: "required"` | `tool_choice: { type: "any" }` |
+| `tool_choice: { function: { name } }` | `tool_choice: { type: "tool", name }` |
+| `parallel_tool_calls: false` | `disable_parallel_tool_use: true` on `tool_choice` |
+| `seed` | Skipped (not supported) |
+| `frequency_penalty` | Skipped (not supported) |
+| `presence_penalty` | Skipped (not supported) |
+| `response_format` | Skipped (not directly supported) |
+| `metadata` (arbitrary) | Skipped (Anthropic only accepts `user_id`) |
+| `prediction` | Skipped (not supported) |
+
+#### Google (`google-generative-ai`, `google-gemini-cli`, `google-vertex`)
+
+Fields translated into Google's nested `config.generationConfig` structure (camelCase):
+
+| OpenAI field | Google translation |
+|---|---|
+| `top_p` | `config.generationConfig.topP` |
+| `stop` | `config.generationConfig.stopSequences` (always array) |
+| `seed` | `config.generationConfig.seed` |
+| `frequency_penalty` | `config.generationConfig.frequencyPenalty` |
+| `presence_penalty` | `config.generationConfig.presencePenalty` |
+| `tool_choice: "auto"` | `config.toolConfig.functionCallingConfig.mode: "AUTO"` |
+| `tool_choice: "none"` | `config.toolConfig.functionCallingConfig.mode: "NONE"` |
+| `tool_choice: "required"` | `config.toolConfig.functionCallingConfig.mode: "ANY"` |
+| `user` | Skipped (not supported) |
+| `parallel_tool_calls` | Skipped (not supported) |
+| `response_format` | Skipped (Google uses `responseMimeType` / `responseSchema`) |
+| `metadata` | Skipped (not supported) |
+| `prediction` | Skipped (not supported) |
+
+#### Other APIs (`bedrock-converse-stream`, `openai-codex-responses`)
+
+No passthrough. These APIs use completely different payload schemas. Fields are accepted
+by the proxy schema but have no effect.
 
 ## Response contract
 
