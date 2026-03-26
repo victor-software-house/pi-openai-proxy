@@ -1,3 +1,10 @@
+# [4.9.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.8.0...v4.9.0) (2026-03-26)
+
+
+### Features
+
+* add codex-responses restricted passthrough for tool_choice ([549bc37](https://github.com/victor-software-house/pi-openai-proxy/commit/549bc376bbdc6471e024ef5b6f2bce8eec6e3da0))
+
 # [4.8.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.7.1...v4.8.0) (2026-03-26)
 
 
