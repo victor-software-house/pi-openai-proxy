@@ -1,3 +1,10 @@
+## [4.6.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.6.0...v4.6.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* forward tool_choice and strict flags via onPayload passthrough ([2fe2da3](https://github.com/victor-software-house/pi-openai-proxy/commit/2fe2da3dcc3f14d3799410a35cd8e123d0e43b08))
+
 # [4.6.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.5.1...v4.6.0) (2026-03-25)
 
 
