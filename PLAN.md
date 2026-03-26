@@ -500,7 +500,23 @@ Fields translated into Google's nested `config.generationConfig` structure (came
 | `metadata` | Skipped (not supported) |
 | `prediction` | Skipped (not supported) |
 
-#### Other APIs (`bedrock-converse-stream`, `openai-codex-responses`)
+#### Codex Responses API (`openai-codex-responses`)
+
+The Codex API is a restricted variant of the Responses API. It accepts only `tool_choice`
+and `parallel_tool_calls` as passthrough fields. All other standard fields (`top_p`, `seed`,
+`stop`, `user`, `frequency_penalty`, `presence_penalty`, `response_format`, `metadata`)
+are rejected with "Unsupported parameter".
+
+The SDK hardcodes `tool_choice: "auto"` and `parallel_tool_calls: true`. The proxy
+overrides those defaults when the client sends explicit values.
+
+| OpenAI field | Codex translation |
+|---|---|
+| `tool_choice` | Direct override of SDK default |
+| `parallel_tool_calls` | Direct override of SDK default |
+| All other passthrough fields | Skipped (rejected by Codex API) |
+
+#### Other APIs (`bedrock-converse-stream`)
 
 No passthrough. These APIs use completely different payload schemas. Fields are accepted
 by the proxy schema but have no effect.

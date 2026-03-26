@@ -36,15 +36,24 @@ const REASONING_EFFORT_MAP: Record<string, ThinkingLevel> = {
 };
 
 /**
- * APIs that use the OpenAI chat completions wire format and accept standard
- * passthrough fields (stop, seed, top_p, tool_choice, etc.) in the payload.
+ * APIs that accept the full set of OpenAI passthrough fields (stop, seed, top_p,
+ * tool_choice, frequency_penalty, etc.) as top-level payload properties.
  */
-const OPENAI_COMPATIBLE_APIS = new Set([
+const OPENAI_FULL_PASSTHROUGH_APIS = new Set([
 	"openai-completions",
 	"openai-responses",
 	"azure-openai-responses",
 	"mistral-conversations",
 ]);
+
+/**
+ * The Codex Responses API accepts only tool_choice and parallel_tool_calls.
+ * Other standard fields (top_p, seed, stop, user, frequency_penalty, etc.)
+ * are rejected with "Unsupported parameter". The SDK hardcodes
+ * tool_choice: "auto" and parallel_tool_calls: true; onPayload overrides
+ * those when the client sends explicit values.
+ */
+const CODEX_APIS = new Set(["openai-codex-responses"]);
 
 const ANTHROPIC_APIS = new Set(["anthropic-messages"]);
 
@@ -317,6 +326,37 @@ export function patchGooglePayload(
 }
 
 // ---------------------------------------------------------------------------
+// Codex Responses API (restricted passthrough)
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect the restricted set of fields the Codex Responses API accepts.
+ *
+ * Only tool_choice and parallel_tool_calls are supported. The SDK hardcodes
+ * tool_choice: "auto" and parallel_tool_calls: true; these overrides let clients
+ * control tool behavior explicitly.
+ *
+ * @internal Exported for unit testing only.
+ */
+export function collectCodexPayloadFields(
+	request: ChatCompletionRequest,
+): Record<string, unknown> | undefined {
+	const fields: Record<string, unknown> = {};
+	let hasFields = false;
+
+	if (request.tool_choice !== undefined) {
+		fields["tool_choice"] = request.tool_choice;
+		hasFields = true;
+	}
+	if (request.parallel_tool_calls !== undefined) {
+		fields["parallel_tool_calls"] = request.parallel_tool_calls;
+		hasFields = true;
+	}
+
+	return hasFields ? fields : undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Unified dispatch
 // ---------------------------------------------------------------------------
 
@@ -324,10 +364,11 @@ export function patchGooglePayload(
  * Collect API-specific payload fields from an OpenAI request.
  *
  * Dispatches to the appropriate translator based on the target API:
- * - OpenAI-compatible: flat field injection (same names)
+ * - OpenAI full passthrough: all standard fields (same names)
+ * - Codex: restricted to tool_choice + parallel_tool_calls only
  * - Anthropic: translated field names and formats
  * - Google: nested generationConfig patching (handled separately in onPayload)
- * - Others (Bedrock, Codex): no passthrough
+ * - Others (Bedrock): no passthrough
  *
  * For Google APIs, returns undefined (patching is done directly in onPayload
  * via patchGooglePayload because the payload structure is nested).
@@ -338,8 +379,11 @@ export function collectPayloadFields(
 	request: ChatCompletionRequest,
 	api: string,
 ): Record<string, unknown> | undefined {
-	if (OPENAI_COMPATIBLE_APIS.has(api)) {
+	if (OPENAI_FULL_PASSTHROUGH_APIS.has(api)) {
 		return collectOpenAIPayloadFields(request);
+	}
+	if (CODEX_APIS.has(api)) {
+		return collectCodexPayloadFields(request);
 	}
 	if (ANTHROPIC_APIS.has(api)) {
 		return collectAnthropicPayloadFields(request);

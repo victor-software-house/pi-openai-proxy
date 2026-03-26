@@ -104,7 +104,7 @@ describe("collectPayloadFields: tool_choice", () => {
 	});
 
 	test("skips passthrough for unsupported APIs", () => {
-		const unsupportedApis = ["openai-codex-responses", "bedrock-converse-stream"];
+		const unsupportedApis = ["bedrock-converse-stream", "some-unknown-api"];
 		for (const api of unsupportedApis) {
 			const fields = collectPayloadFields(
 				minimalRequest({ tool_choice: "required", top_p: 0.9, seed: 42 }),
@@ -132,7 +132,7 @@ describe("collectPayloadFields: tool_choice", () => {
 		}
 	});
 
-	test("allows passthrough for OpenAI-compatible APIs", () => {
+	test("allows full passthrough for OpenAI-compatible APIs", () => {
 		const compatibleApis = [
 			"openai-completions",
 			"openai-responses",
@@ -140,10 +140,37 @@ describe("collectPayloadFields: tool_choice", () => {
 			"mistral-conversations",
 		];
 		for (const api of compatibleApis) {
-			const fields = collectPayloadFields(minimalRequest({ tool_choice: "auto" }), api);
+			const fields = collectPayloadFields(
+				minimalRequest({ tool_choice: "auto", top_p: 0.9, seed: 42 }),
+				api,
+			);
 			expect(fields).toBeDefined();
 			expect(fields?.["tool_choice"]).toBe("auto");
+			expect(fields?.["top_p"]).toBe(0.9);
+			expect(fields?.["seed"]).toBe(42);
 		}
+	});
+
+	test("codex-responses only passes tool_choice and parallel_tool_calls", () => {
+		const fields = collectPayloadFields(
+			minimalRequest({
+				tool_choice: "required",
+				parallel_tool_calls: false,
+				top_p: 0.9,
+				seed: 42,
+				stop: "END",
+				user: "test",
+			}),
+			"openai-codex-responses",
+		);
+		expect(fields).toBeDefined();
+		expect(fields?.["tool_choice"]).toBe("required");
+		expect(fields?.["parallel_tool_calls"]).toBe(false);
+		// These should NOT be included for codex
+		expect(fields?.["top_p"]).toBeUndefined();
+		expect(fields?.["seed"]).toBeUndefined();
+		expect(fields?.["stop"]).toBeUndefined();
+		expect(fields?.["user"]).toBeUndefined();
 	});
 
 	test("tool_choice coexists with other passthrough fields", () => {
