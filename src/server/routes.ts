@@ -159,6 +159,17 @@ export function createRoutes(
 
 		const context = conversion.context;
 
+		// The Codex Responses API requires the `instructions` field (system prompt).
+		// When no system/developer message is provided, set an empty string so the
+		// request doesn't fail with "Instructions are required". An empty string is
+		// neutral — the proxy should not inject behavioral instructions.
+		// See: OpenAI Codex CLI uses a long agent-specific prompt; LiteLLM's ChatGPT
+		// config uses a configurable default. Both are opinionated. A translation
+		// proxy should be transparent.
+		if (model.api === "openai-codex-responses" && context.systemPrompt === undefined) {
+			context.systemPrompt = "";
+		}
+
 		// Convert tools if provided
 		if (request.tools !== undefined && request.tools.length > 0) {
 			const toolConversion = convertTools(request.tools);
