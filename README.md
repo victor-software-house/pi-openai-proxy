@@ -113,16 +113,31 @@ curl http://localhost:4141/v1/chat/completions \
 | `stop` | Via passthrough |
 | `user` | Via passthrough |
 | `stream_options.include_usage` | Final usage chunk in SSE stream |
-| `tools` / `tool_choice` | JSON Schema -> TypeBox conversion (supported subset) |
+| `tools` / `tool_choice` | JSON Schema -> TypeBox conversion (supported subset); `tool_choice` translated per-provider |
 | `tool_calls` in messages | Assistant tool call + tool result roundtrip |
+| `parallel_tool_calls` | Forwarded to OpenAI/Codex; translated to `disable_parallel_tool_use` for Anthropic |
 | `reasoning_effort` | Maps to pi's `ThinkingLevel` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`) |
-| `response_format` | `text`, `json_object`, and `json_schema` via passthrough |
-| `top_p` | Via passthrough |
-| `frequency_penalty` | Via passthrough |
-| `presence_penalty` | Via passthrough |
-| `seed` | Via passthrough |
+| `response_format` | `text`, `json_object`, and `json_schema` (OpenAI-compatible APIs only) |
+| `top_p` | Supported by OpenAI, Anthropic (native), and Google (translated to `topP`) |
+| `frequency_penalty` | OpenAI and Google only (translated to `frequencyPenalty`) |
+| `presence_penalty` | OpenAI and Google only (translated to `presencePenalty`) |
+| `seed` | OpenAI and Google only (translated to nested `generationConfig.seed`) |
+| `stop` | Translated per-provider (`stop_sequences` for Anthropic, `stopSequences` for Google) |
+| `metadata` | OpenAI passthrough; arbitrary keys silently skipped for other providers |
+| `prediction` | OpenAI passthrough only (speculative decoding) |
 
 **Not supported:** `n > 1`, `logprobs`, `logit_bias`, remote image URLs (disabled by default).
+
+### Provider-aware field translation
+
+Fields are translated to each provider's native format, not blindly forwarded:
+
+- **OpenAI / Mistral**: All fields passed directly (same wire format)
+- **Codex (Responses API)**: Only `tool_choice` and `parallel_tool_calls` (other fields rejected by API)
+- **Anthropic**: `tool_choice` → `{ type }` format, `stop` → `stop_sequences`, `user` → `metadata.user_id`, `parallel_tool_calls: false` → `disable_parallel_tool_use`
+- **Google**: Nested into `generationConfig` with camelCase names (`topP`, `stopSequences`, `seed`, etc.)
+
+Fields that have no equivalent in a target provider are silently skipped — the request succeeds and the provider's default applies.
 
 ## Model Naming and Exposure
 

@@ -99,6 +99,10 @@ Research-backed decisions on deferred compatibility and resilience items. Analys
 - [x] Audit all `rejectedFields`: keep `n`, `logprobs`, `top_logprobs`, `logit_bias`, `functions`, `function_call`
 - [x] Document resilience architecture as intentional (no concurrency limiter, no circuit breaker, no retry)
 - [x] Add structured `upstream_overload` warn-level logging for 429 and 503 responses
+- [x] Add API-aware payload translation for Anthropic (tool_choice, stop, parallel_tool_calls, user, top_p)
+- [x] Add nested generationConfig patching for Google (topP, stopSequences, seed, frequencyPenalty, presencePenalty, tool_choice)
+- [x] Add restricted passthrough for Codex Responses API (tool_choice + parallel_tool_calls only)
+- [x] Verified with real providers: Claude, Gemini, gpt-5.4-mini
 - [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
 ## Phase 4 — Monorepo and proper CLI

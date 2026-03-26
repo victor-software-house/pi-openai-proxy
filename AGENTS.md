@@ -56,15 +56,16 @@ Experimental later work:
 | `max_tokens` / `max_completion_tokens` | `StreamOptions.maxTokens` after normalization |
 | `reasoning_effort` | `SimpleStreamOptions.reasoning` -> `ThinkingLevel` |
 | `tools` | `Context.tools` after JSON Schema -> TypeBox conversion for a supported subset only |
-| `tool_choice` | `onPayload` passthrough; semantics depend on provider |
-| `parallel_tool_calls` | `onPayload` passthrough |
-| `top_p` | `onPayload` passthrough |
-| `frequency_penalty` | `onPayload` passthrough |
-| `presence_penalty` | `onPayload` passthrough |
-| `seed` | `onPayload` passthrough |
-| `response_format` | `onPayload` passthrough (`text`, `json_object`, `json_schema`) |
-| `metadata` | `onPayload` passthrough |
-| `prediction` | `onPayload` passthrough |
+| `tool_choice` | API-aware translation: OpenAI direct, Anthropic `{ type }` format, Google `functionCallingConfig.mode`, Codex override |
+| `parallel_tool_calls` | OpenAI/Codex direct; Anthropic `disable_parallel_tool_use`; Google/Bedrock skipped |
+| `top_p` | OpenAI/Anthropic direct; Google `generationConfig.topP`; Codex skipped |
+| `frequency_penalty` | OpenAI direct; Google `generationConfig.frequencyPenalty`; Anthropic/Codex skipped |
+| `presence_penalty` | OpenAI direct; Google `generationConfig.presencePenalty`; Anthropic/Codex skipped |
+| `seed` | OpenAI direct; Google `generationConfig.seed`; Anthropic/Codex skipped |
+| `stop` | OpenAI direct; Anthropic `stop_sequences`; Google `generationConfig.stopSequences`; Codex skipped |
+| `response_format` | OpenAI direct (`text`, `json_object`, `json_schema`); others skipped |
+| `metadata` | OpenAI direct; others skipped (Anthropic only accepts `user_id` via `user` field) |
+| `prediction` | OpenAI direct; others skipped |
 | `usage` | pi `Usage` mapped to OpenAI usage fields |
 | `finish_reason` | pi `stop` -> `stop`, `length` -> `length`, `toolUse` -> `tool_calls` |
 
