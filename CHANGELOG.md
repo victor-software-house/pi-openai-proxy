@@ -1,3 +1,10 @@
+## [4.9.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.9.0...v4.9.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* default empty instructions for codex-responses when no system message ([b902ec2](https://github.com/victor-software-house/pi-openai-proxy/commit/b902ec2d3be8b9a3f8ee7018107d8eefb6ba67c5))
+
 # [4.9.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.8.0...v4.9.0) (2026-03-26)
 
 
