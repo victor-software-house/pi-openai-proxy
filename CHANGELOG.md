@@ -1,3 +1,10 @@
+# [4.7.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.6.1...v4.7.0) (2026-03-26)
+
+
+### Features
+
+* promote parallel_tool_calls, metadata, prediction to passthrough ([322734c](https://github.com/victor-software-house/pi-openai-proxy/commit/322734c7390ed0063085b2a480fd42e16b38c506))
+
 ## [4.6.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.6.0...v4.6.1) (2026-03-26)
 
 
