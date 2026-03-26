@@ -96,12 +96,36 @@ describe("collectPayloadFields: tool_choice", () => {
 		expect(fields).toBeUndefined();
 	});
 
-	test("skips tool_choice for codex-responses API", () => {
-		const fields = collectPayloadFields(
-			minimalRequest({ tool_choice: "required" }),
+	test("skips passthrough for non-compatible APIs", () => {
+		const nonCompatibleApis = [
 			"openai-codex-responses",
-		);
-		expect(fields).toBeUndefined();
+			"anthropic-messages",
+			"google-generative-ai",
+			"google-gemini-cli",
+			"google-vertex",
+			"bedrock-converse-stream",
+		];
+		for (const api of nonCompatibleApis) {
+			const fields = collectPayloadFields(
+				minimalRequest({ tool_choice: "required", top_p: 0.9, seed: 42 }),
+				api,
+			);
+			expect(fields).toBeUndefined();
+		}
+	});
+
+	test("allows passthrough for OpenAI-compatible APIs", () => {
+		const compatibleApis = [
+			"openai-completions",
+			"openai-responses",
+			"azure-openai-responses",
+			"mistral-conversations",
+		];
+		for (const api of compatibleApis) {
+			const fields = collectPayloadFields(minimalRequest({ tool_choice: "auto" }), api);
+			expect(fields).toBeDefined();
+			expect(fields?.["tool_choice"]).toBe("auto");
+		}
 	});
 
 	test("tool_choice coexists with other passthrough fields", () => {
@@ -146,10 +170,10 @@ describe("collectPayloadFields: parallel_tool_calls", () => {
 		expect(fields).toBeUndefined();
 	});
 
-	test("skips parallel_tool_calls for codex-responses API", () => {
+	test("skips parallel_tool_calls for non-compatible APIs", () => {
 		const fields = collectPayloadFields(
 			minimalRequest({ parallel_tool_calls: false }),
-			"openai-codex-responses",
+			"anthropic-messages",
 		);
 		expect(fields).toBeUndefined();
 	});
@@ -170,10 +194,10 @@ describe("collectPayloadFields: metadata", () => {
 		expect(fields).toBeUndefined();
 	});
 
-	test("skips metadata for codex-responses API", () => {
+	test("skips metadata for non-compatible APIs", () => {
 		const fields = collectPayloadFields(
 			minimalRequest({ metadata: { task: "test" } }),
-			"openai-codex-responses",
+			"google-generative-ai",
 		);
 		expect(fields).toBeUndefined();
 	});
@@ -204,10 +228,10 @@ describe("collectPayloadFields: prediction", () => {
 		expect(fields).toBeUndefined();
 	});
 
-	test("skips prediction for codex-responses API", () => {
+	test("skips prediction for non-compatible APIs", () => {
 		const fields = collectPayloadFields(
 			minimalRequest({ prediction: { type: "content", content: "test" } }),
-			"openai-codex-responses",
+			"bedrock-converse-stream",
 		);
 		expect(fields).toBeUndefined();
 	});

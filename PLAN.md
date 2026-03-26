@@ -363,11 +363,12 @@ mechanism used for `top_p`, `seed`, `response_format`, and other provider-specif
 All OpenAI `tool_choice` values are supported: `"none"`, `"auto"`, `"required"`, and
 named function choice `{ type: "function", function: { name: "..." } }`.
 
-Provider-specific notes: the value is injected into the upstream payload in OpenAI format.
-Providers that use a different `tool_choice` wire format (Anthropic, Google) may not
-interpret the value correctly. This is the same limitation that applies to all passthrough
-fields — the proxy forwards OpenAI-formatted values, and provider compatibility depends
-on the pi SDK's payload handling.
+Passthrough fields (including `tool_choice`) are only injected via `onPayload` for
+OpenAI-compatible APIs (`openai-completions`, `openai-responses`, `azure-openai-responses`,
+`mistral-conversations`). Non-compatible APIs (Anthropic, Google, Bedrock, Codex) reject
+unknown payload fields, so the proxy skips injection entirely for those APIs. The fields
+are still accepted by the proxy schema — they just have no effect on non-compatible
+providers.
 
 ### `strict` on function tools — resolved
 
@@ -376,9 +377,9 @@ The `strict` flag on function tool definitions is forwarded to upstream provider
 `strict: false` when building the upstream payload. The proxy extracts per-tool strict
 flags from the original request and patches them into the payload after the SDK builds it.
 
-This means `strict: true` reaches OpenAI and compatible providers correctly. Providers
-that do not support strict mode will ignore or reject the flag — this is expected and
-consistent with other passthrough behavior.
+This means `strict: true` reaches OpenAI and compatible providers correctly. Like all
+passthrough fields, `strict` is only injected for OpenAI-compatible APIs. Non-compatible
+providers are unaffected.
 
 ### `parallel_tool_calls` — resolved
 
@@ -390,10 +391,9 @@ call control. Analysis showed this rejection broke real clients:
 - **Open WebUI** and **Aider** do not send the field
 
 The proxy's SSE streaming code already handles multiple tool calls per response via
-`contentIndex` tracking, so the response side was always capable. The `onPayload`
-passthrough works for OpenAI-compatible providers. Non-OpenAI providers (Anthropic,
-Google) that use a different wire format may ignore the field — same as other
-passthrough fields.
+`contentIndex` tracking, so the response side was always capable. Like all passthrough
+fields, `parallel_tool_calls` is only injected for OpenAI-compatible APIs. Non-compatible
+providers are unaffected — their default parallel behavior applies.
 
 ### `metadata` and `prediction` — resolved
 
@@ -404,8 +404,8 @@ Open WebUI sends it with task info on every request.
 shape and forwarded via `onPayload`. Continue sends it for models that support predicted
 output (speculative decoding).
 
-Both fields are harmless passthrough — upstream providers that do not support them will
-ignore or reject them, which is consistent with all other passthrough behavior.
+Both fields are only injected for OpenAI-compatible APIs. Non-compatible providers
+are unaffected.
 
 ### Resilience architecture — intentional design
 
@@ -444,6 +444,30 @@ This is by design (matches the standard OpenAI chat completions contract), but m
 
 The pi SDK's stateful `AgentSession` is not used. Phase 4 (experimental agentic mode)
 is intended to address this but is not started.
+
+### API-aware passthrough design
+
+Passthrough fields (`top_p`, `seed`, `tool_choice`, `parallel_tool_calls`, `metadata`,
+`prediction`, `frequency_penalty`, `presence_penalty`, `stop`, `user`, `response_format`)
+are injected into the upstream payload via `onPayload` only for APIs that use the OpenAI
+chat completions wire format:
+
+- `openai-completions` — standard OpenAI chat completions
+- `openai-responses` — OpenAI Responses API
+- `azure-openai-responses` — Azure-hosted OpenAI Responses API
+- `mistral-conversations` — Mistral (uses OpenAI-compatible format)
+
+All other APIs reject unknown payload fields. The proxy skips passthrough injection for:
+
+- `anthropic-messages` — rejects with "Extra inputs are not permitted"
+- `google-generative-ai`, `google-gemini-cli`, `google-vertex` — rejects with "Unknown name"
+- `bedrock-converse-stream` — different payload schema
+- `openai-codex-responses` — uses Responses API with different field names
+
+The fields are still accepted by the proxy's request schema. When sent to a non-compatible
+provider, they have no effect — the provider's default behavior applies. This is intentional:
+the proxy should not reject a request with `seed: 42` just because the user happens to be
+targeting a Claude model. The field is simply irrelevant for that provider.
 
 ## Response contract
 

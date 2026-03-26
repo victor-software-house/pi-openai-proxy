@@ -36,14 +36,24 @@ const REASONING_EFFORT_MAP: Record<string, ThinkingLevel> = {
 };
 
 /**
- * APIs where onPayload passthrough fields are not supported.
- * These APIs use non-standard request formats that reject standard OpenAI fields.
+ * APIs that use the OpenAI chat completions wire format and accept standard
+ * passthrough fields (stop, seed, top_p, tool_choice, etc.) in the payload.
+ *
+ * Only these APIs receive injected fields via onPayload. All other APIs
+ * (anthropic-messages, google-*, bedrock-*, openai-codex-responses) use
+ * different payload schemas that reject unknown fields.
  */
-const SKIP_PAYLOAD_PASSTHROUGH_APIS = new Set(["openai-codex-responses"]);
+const OPENAI_COMPLETIONS_COMPATIBLE_APIS = new Set([
+	"openai-completions",
+	"openai-responses",
+	"azure-openai-responses",
+	"mistral-conversations",
+]);
 
 /**
  * Collect fields that need to be injected via onPayload.
- * Skips passthrough for APIs that use non-standard request formats.
+ * Only injects for APIs that use the OpenAI chat completions wire format.
+ * Non-compatible APIs (Anthropic, Google, Bedrock, Codex) reject unknown fields.
  *
  * @internal Exported for unit testing only.
  */
@@ -51,7 +61,7 @@ export function collectPayloadFields(
 	request: ChatCompletionRequest,
 	api: string,
 ): Record<string, unknown> | undefined {
-	if (SKIP_PAYLOAD_PASSTHROUGH_APIS.has(api)) {
+	if (!OPENAI_COMPLETIONS_COMPATIBLE_APIS.has(api)) {
 		return undefined;
 	}
 

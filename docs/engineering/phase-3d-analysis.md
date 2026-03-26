@@ -22,17 +22,20 @@ decision, and implementation plan.
 - No other provider references the field.
 - The field does not exist in `StreamOptions` or `SimpleStreamOptions`.
 
-### Provider passthrough test (conceptual)
+### Provider passthrough test (verified with real providers)
 
-Since `parallel_tool_calls` is a standard OpenAI chat completions field:
-- **OpenAI-compatible providers**: Injecting via `onPayload` places it directly in the
-  upstream payload. OpenAI, Azure OpenAI, Groq, OpenRouter, and other compatible APIs
-  accept it natively.
-- **Anthropic**: The Anthropic API has `disable_parallel_tool_use` (inverted boolean).
-  Injecting the OpenAI-format field would be ignored by the Anthropic SDK.
-- **Google**: Does not have an equivalent field. Would be ignored.
+Real-provider testing revealed a critical issue: non-OpenAI providers **reject** unknown
+payload fields, not ignore them:
+- **Anthropic**: Returns 400 `"parallel_tool_calls: Extra inputs are not permitted"`
+- **Google**: Returns 400 `"Unknown name "parallel_tool_calls": Cannot find field."`
 
-This is the same limitation as all other passthrough fields (`response_format`, `seed`, etc.).
+This affected ALL passthrough fields (seed, frequency_penalty, etc.), not just Phase 3D
+additions. The fix: switch from a blocklist to an allowlist. Only inject passthrough fields
+for APIs that use the OpenAI chat completions wire format:
+- `openai-completions`, `openai-responses`, `azure-openai-responses`, `mistral-conversations`
+
+All other APIs skip passthrough entirely. Fields are still accepted by the proxy schema
+but have no effect on non-compatible providers.
 
 ### Decision
 
