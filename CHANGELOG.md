@@ -1,3 +1,10 @@
+## [4.9.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.9.1...v4.9.2) (2026-03-26)
+
+
+### Bug Fixes
+
+* resolve tool name for tool result messages from assistant tool_calls ([7ab6e14](https://github.com/victor-software-house/pi-openai-proxy/commit/7ab6e143300b47415cc2ef85d25c7cf428cb8e95))
+
 ## [4.9.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.9.0...v4.9.1) (2026-03-26)
 
 
