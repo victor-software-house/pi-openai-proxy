@@ -69,28 +69,36 @@ Standardize model exposure and make public IDs configurable.
 - [x] Add `/proxy verify` and selector UIs for scoped providers and custom models
 - [x] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
 
-## Phase 3B — SDK conformance and robustness testing
+## Phase 3B — SDK conformance and robustness testing [DONE]
 
 Validate response shapes against the official OpenAI Node SDK to catch field-level bugs that break real clients.
 
-- [ ] Remove dead code (`resolve-model.ts`)
-- [ ] Add `openai` as explicit devDependency
-- [ ] Wire-level SSE conformance tests (chunk shape, `finish_reason` lifecycle, tool deltas, usage chunk, `[DONE]`)
-- [ ] Non-streaming response conformance tests (`ChatCompletion` shape, `content` nullability, `tool_calls`)
-- [ ] SDK round-trip conformance tests using `openai` client with `_strict_response_validation: true`
-- [ ] Security tests (image URL blocking, oversized payloads)
-- [ ] Code audit identified gaps in tool_choice forwarding, strict mode, and PLAN.md drift — tracked in Phase 3C
+- [x] Remove dead code (`resolve-model.ts`)
+- [x] Add `openai` as explicit devDependency
+- [x] Wire-level SSE conformance tests (chunk shape, `finish_reason` lifecycle, tool deltas, usage chunk, `[DONE]`)
+- [x] Non-streaming response conformance tests (`ChatCompletion` shape, `content` nullability, `tool_calls`)
+- [x] SDK round-trip conformance tests using `openai` client with `_strict_response_validation: true`
+- [x] Security tests (image URL blocking, oversized payloads)
+- [x] Code audit identified gaps in tool_choice forwarding, strict mode, and PLAN.md drift — tracked in Phase 3C
 
-## Phase 3C — Known gaps and silent drops
+## Phase 3C — Known gaps and silent drops [DONE]
 
 Address issues found by code audit that violate the project's policy of rejecting unsupported parameters clearly.
 
-- [ ] Fix `tool_choice` silent drop: forward via `onPayload` passthrough or reject with `422`
-- [ ] Fix `strict` on function tools: forward to pi SDK or reject with `422`
-- [ ] Document `parallel_tool_calls` rejection rationale (pi SDK limitation)
-- [ ] Update `PLAN.md` tool schema policy: `anyOf` is supported but documented as rejected
+- [x] Fix `tool_choice` silent drop: forward via `onPayload` passthrough
+- [x] Fix `strict` on function tools: forward via `onPayload` payload patching
+- [x] Update PLAN.md known gaps section (tool_choice resolved, strict resolved, parallel_tool_calls analyzed)
+- [x] `anyOf` documentation was already correct (TODO item was stale)
+
+## Phase 3D — Compatibility analysis and resilience
+
+Deeper analysis items deferred from Phase 3C. These require research into client behavior, pi SDK capabilities, and operational trade-offs.
+
+- [ ] Analyze `parallel_tool_calls`: survey client usage, test provider passthrough, decide handling
+- [ ] Re-evaluate the full `rejectedFields` list against current OpenAI API and common clients
 - [ ] Evaluate proxy-side concurrency limits and circuit breakers for upstream protection
 - [ ] Document stateless/no-retry architecture as intentional design choice
+- [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
 ## Phase 4 — Monorepo and proper CLI
 

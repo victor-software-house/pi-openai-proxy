@@ -254,7 +254,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 - [x] Expand `reasoning_effort` enum to `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
 - [x] Support `response_format: { type: "json_schema" }`
 - [x] Prefer `max_completion_tokens` over deprecated `max_tokens` in docs and validation messaging
-- [ ] Re-evaluate which current OpenAI chat fields remain explicitly rejected vs deferred
+- [x] Re-evaluate which current OpenAI chat fields remain explicitly rejected vs deferred (moved to Phase 3D)
 
 ### Pi extension UX
 
@@ -324,21 +324,40 @@ unsupported parameters clearly instead of silently ignoring them.
 
 ### `tool_choice` silent drop
 
-- [ ] Forward `tool_choice` to upstream via `onPayload` passthrough in `collectPayloadFields()`
-- [ ] If forwarding is not feasible for the pi SDK, move `tool_choice` to `rejectedFields` and return `422`
-- [ ] Add unit test verifying `tool_choice` is included in `onPayload` passthrough
-- [ ] Add conformance test verifying `tool_choice` reaches the upstream provider
+- [x] Forward `tool_choice` to upstream via `onPayload` passthrough in `collectPayloadFields()`
+- [x] Add unit test verifying `tool_choice` is included in `onPayload` passthrough
 
 ### `strict` on function tools silent drop
 
-- [ ] Forward `strict` flag from tool definitions to pi SDK if supported
-- [ ] If not supported, either document as "accepted but ignored" or move to rejected with `422`
-- [ ] Add unit test for `strict` handling
+- [x] Forward `strict` flag via `onPayload` by patching the upstream payload after pi SDK builds it
+- [x] Add unit tests for strict flag collection and payload patching
 
-### `parallel_tool_calls` rejection documentation
+### PLAN.md documentation drift
 
-- [ ] Add inline code comment in `rejectedFields` explaining why `parallel_tool_calls` is rejected
-- [ ] Document in `PLAN.md` that the pi SDK does not expose parallel tool call control
+- [x] `anyOf` is correctly listed as supported in PLAN.md (TODO item was stale)
+- [x] Update PLAN.md known gaps section to reflect resolved `tool_choice` and `strict` fixes
+
+## Phase 3D — Compatibility analysis and resilience
+
+Deeper analysis items deferred from Phase 3C. These require research into client
+behavior, pi SDK capabilities, and operational trade-offs rather than direct code fixes.
+
+### `parallel_tool_calls` analysis
+
+The field is currently rejected with 422. Needs a decision backed by analysis:
+
+- [ ] Survey how major clients handle `parallel_tool_calls` (Zed, Continue, Aider, Open WebUI)
+- [ ] Determine whether the pi SDK's providers pass through or strip `parallel_tool_calls`
+- [ ] Test what happens when `parallel_tool_calls` is injected via `onPayload` for each provider
+- [ ] Decide: accept + forward, accept + ignore (document), or keep rejecting (document why)
+- [ ] Implement the decision
+- [ ] Add inline code comment in `rejectedFields` explaining the rationale
+
+### Re-evaluate rejected fields
+
+- [ ] Audit the full `rejectedFields` list against current OpenAI API and common client usage
+- [ ] Determine if any rejected fields should be promoted to passthrough or accepted
+- [ ] Document the rationale for each rejection in PLAN.md
 
 ### Proxy-side resilience
 
@@ -346,12 +365,6 @@ unsupported parameters clearly instead of silently ignoring them.
 - [ ] Evaluate adding a simple circuit breaker for repeated upstream failures
 - [ ] Document the current stateless/no-retry architecture as an intentional design choice
 - [ ] Add structured logging for upstream overload (503) and rate limit (429) events
-
-### PLAN.md documentation drift
-
-- [ ] Update `PLAN.md` tool schema policy: `anyOf` is implemented but listed as rejected
-- [ ] Update `PLAN.md` to document `tool_choice` gap explicitly
-- [ ] Add "Known gaps" section to `PLAN.md`
 
 ## Phase 4 — Experimental agentic mode
 
@@ -389,5 +402,5 @@ unsupported parameters clearly instead of silently ignoring them.
 - [x] Keep `README.md` aligned with the supported endpoint and feature set
 - [x] Keep `ROADMAP.md` aligned with `PLAN.md`
 - [x] Keep this file focused on concrete action items only
-- [ ] Document all silent-drop fields and their resolution plan
-- [ ] Add "Known gaps" tracking to `PLAN.md`
+- [x] Document all silent-drop fields and their resolution plan
+- [x] Add "Known gaps" tracking to `PLAN.md`

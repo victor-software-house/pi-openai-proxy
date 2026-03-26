@@ -186,7 +186,17 @@ export type ChatCompletionRequest = z.infer<typeof chatCompletionRequestSchema>;
 
 /**
  * Fields that are explicitly rejected with a helpful error.
- * These are not supported and won't be promoted.
+ *
+ * `n`, `logprobs`, `top_logprobs`, `logit_bias`: not supported by the pi SDK's
+ * simple completion interface and unlikely to be promoted.
+ *
+ * `functions`, `function_call`: deprecated OpenAI fields, superseded by `tools`
+ * and `tool_choice`.
+ *
+ * `parallel_tool_calls`: the pi SDK does not expose parallel tool call control.
+ * The SSE streaming code handles multiple tool calls per response, so the response
+ * side is capable, but the proxy cannot guarantee the flag reaches the provider.
+ * Needs deeper analysis — see Phase 3D in TODO.md.
  */
 export const rejectedFields = [
 	"n",

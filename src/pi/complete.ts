@@ -14,7 +14,7 @@ import type {
 	ThinkingLevel,
 } from "@mariozechner/pi-ai";
 import { completeSimple, streamSimple } from "@mariozechner/pi-ai";
-import type { ChatCompletionRequest } from "@proxy/openai/schemas";
+import type { ChatCompletionRequest, OpenAIFunctionTool } from "@proxy/openai/schemas";
 import { getRegistry } from "@proxy/pi/registry";
 import { isRecord } from "@proxy/utils/guards";
 
@@ -44,8 +44,10 @@ const SKIP_PAYLOAD_PASSTHROUGH_APIS = new Set(["openai-codex-responses"]);
 /**
  * Collect fields that need to be injected via onPayload.
  * Skips passthrough for APIs that use non-standard request formats.
+ *
+ * @internal Exported for unit testing only.
  */
-function collectPayloadFields(
+export function collectPayloadFields(
 	request: ChatCompletionRequest,
 	api: string,
 ): Record<string, unknown> | undefined {
@@ -84,8 +86,73 @@ function collectPayloadFields(
 		fields["response_format"] = request.response_format;
 		hasFields = true;
 	}
+	if (request.tool_choice !== undefined) {
+		fields["tool_choice"] = request.tool_choice;
+		hasFields = true;
+	}
 
 	return hasFields ? fields : undefined;
+}
+
+/**
+ * Collect tool strict flags from the original OpenAI request.
+ *
+ * The pi SDK's `Tool` interface has no `strict` field, so the SDK always sets
+ * `strict: false` when building the upstream payload. This function extracts
+ * the per-tool strict flags from the original request so they can be restored
+ * via `onPayload` after the SDK builds the payload.
+ *
+ * Returns a map of tool index -> true for tools that requested strict mode,
+ * or undefined if no tools use strict mode.
+ *
+ * @internal Exported for unit testing only.
+ */
+export function collectToolStrictFlags(
+	tools: OpenAIFunctionTool[] | undefined,
+): ReadonlyMap<number, true> | undefined {
+	if (tools === undefined || tools.length === 0) {
+		return undefined;
+	}
+
+	let flags: Map<number, true> | undefined;
+
+	for (let i = 0; i < tools.length; i++) {
+		const tool = tools[i];
+		if (tool?.function.strict === true) {
+			flags ??= new Map();
+			flags.set(i, true);
+		}
+	}
+
+	return flags;
+}
+
+/**
+ * Apply strict flags to tool definitions in the upstream payload.
+ *
+ * The pi SDK always sets `strict: false` on tool definitions. This function
+ * patches the payload's `tools` array to restore the client's requested
+ * `strict: true` flags on the matching tool definitions.
+ *
+ * @internal Exported for unit testing only.
+ */
+export function applyToolStrictFlags(
+	payload: Record<string, unknown>,
+	strictFlags: ReadonlyMap<number, true>,
+): void {
+	const tools = payload["tools"];
+	if (!Array.isArray(tools)) {
+		return;
+	}
+	for (const [index, _flag] of strictFlags) {
+		const tool = tools[index] as unknown;
+		if (isRecord(tool)) {
+			const fn = tool["function"];
+			if (isRecord(fn)) {
+				fn["strict"] = true;
+			}
+		}
+	}
 }
 
 /**
@@ -166,13 +233,20 @@ async function buildStreamOptions(
 		}
 	}
 
-	// Inject passthrough fields via onPayload
+	// Inject passthrough fields and tool strict flags via onPayload
 	const payloadFields = collectPayloadFields(request, model.api);
-	if (payloadFields !== undefined) {
+	const strictFlags = collectToolStrictFlags(request.tools);
+
+	if (payloadFields !== undefined || strictFlags !== undefined) {
 		opts.onPayload = (payload: unknown) => {
 			if (isRecord(payload)) {
-				for (const [key, value] of Object.entries(payloadFields)) {
-					payload[key] = value;
+				if (payloadFields !== undefined) {
+					for (const [key, value] of Object.entries(payloadFields)) {
+						payload[key] = value;
+					}
+				}
+				if (strictFlags !== undefined) {
+					applyToolStrictFlags(payload, strictFlags);
 				}
 			}
 			return payload;

@@ -350,37 +350,48 @@ The following issues violate the project's own policy of rejecting unsupported p
 clearly instead of silently ignoring them. These should be addressed before the proxy is
 considered production-complete.
 
-### `tool_choice` accepted but not forwarded
+### `tool_choice` — resolved
 
-`tool_choice` is accepted by the Zod schema and documented as supported, but it is never
-read from the validated request or forwarded to the pi SDK. It is silently dropped on
-every request. Neither `routes.ts` nor `complete.ts` reference `tool_choice` after
-validation. This means `tool_choice: "required"` or `tool_choice: "none"` have no
-effect — the model always uses its default tool-calling behavior.
+`tool_choice` is forwarded to upstream providers via `onPayload` passthrough, the same
+mechanism used for `top_p`, `seed`, `response_format`, and other provider-specific fields.
+All OpenAI `tool_choice` values are supported: `"none"`, `"auto"`, `"required"`, and
+named function choice `{ type: "function", function: { name: "..." } }`.
 
-Options:
-- Forward `tool_choice` via `onPayload` passthrough (same pattern as `top_p`, `seed`, etc.)
-- If pi SDK's `Context` or `SimpleStreamOptions` gains a `toolChoice` field, use that instead
-- If forwarding is not feasible, move `tool_choice` to the rejected list and return `422`
+Provider-specific notes: the value is injected into the upstream payload in OpenAI format.
+Providers that use a different `tool_choice` wire format (Anthropic, Google) may not
+interpret the value correctly. This is the same limitation that applies to all passthrough
+fields — the proxy forwards OpenAI-formatted values, and provider compatibility depends
+on the pi SDK's payload handling.
 
-### `strict` on function tools accepted but ignored
+### `strict` on function tools — resolved
 
-`functionToolSchema` accepts `strict: z.boolean().nullable().optional()` on tool definitions,
-but `convertTools()` never reads or forwards it. OpenAI's `strict` mode enables structured
-outputs for tool call arguments. The field is silently accepted and discarded.
+The `strict` flag on function tool definitions is forwarded to upstream providers via
+`onPayload`. The pi SDK's `Tool` interface has no `strict` field and the SDK always sets
+`strict: false` when building the upstream payload. The proxy extracts per-tool strict
+flags from the original request and patches them into the payload after the SDK builds it.
 
-Options:
-- If pi SDK supports strict tool schemas, forward the flag
-- Otherwise, move `strict` to a documented "accepted but ignored" list, or reject it with `422`
+This means `strict: true` reaches OpenAI and compatible providers correctly. Providers
+that do not support strict mode will ignore or reject the flag — this is expected and
+consistent with other passthrough behavior.
 
-### `parallel_tool_calls` rejected without explanation
+### `parallel_tool_calls` — needs analysis
 
 `parallel_tool_calls` is in the `rejectedFields` list (returns `422`), and the Zed model
 sync hardcodes `parallel_tool_calls: false`. The SSE streaming code can handle multiple
 tool calls per response (via `contentIndex` tracking), so the response side is capable.
-The rejection appears to be because the pi SDK's `completeSimple`/`streamSimple` interface
-does not expose parallel tool call control. This should be documented explicitly so the
-reason is clear.
+
+The rejection exists because the pi SDK's `completeSimple`/`streamSimple` interface does
+not expose parallel tool call control. However, the current behavior needs deeper analysis:
+
+- Most providers return parallel tool calls by default when `parallel_tool_calls` is absent
+- The proxy's SSE streaming code already handles multiple tool calls per response
+- Rejecting the field forces clients to remove it, but the underlying behavior is provider-default
+- Some clients (Zed, Continue) send `parallel_tool_calls: false` as standard practice
+
+This needs a dedicated analysis phase to determine whether the field should be:
+1. Accepted and forwarded via `onPayload` (same as `tool_choice`)
+2. Accepted and silently ignored (document that parallel behavior is provider-default)
+3. Kept as rejected with clear documentation of why
 
 ### No proxy-side concurrency or overload protection
 
