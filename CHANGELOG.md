@@ -1,3 +1,10 @@
+## [4.7.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.7.0...v4.7.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* restrict onPayload passthrough to OpenAI-compatible APIs only ([e99a20a](https://github.com/victor-software-house/pi-openai-proxy/commit/e99a20ae4bbb48f924152f5f5264e87fb089d240))
+
 # [4.7.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.6.1...v4.7.0) (2026-03-26)
 
 
