@@ -1,3 +1,10 @@
+# [4.8.0](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.7.1...v4.8.0) (2026-03-26)
+
+
+### Features
+
+* add API-aware payload translation for Anthropic and Google ([b65a00a](https://github.com/victor-software-house/pi-openai-proxy/commit/b65a00a9d33110ccbe3d2de562055afc04af1c21))
+
 ## [4.7.1](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.7.0...v4.7.1) (2026-03-26)
 
 
