@@ -62,6 +62,18 @@ export function logDisconnect(ctx: LogContext): void {
 	console.error(JSON.stringify(entry));
 }
 
+export function logUpstreamOverload(ctx: LogContext, status: number, code: string): void {
+	const entry = {
+		ts: timestamp(),
+		level: "warn",
+		event: "upstream_overload",
+		requestId: ctx.requestId,
+		upstreamStatus: status,
+		code,
+	};
+	console.error(JSON.stringify(entry));
+}
+
 export function logStartup(host: string, port: number, modelCount: number): void {
 	const entry = {
 		ts: timestamp(),

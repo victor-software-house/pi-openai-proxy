@@ -45,7 +45,6 @@ describe("validateChatRequest", () => {
 			"logit_bias",
 			"functions",
 			"function_call",
-			"parallel_tool_calls",
 		];
 
 		for (const field of permanentlyRejected) {
@@ -191,5 +190,65 @@ describe("validateChatRequest", () => {
 			},
 		});
 		expect(result.ok).toBe(true);
+	});
+
+	test("accepts parallel_tool_calls", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			parallel_tool_calls: false,
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.parallel_tool_calls).toBe(false);
+	});
+
+	test("accepts metadata", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			metadata: { task: "autocomplete", chat_id: "abc-123" },
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.metadata).toEqual({ task: "autocomplete", chat_id: "abc-123" });
+	});
+
+	test("accepts prediction with string content", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			prediction: {
+				type: "content",
+				content: "predicted output text",
+			},
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.data.prediction?.type).toBe("content");
+	});
+
+	test("accepts prediction with array content", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			prediction: {
+				type: "content",
+				content: [{ type: "text", text: "predicted output" }],
+			},
+		});
+		expect(result.ok).toBe(true);
+	});
+
+	test("rejects prediction with invalid type", () => {
+		const result = validateChatRequest({
+			model: "openai/gpt-4o",
+			messages: [{ role: "user", content: "Hello" }],
+			prediction: {
+				type: "invalid",
+				content: "text",
+			},
+		});
+		expect(result.ok).toBe(false);
 	});
 });

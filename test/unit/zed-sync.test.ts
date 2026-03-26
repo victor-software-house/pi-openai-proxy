@@ -66,7 +66,7 @@ const ZED_SETTINGS_WITH_COMMENTS = `// Zed settings
             "capabilities": {
               "tools": true,
               "images": false,
-              "parallel_tool_calls": false,
+              "parallel_tool_calls": true,
               "prompt_cache_key": false,
               "chat_completions": true
             }
@@ -102,7 +102,7 @@ describe("toZedModel", () => {
 		expect(result.capabilities.tools).toBe(true);
 		expect(result.capabilities.images).toBe(true);
 		expect(result.capabilities.chat_completions).toBe(true);
-		expect(result.capabilities.parallel_tool_calls).toBe(false);
+		expect(result.capabilities.parallel_tool_calls).toBe(true);
 		expect(result.capabilities.prompt_cache_key).toBe(false);
 	});
 

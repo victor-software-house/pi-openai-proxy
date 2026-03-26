@@ -28,9 +28,11 @@ import {
 	invalidRequest,
 	mapUpstreamError,
 	modelNotFound,
+	type OpenAIError,
+	type UpstreamErrorStatus,
 	unsupportedParameter,
 } from "@proxy/server/errors";
-import { logError } from "@proxy/server/logging";
+import { type LogContext, logError, logUpstreamOverload } from "@proxy/server/logging";
 import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
@@ -64,6 +66,21 @@ export function createRoutes(
 			throw new Error(`Model exposure configuration error: ${outcome.message}`);
 		}
 		return outcome;
+	}
+
+	/**
+	 * Map upstream error, log it, and emit a structured warn for rate limit / overload.
+	 */
+	function handleUpstreamError(
+		ctx: LogContext,
+		err: unknown,
+	): { status: UpstreamErrorStatus; body: OpenAIError } {
+		const mapped = mapUpstreamError(err);
+		logError(ctx, mapped.body.error.message, err instanceof Error ? err.message : undefined);
+		if (mapped.status === 429 || mapped.status === 503) {
+			logUpstreamOverload(ctx, mapped.status, mapped.body.error.code ?? "unknown");
+		}
+		return mapped;
 	}
 
 	const routes = new Hono<ProxyEnv>();
@@ -196,15 +213,9 @@ export function createRoutes(
 						await stream.write(frame);
 					}
 				} catch (err: unknown) {
-					const mapped = mapUpstreamError(err);
-					logError(
-						{
-							requestId,
-							method: "POST",
-							path: "/v1/chat/completions",
-						},
-						mapped.body.error.message,
-						err instanceof Error ? err.message : undefined,
+					const mapped = handleUpstreamError(
+						{ requestId, method: "POST", path: "/v1/chat/completions" },
+						err,
 					);
 					// For streams, write an error event and close
 					const errorChunk = JSON.stringify({
@@ -223,18 +234,18 @@ export function createRoutes(
 			// Detect upstream errors reported via stopReason
 			if (message.stopReason === "error" || message.stopReason === "aborted") {
 				const errorMessage = message.errorMessage ?? "Upstream provider error";
-				const mapped = mapUpstreamError(new Error(errorMessage));
-				logError({ requestId, method: "POST", path: "/v1/chat/completions" }, errorMessage);
+				const mapped = handleUpstreamError(
+					{ requestId, method: "POST", path: "/v1/chat/completions" },
+					new Error(errorMessage),
+				);
 				return c.json(mapped.body, mapped.status);
 			}
 
 			return c.json(buildChatCompletion(requestId, canonicalModelId, message));
 		} catch (err: unknown) {
-			const mapped = mapUpstreamError(err);
-			logError(
+			const mapped = handleUpstreamError(
 				{ requestId, method: "POST", path: "/v1/chat/completions" },
-				mapped.body.error.message,
-				err instanceof Error ? err.message : undefined,
+				err,
 			);
 			return c.json(mapped.body, mapped.status);
 		}

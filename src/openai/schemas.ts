@@ -1,14 +1,16 @@
 /**
  * Zod schemas for the OpenAI chat-completions request subset.
  *
- * Phase 2 contract:
- * - Phase 1 supported fields: model, messages, stream, temperature,
- *   max_tokens, max_completion_tokens, stop, user, stream_options
- * - Phase 2 additions: tools, tool_choice, reasoning_effort,
- *   top_p, frequency_penalty, presence_penalty, seed, response_format
+ * Supported fields (cumulative through Phase 3D):
+ * - Core: model, messages, stream, temperature, max_tokens,
+ *   max_completion_tokens, stop, user, stream_options
+ * - Tools: tools, tool_choice, parallel_tool_calls
+ * - Model control: reasoning_effort, top_p, frequency_penalty,
+ *   presence_penalty, seed, response_format
+ * - Client interop: metadata, prediction
  * - Unknown top-level fields are rejected with 422
- * - `n > 1` is rejected
- * - `logprobs` is rejected
+ * - Explicitly rejected: n, logprobs, top_logprobs, logit_bias,
+ *   functions (deprecated), function_call (deprecated)
  */
 
 import * as z from "zod";
@@ -171,12 +173,24 @@ export const chatCompletionRequestSchema = z
 		// Phase 2 additions
 		tools: z.array(functionToolSchema).optional(),
 		tool_choice: toolChoiceSchema.optional(),
+		parallel_tool_calls: z.boolean().optional(),
 		reasoning_effort: z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]).optional(),
 		top_p: z.number().min(0).max(1).optional(),
 		frequency_penalty: z.number().min(-2).max(2).optional(),
 		presence_penalty: z.number().min(-2).max(2).optional(),
 		seed: z.int().optional(),
 		response_format: responseFormatSchema.optional(),
+		// Phase 3D additions — passthrough fields sent by real clients
+		metadata: z.record(z.string().trim(), z.unknown()).optional(),
+		prediction: z
+			.object({
+				type: z.literal("content"),
+				content: z.union([
+					z.string().trim(),
+					z.array(z.object({ type: z.literal("text"), text: z.string().trim() })),
+				]),
+			})
+			.optional(),
 	})
 	.strict();
 
@@ -188,15 +202,11 @@ export type ChatCompletionRequest = z.infer<typeof chatCompletionRequestSchema>;
  * Fields that are explicitly rejected with a helpful error.
  *
  * `n`, `logprobs`, `top_logprobs`, `logit_bias`: not supported by the pi SDK's
- * simple completion interface and unlikely to be promoted.
+ * simple completion interface. The proxy returns a single choice with no token
+ * probability data. Promoting these would require response-side changes.
  *
  * `functions`, `function_call`: deprecated OpenAI fields, superseded by `tools`
- * and `tool_choice`.
- *
- * `parallel_tool_calls`: the pi SDK does not expose parallel tool call control.
- * The SSE streaming code handles multiple tool calls per response, so the response
- * side is capable, but the proxy cannot guarantee the flag reaches the provider.
- * Needs deeper analysis — see Phase 3D in TODO.md.
+ * and `tool_choice`. Clients should migrate to the current API.
  */
 export const rejectedFields = [
 	"n",
@@ -205,5 +215,4 @@ export const rejectedFields = [
 	"logit_bias",
 	"functions",
 	"function_call",
-	"parallel_tool_calls",
 ] as const;

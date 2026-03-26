@@ -337,34 +337,33 @@ unsupported parameters clearly instead of silently ignoring them.
 - [x] `anyOf` is correctly listed as supported in PLAN.md (TODO item was stale)
 - [x] Update PLAN.md known gaps section to reflect resolved `tool_choice` and `strict` fixes
 
-## Phase 3D — Compatibility analysis and resilience
+## Phase 3D — Compatibility analysis and resilience [DONE]
 
-Deeper analysis items deferred from Phase 3C. These require research into client
-behavior, pi SDK capabilities, and operational trade-offs rather than direct code fixes.
+Analysis document: `docs/engineering/phase-3d-analysis.md`
 
-### `parallel_tool_calls` analysis
+### `parallel_tool_calls` — promoted to passthrough
 
-The field is currently rejected with 422. Needs a decision backed by analysis:
+- [x] Survey how major clients handle `parallel_tool_calls` (Zed, Continue, Aider, Open WebUI)
+- [x] Determine whether the pi SDK's providers pass through or strip `parallel_tool_calls`
+- [x] Decision: accept + forward via `onPayload` (Continue sends `false`, was getting 422)
+- [x] Remove from `rejectedFields`, add to schema, add `onPayload` passthrough
+- [x] Update Zed sync capabilities to `parallel_tool_calls: true`
+- [x] Add unit tests for acceptance and passthrough
 
-- [ ] Survey how major clients handle `parallel_tool_calls` (Zed, Continue, Aider, Open WebUI)
-- [ ] Determine whether the pi SDK's providers pass through or strip `parallel_tool_calls`
-- [ ] Test what happens when `parallel_tool_calls` is injected via `onPayload` for each provider
-- [ ] Decide: accept + forward, accept + ignore (document), or keep rejecting (document why)
-- [ ] Implement the decision
-- [ ] Add inline code comment in `rejectedFields` explaining the rationale
+### Re-evaluate rejected fields — audited
 
-### Re-evaluate rejected fields
+- [x] Audit the full `rejectedFields` list against current OpenAI API and common client usage
+- [x] Promote `metadata` (Open WebUI sends it) and `prediction` (Continue sends it) to passthrough
+- [x] Keep `n`, `logprobs`, `top_logprobs`, `logit_bias` rejected (no SDK support, no client need)
+- [x] Keep `functions`, `function_call` rejected (deprecated)
+- [x] Document rationale for each rejection in PLAN.md and `rejectedFields` inline comments
 
-- [ ] Audit the full `rejectedFields` list against current OpenAI API and common client usage
-- [ ] Determine if any rejected fields should be promoted to passthrough or accepted
-- [ ] Document the rationale for each rejection in PLAN.md
+### Proxy-side resilience — documented as intentional
 
-### Proxy-side resilience
-
-- [ ] Evaluate adding a concurrency limiter for upstream requests
-- [ ] Evaluate adding a simple circuit breaker for repeated upstream failures
-- [ ] Document the current stateless/no-retry architecture as an intentional design choice
-- [ ] Add structured logging for upstream overload (503) and rate limit (429) events
+- [x] Evaluate concurrency limiter — not needed for local single-client proxy
+- [x] Evaluate circuit breaker — not needed, would interfere with client retry logic
+- [x] Document stateless/no-retry architecture as intentional design choice in PLAN.md
+- [x] Add structured `upstream_overload` warn-level logging for 429 and 503 responses
 
 ## Phase 4 — Experimental agentic mode
 

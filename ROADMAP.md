@@ -90,14 +90,15 @@ Address issues found by code audit that violate the project's policy of rejectin
 - [x] Update PLAN.md known gaps section (tool_choice resolved, strict resolved, parallel_tool_calls analyzed)
 - [x] `anyOf` documentation was already correct (TODO item was stale)
 
-## Phase 3D — Compatibility analysis and resilience
+## Phase 3D — Compatibility analysis and resilience [DONE]
 
-Deeper analysis items deferred from Phase 3C. These require research into client behavior, pi SDK capabilities, and operational trade-offs.
+Research-backed decisions on deferred compatibility and resilience items. Analysis: `docs/engineering/phase-3d-analysis.md`.
 
-- [ ] Analyze `parallel_tool_calls`: survey client usage, test provider passthrough, decide handling
-- [ ] Re-evaluate the full `rejectedFields` list against current OpenAI API and common clients
-- [ ] Evaluate proxy-side concurrency limits and circuit breakers for upstream protection
-- [ ] Document stateless/no-retry architecture as intentional design choice
+- [x] Promote `parallel_tool_calls` to `onPayload` passthrough (Continue was getting 422)
+- [x] Promote `metadata` (Open WebUI sends it) and `prediction` (Continue sends it) to passthrough
+- [x] Audit all `rejectedFields`: keep `n`, `logprobs`, `top_logprobs`, `logit_bias`, `functions`, `function_call`
+- [x] Document resilience architecture as intentional (no concurrency limiter, no circuit breaker, no retry)
+- [x] Add structured `upstream_overload` warn-level logging for 429 and 503 responses
 - [ ] Run compatibility smoke tests with target clients (Open WebUI, Continue, Aider)
 
 ## Phase 4 — Monorepo and proper CLI

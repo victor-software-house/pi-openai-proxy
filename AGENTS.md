@@ -56,12 +56,15 @@ Experimental later work:
 | `max_tokens` / `max_completion_tokens` | `StreamOptions.maxTokens` after normalization |
 | `reasoning_effort` | `SimpleStreamOptions.reasoning` -> `ThinkingLevel` |
 | `tools` | `Context.tools` after JSON Schema -> TypeBox conversion for a supported subset only |
-| `tool_choice` | Accepted by schema; passthrough semantics depend on provider |
+| `tool_choice` | `onPayload` passthrough; semantics depend on provider |
+| `parallel_tool_calls` | `onPayload` passthrough |
 | `top_p` | `onPayload` passthrough |
 | `frequency_penalty` | `onPayload` passthrough |
 | `presence_penalty` | `onPayload` passthrough |
 | `seed` | `onPayload` passthrough |
-| `response_format` | `onPayload` passthrough (`text`, `json_object`) |
+| `response_format` | `onPayload` passthrough (`text`, `json_object`, `json_schema`) |
+| `metadata` | `onPayload` passthrough |
+| `prediction` | `onPayload` passthrough |
 | `usage` | pi `Usage` mapped to OpenAI usage fields |
 | `finish_reason` | pi `stop` -> `stop`, `length` -> `length`, `toolUse` -> `tool_calls` |
 

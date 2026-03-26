@@ -120,6 +120,99 @@ describe("collectPayloadFields: tool_choice", () => {
 	});
 });
 
+// --- parallel_tool_calls ---
+
+describe("collectPayloadFields: parallel_tool_calls", () => {
+	test("includes parallel_tool_calls: false in payload fields", () => {
+		const fields = collectPayloadFields(
+			minimalRequest({ parallel_tool_calls: false }),
+			"openai-completions",
+		);
+		expect(fields).toBeDefined();
+		expect(fields?.["parallel_tool_calls"]).toBe(false);
+	});
+
+	test("includes parallel_tool_calls: true in payload fields", () => {
+		const fields = collectPayloadFields(
+			minimalRequest({ parallel_tool_calls: true }),
+			"openai-completions",
+		);
+		expect(fields).toBeDefined();
+		expect(fields?.["parallel_tool_calls"]).toBe(true);
+	});
+
+	test("omits parallel_tool_calls when not provided", () => {
+		const fields = collectPayloadFields(minimalRequest(), "openai-completions");
+		expect(fields).toBeUndefined();
+	});
+
+	test("skips parallel_tool_calls for codex-responses API", () => {
+		const fields = collectPayloadFields(
+			minimalRequest({ parallel_tool_calls: false }),
+			"openai-codex-responses",
+		);
+		expect(fields).toBeUndefined();
+	});
+});
+
+// --- metadata ---
+
+describe("collectPayloadFields: metadata", () => {
+	test("includes metadata in payload fields", () => {
+		const metadata = { task: "autocomplete", chat_id: "abc-123" };
+		const fields = collectPayloadFields(minimalRequest({ metadata }), "openai-completions");
+		expect(fields).toBeDefined();
+		expect(fields?.["metadata"]).toEqual(metadata);
+	});
+
+	test("omits metadata when not provided", () => {
+		const fields = collectPayloadFields(minimalRequest(), "openai-completions");
+		expect(fields).toBeUndefined();
+	});
+
+	test("skips metadata for codex-responses API", () => {
+		const fields = collectPayloadFields(
+			minimalRequest({ metadata: { task: "test" } }),
+			"openai-codex-responses",
+		);
+		expect(fields).toBeUndefined();
+	});
+});
+
+// --- prediction ---
+
+describe("collectPayloadFields: prediction", () => {
+	test("includes prediction with string content in payload fields", () => {
+		const prediction = { type: "content" as const, content: "predicted output" };
+		const fields = collectPayloadFields(minimalRequest({ prediction }), "openai-completions");
+		expect(fields).toBeDefined();
+		expect(fields?.["prediction"]).toEqual(prediction);
+	});
+
+	test("includes prediction with array content in payload fields", () => {
+		const prediction = {
+			type: "content" as const,
+			content: [{ type: "text" as const, text: "predicted" }],
+		};
+		const fields = collectPayloadFields(minimalRequest({ prediction }), "openai-completions");
+		expect(fields).toBeDefined();
+		expect(fields?.["prediction"]).toEqual(prediction);
+	});
+
+	test("omits prediction when not provided", () => {
+		const fields = collectPayloadFields(minimalRequest(), "openai-completions");
+		expect(fields).toBeUndefined();
+	});
+
+	test("skips prediction for codex-responses API", () => {
+		const fields = collectPayloadFields(
+			minimalRequest({ prediction: { type: "content", content: "test" } }),
+			"openai-codex-responses",
+		);
+		expect(fields).toBeUndefined();
+	});
+});
+
 // --- collectToolStrictFlags ---
 
 describe("collectToolStrictFlags", () => {

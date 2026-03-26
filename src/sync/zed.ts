@@ -99,7 +99,7 @@ export function toZedModel(exposed: ExposedModel): ZedAvailableModel {
 		capabilities: {
 			tools: true,
 			images: model.input.includes("image"),
-			parallel_tool_calls: false,
+			parallel_tool_calls: true,
 			prompt_cache_key: false,
 			chat_completions: true,
 		},

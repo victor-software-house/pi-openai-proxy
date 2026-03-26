@@ -90,6 +90,18 @@ export function collectPayloadFields(
 		fields["tool_choice"] = request.tool_choice;
 		hasFields = true;
 	}
+	if (request.parallel_tool_calls !== undefined) {
+		fields["parallel_tool_calls"] = request.parallel_tool_calls;
+		hasFields = true;
+	}
+	if (request.metadata !== undefined) {
+		fields["metadata"] = request.metadata;
+		hasFields = true;
+	}
+	if (request.prediction !== undefined) {
+		fields["prediction"] = request.prediction;
+		hasFields = true;
+	}
 
 	return hasFields ? fields : undefined;
 }

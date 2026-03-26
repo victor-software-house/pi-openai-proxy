@@ -255,6 +255,9 @@ Future-compatible design:
 - `frequency_penalty`
 - `presence_penalty`
 - `seed`
+- `parallel_tool_calls`
+- `metadata`
+- `prediction`
 - image content parts (base64 data URIs only)
 
 Compatibility preference:
@@ -268,6 +271,9 @@ Compatibility preference:
 - `n > 1`
 - `logprobs`
 - `top_logprobs`
+- `logit_bias`
+- `functions` (deprecated)
+- `function_call` (deprecated)
 - audio output/modality
 - input audio content parts
 - file content parts
@@ -374,37 +380,56 @@ This means `strict: true` reaches OpenAI and compatible providers correctly. Pro
 that do not support strict mode will ignore or reject the flag — this is expected and
 consistent with other passthrough behavior.
 
-### `parallel_tool_calls` — needs analysis
+### `parallel_tool_calls` — resolved
 
-`parallel_tool_calls` is in the `rejectedFields` list (returns `422`), and the Zed model
-sync hardcodes `parallel_tool_calls: false`. The SSE streaming code can handle multiple
-tool calls per response (via `contentIndex` tracking), so the response side is capable.
+`parallel_tool_calls` is forwarded to upstream providers via `onPayload` passthrough.
+The field was previously rejected (422) because the pi SDK does not expose parallel tool
+call control. Analysis showed this rejection broke real clients:
 
-The rejection exists because the pi SDK's `completeSimple`/`streamSimple` interface does
-not expose parallel tool call control. However, the current behavior needs deeper analysis:
+- **Continue** sends `parallel_tool_calls: false` for most models
+- **Open WebUI** and **Aider** do not send the field
 
-- Most providers return parallel tool calls by default when `parallel_tool_calls` is absent
-- The proxy's SSE streaming code already handles multiple tool calls per response
-- Rejecting the field forces clients to remove it, but the underlying behavior is provider-default
-- Some clients (Zed, Continue) send `parallel_tool_calls: false` as standard practice
+The proxy's SSE streaming code already handles multiple tool calls per response via
+`contentIndex` tracking, so the response side was always capable. The `onPayload`
+passthrough works for OpenAI-compatible providers. Non-OpenAI providers (Anthropic,
+Google) that use a different wire format may ignore the field — same as other
+passthrough fields.
 
-This needs a dedicated analysis phase to determine whether the field should be:
-1. Accepted and forwarded via `onPayload` (same as `tool_choice`)
-2. Accepted and silently ignored (document that parallel behavior is provider-default)
-3. Kept as rejected with clear documentation of why
+### `metadata` and `prediction` — resolved
 
-### No proxy-side concurrency or overload protection
+`metadata` is accepted as an arbitrary key-value record and forwarded via `onPayload`.
+Open WebUI sends it with task info on every request.
 
-The proxy has no rate limiting, connection pooling, request queuing, concurrency caps, or
-circuit breakers. Every inbound request immediately fires an upstream provider call. Under
-load, the proxy will hammer upstream providers without any backpressure.
+`prediction` is accepted with OpenAI's `{ type: "content", content: string | TextPart[] }`
+shape and forwarded via `onPayload`. Continue sends it for models that support predicted
+output (speculative decoding).
 
-Upstream overload is detected reactively via `mapUpstreamError()` (pattern-matching on error
-strings like "529", "overloaded" → 503), but the proxy itself does nothing to prevent
-causing that overload.
+Both fields are harmless passthrough — upstream providers that do not support them will
+ignore or reject them, which is consistent with all other passthrough behavior.
 
-The proxy does not retry failed requests. Any retry behavior visible to clients comes from
-the client itself (e.g. Zed's built-in retry logic), not from this proxy.
+### Resilience architecture — intentional design
+
+The proxy is a stateless translation layer, not a load balancer or API gateway. The
+following are intentionally omitted:
+
+- **No concurrency limiter**: The primary deployment model is a local proxy serving one
+  client (Zed, Continue, etc.). The client controls its own concurrency. A server-side
+  limiter would duplicate client logic and cause confusing double-throttling.
+- **No circuit breaker**: For a single-client local proxy, a circuit breaker would
+  prevent requests after upstream failures even when the upstream has recovered. The
+  client already handles retries.
+- **No rate limiting**: Same argument — the client controls its own request rate.
+- **No retry logic**: Retries are the client's responsibility. The proxy never resends
+  a failed upstream request.
+
+Upstream overload is handled reactively:
+- `mapUpstreamError()` detects rate limit (429) and overload (503/529) patterns
+- A structured `upstream_overload` warn-level log is emitted for these events
+- The mapped error propagates to the client as an OpenAI-style error response
+
+If the proxy is deployed in a multi-client scenario (e.g., shared team proxy), resilience
+features should be provided by an external reverse proxy (nginx, Caddy, etc.) rather
+than built into this translation layer.
 
 ### Stateless architecture — no session continuity
 
