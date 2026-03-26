@@ -48,6 +48,18 @@ export function convertMessages(messages: OpenAIMessage[]): ConversionResult {
 	const systemParts: string[] = [];
 	const piMessages: Message[] = [];
 
+	// Build a map of tool_call_id -> function name from assistant messages.
+	// The OpenAI tool message only has tool_call_id + content, but some providers
+	// (Google) require the function name on tool result messages.
+	const toolCallNames = new Map<string, string>();
+	for (const msg of messages) {
+		if (msg !== undefined && msg.role === "assistant" && "tool_calls" in msg) {
+			for (const tc of msg.tool_calls ?? []) {
+				toolCallNames.set(tc.id, tc.function.name);
+			}
+		}
+	}
+
 	for (let i = 0; i < messages.length; i++) {
 		const msg = messages[i];
 		if (msg === undefined) continue;
@@ -64,7 +76,8 @@ export function convertMessages(messages: OpenAIMessage[]): ConversionResult {
 			const assistantMsg = convertAssistantMessage(msg.content ?? null, msg.tool_calls);
 			piMessages.push(assistantMsg);
 		} else if (msg.role === "tool") {
-			const toolMsg = convertToolMessage(msg.content, msg.tool_call_id);
+			const toolName = toolCallNames.get(msg.tool_call_id) ?? "";
+			const toolMsg = convertToolMessage(msg.content, msg.tool_call_id, toolName);
 			piMessages.push(toolMsg);
 		}
 	}
@@ -206,11 +219,15 @@ function convertAssistantMessage(
 	};
 }
 
-function convertToolMessage(content: string, toolCallId: string): ToolResultMessage {
+function convertToolMessage(
+	content: string,
+	toolCallId: string,
+	toolName: string,
+): ToolResultMessage {
 	return {
 		role: "toolResult",
 		toolCallId,
-		toolName: "",
+		toolName,
 		content: [{ type: "text", text: content }],
 		isError: false,
 		timestamp: Date.now(),
