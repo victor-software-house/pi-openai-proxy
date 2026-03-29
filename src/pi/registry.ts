@@ -53,6 +53,17 @@ export function getAvailableModels(): Model<Api>[] {
 }
 
 /**
+ * Resolve request auth for a specific model at request time.
+ *
+ * This uses Pi's current request-auth contract, which may return both an API
+ * key and model-specific headers. That covers API-key providers, OAuth-backed
+ * providers, authHeader handling, and dynamic models.json header resolution.
+ */
+export async function getRequestAuth(model: Model<Api>) {
+	return getRegistry().getApiKeyAndHeaders(model);
+}
+
+/**
  * Get the `enabledModels` patterns from pi's global settings.
  *
  * These are the canonical model IDs (e.g. "anthropic/claude-sonnet-4-6")

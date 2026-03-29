@@ -199,9 +199,9 @@ packages:
   - "packages/*"
 
 catalog:
-  "@mariozechner/pi-ai": "^0.62.0"
-  "@mariozechner/pi-coding-agent": "^0.62.0"
-  "@mariozechner/pi-tui": "^0.62.0"
+  "@mariozechner/pi-ai": "^0.63.1"
+  "@mariozechner/pi-coding-agent": "^0.63.1"
+  "@mariozechner/pi-tui": "^0.63.1"
   "@sinclair/typebox": "^0.34.0"
   "@types/bun": "^1.3.11"
   "@types/node": "^25.5.0"

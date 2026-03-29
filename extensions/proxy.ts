@@ -723,7 +723,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 		// HACK: SettingsList has no public API for jumping to an index.
 		// Accesses private fields via bracket notation for provider jumping.
-		// Pinned to pi-tui behavior as of @mariozechner/pi-coding-agent ^0.62.0.
+		// Pinned to pi-tui behavior as of @mariozechner/pi-coding-agent ^0.63.1.
 		// Remove when SettingsList exposes a jumpTo/setSelectedIndex method.
 
 		// Isolated unsafe accessor for SettingsList private fields.

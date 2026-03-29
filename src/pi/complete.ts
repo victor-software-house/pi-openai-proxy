@@ -15,7 +15,7 @@ import type {
 } from "@mariozechner/pi-ai";
 import { completeSimple, streamSimple } from "@mariozechner/pi-ai";
 import type { ChatCompletionRequest, OpenAIFunctionTool } from "@proxy/openai/schemas";
-import { getRegistry } from "@proxy/pi/registry";
+import { getRequestAuth } from "@proxy/pi/registry";
 import { isRecord } from "@proxy/utils/guards";
 
 /**
@@ -529,13 +529,21 @@ async function buildStreamOptions(
 		opts.signal = combinedSignal;
 	}
 
-	// Per-request upstream key takes precedence over registry-resolved key
+	// Per-request upstream key takes precedence over registry-resolved key.
+	// When no override is provided, resolve auth per request so Pi can supply
+	// both API keys and dynamic model-specific headers.
 	if (options.upstreamApiKey !== undefined) {
 		opts.apiKey = options.upstreamApiKey;
 	} else {
-		const apiKey = await getRegistry().getApiKey(model);
-		if (apiKey !== undefined) {
-			opts.apiKey = apiKey;
+		const auth = await getRequestAuth(model);
+		if (!auth.ok) {
+			throw new Error(auth.error);
+		}
+		if (auth.apiKey !== undefined) {
+			opts.apiKey = auth.apiKey;
+		}
+		if (auth.headers !== undefined) {
+			opts.headers = auth.headers;
 		}
 	}
 

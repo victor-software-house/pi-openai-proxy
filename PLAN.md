@@ -210,7 +210,12 @@ Settings-panel requirements:
 Primary source:
 
 - pi `AuthStorage`
-- `ModelRegistry.getApiKey(model)`
+- `ModelRegistry.getApiKeyAndHeaders(model)`
+
+Request auth must be resolved per request and forwarded as both `apiKey` and
+`headers` where the Pi AI client supports it. This is required for current Pi
+because model-specific auth and headers can resolve dynamically on every
+request, including OAuth-backed providers and `authHeader`-driven providers.
 
 ### Per-request override
 

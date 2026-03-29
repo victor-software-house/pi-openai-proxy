@@ -22,7 +22,7 @@ import { streamToSSE } from "@proxy/openai/sse";
 import { convertTools } from "@proxy/openai/tools";
 import { validateChatRequest } from "@proxy/openai/validate";
 import { piComplete, piStream } from "@proxy/pi/complete";
-import { getAvailableModels, getEnabledModels, getRegistry } from "@proxy/pi/registry";
+import { getAvailableModels, getEnabledModels, getRequestAuth } from "@proxy/pi/registry";
 import {
 	authenticationError,
 	invalidRequest,
@@ -179,14 +179,15 @@ export function createRoutes(
 			context.tools = toolConversion.tools;
 		}
 
-		// Pre-check API key availability: if no per-request override and no
-		// registry key, reject early instead of letting the provider fail silently.
+		// Pre-check upstream request auth: if no per-request override and Pi cannot
+		// resolve request auth for the selected model, reject early instead of
+		// letting the provider fail later with a less actionable error.
 		if (upstreamApiKey === undefined) {
-			const registryKey = await getRegistry().getApiKey(model);
-			if (registryKey === undefined) {
+			const requestAuth = await getRequestAuth(model);
+			if (!requestAuth.ok) {
 				return c.json(
 					authenticationError(
-						`No API key configured for provider '${model.provider}'. ` +
+						`Could not resolve request auth for provider '${model.provider}'. ${requestAuth.error}. ` +
 							"Configure credentials via 'pi /login' or pass X-Pi-Upstream-Api-Key header.",
 					),
 					401,
