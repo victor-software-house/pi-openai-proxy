@@ -1,3 +1,10 @@
+## [4.9.3](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.9.2...v4.9.3) (2026-03-29)
+
+
+### Bug Fixes
+
+* migrate upstream auth to getApiKeyAndHeaders ([4c23a97](https://github.com/victor-software-house/pi-openai-proxy/commit/4c23a970c6c94fdc1a3e47a3995770ce00602f50))
+
 ## [4.9.2](https://github.com/victor-software-house/pi-openai-proxy/compare/v4.9.1...v4.9.2) (2026-03-26)
 
 
