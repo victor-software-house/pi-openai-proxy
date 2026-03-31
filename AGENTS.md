@@ -1,120 +1,129 @@
 # pi-openai-proxy
 
-This repository implements a local OpenAI-compatible HTTP proxy built on pi's SDK (`@mariozechner/pi-coding-agent` and `@mariozechner/pi-ai`), without modifying pi.
+This repo is a **local OpenAI-compatible HTTP proxy for pi**. It exposes a small OpenAI-style API on top of pi's SDK, model registry, and auth flow.
 
-## Planning documents
+`AGENTS.md` is always-on Pi context. Keep this file short, precise, and operational. Put deep architecture detail in [`PLAN.md`](PLAN.md), human onboarding in [`README.md`](README.md), the execution checklist in [`TODO.md`](TODO.md), and phase summary in [`ROADMAP.md`](ROADMAP.md).
 
-Treat these files as agent-first implementation guidance:
+User instructions override this file.
 
-- `PLAN.md` — implementation source of truth for architecture, API compatibility policy, security boundaries, phase gates, and acceptance criteria
-- `TODO.md` — actionable implementation checklist aligned to `PLAN.md`
-- `ROADMAP.md` — short phase summary only
+## Start here
 
-Read `PLAN.md` before implementation work. Keep `TODO.md` and `ROADMAP.md` aligned with it.
+Before changing code:
 
-## Architecture
+1. Read [`PLAN.md`](PLAN.md) for architecture, API compatibility policy, and security boundaries.
+2. Skim [`README.md`](README.md) for public contract and operator-facing behavior.
+3. Check `package.json`, `lefthook.yml`, `biome.json`, `.oxlintrc.json`, and `tsconfig.json` before changing tooling.
+4. Use recent git history when behavior or workflow intent is unclear: `git log --oneline -20`.
 
-The proxy translates OpenAI-style requests into pi SDK calls.
+## Repo shape
 
-Stable endpoints:
+- `src/server/` — Hono HTTP app, middleware, routes, request/response handling
+- `src/openai/` — OpenAI request schemas, message conversion, tool conversion, SSE/response shaping
+- `src/pi/` — pi SDK integration and model registry resolution
+- `src/config/` — env/config parsing and validation
+- `src/sync/` — external/editor sync integrations
+- `extensions/` — Pi extension surface for the package
+- `test/unit/`, `test/integration/`, `test/conformance/` — behavior checks
+- `docs/` — supporting analysis/discovery docs, not the main source of truth
 
-- `GET /v1/models` -> OpenAI-compatible list shape backed by `ModelRegistry`
-- `GET /v1/models/{model}` -> OpenAI-compatible model object backed by `ModelRegistry.find()`
-- `POST /v1/chat/completions` -> `completeSimple()` or `streamSimple()`
+## Core constraints
 
-Experimental later work:
+Treat these as stable unless the user explicitly changes direction:
 
-- agentic mode using `AgentSession`, preferably behind a separate endpoint or explicit opt-in contract
+- Stable HTTP surface is:
+  - `GET /v1/models`
+  - `GET /v1/models/{model}`
+  - `POST /v1/chat/completions`
+- Canonical internal model IDs use `provider/model-id`.
+- `GET /v1/models/{model}` must support URL-encoded IDs because model IDs may contain `/`.
+- Reserve `Authorization` for proxy auth compatibility. Do **not** repurpose it for upstream provider override headers.
+- Keep stable responses close to OpenAI's schema. If pi-specific metadata is exposed, namespace it under `x_pi`.
+- Reject unsupported parameters clearly. Do **not** silently ignore them.
+- Agentic mode is experimental and security-sensitive. Do not expand it casually under the stable chat-completions contract.
+- Default network posture should remain local-first and safe by default.
 
-### Core translation layers
+For detailed rationale and edge cases, defer to [`PLAN.md`](PLAN.md) instead of duplicating them here.
 
-- **Request parsing**: Zod v4 schemas for the supported OpenAI chat-completions subset
-- **Message conversion**: OpenAI messages -> pi-ai `Context`
-- **Model resolution**: canonical `provider/model-id` -> pi `Model<Api>`
-- **Tool conversion**: OpenAI function tools -> pi `Tool[]` via JSON Schema -> TypeBox
-- **Streaming bridge**: `AssistantMessageEvent` -> OpenAI chat-completions SSE chunks
-- **Response building**: pi `AssistantMessage` + `Usage` -> OpenAI-compatible JSON
+## Coding rules that matter in this repo
 
-### Critical implementation rules
+- Runtime/tooling: **Bun + TypeScript + Hono + Zod v4 + TypeBox**.
+- Use import alias `@proxy/*` for `src/*`. Do **not** introduce relative imports across the source tree.
+- Use `import type` where required.
+- Use `node:` protocol for Node built-ins.
+- Use `import * as z from "zod"`; do not use named Zod imports.
+- Validate untrusted input with Zod at boundaries.
+- Prefer `safeParse()` over assertion-based parsing.
+- No `any`, no `@ts-ignore`, no unsafe `as Type` casts.
+- Use repo type guards such as `isRecord()` instead of ad-hoc unsafe narrowing.
+- Respect strict TS settings, especially `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `noPropertyAccessFromIndexSignature`.
+- `process.env` is typed via `src/env.d.ts`; prefer dot notation.
 
-- Canonical external model IDs use `provider/model-id`
-- `GET /v1/models/{model}` must support URL-encoded IDs because model IDs can contain `/`
-- Reserve `Authorization` for proxy authentication compatibility; do not reuse it for upstream provider overrides
-- Keep stable responses close to OpenAI's schema; if pi-specific metadata is exposed, namespace it under a field such as `x_pi`
-- Reject unsupported parameters clearly instead of silently ignoring them
-- Treat agentic mode as experimental, disabled by default, and security-sensitive
+## Verification workflow
 
-### Key mappings
+When you change code, run the smallest relevant checks first, then expand as needed.
 
-| OpenAI | Pi |
-|---|---|
-| `model` | `ModelRegistry.find(provider, id)` after canonical parsing or unique shorthand resolution |
-| `messages` | `Context.messages` with `system` and `developer` merged into the effective system prompt |
-| `stream: true` | `streamSimple()` + SSE encoding |
-| `stream: false` | `completeSimple()` |
-| `temperature` | `StreamOptions.temperature` |
-| `max_tokens` / `max_completion_tokens` | `StreamOptions.maxTokens` after normalization |
-| `reasoning_effort` | `SimpleStreamOptions.reasoning` -> `ThinkingLevel` |
-| `tools` | `Context.tools` after JSON Schema -> TypeBox conversion for a supported subset only |
-| `tool_choice` | API-aware translation: OpenAI direct, Anthropic `{ type }` format, Google `functionCallingConfig.mode`, Codex override |
-| `parallel_tool_calls` | OpenAI/Codex direct; Anthropic `disable_parallel_tool_use`; Google/Bedrock skipped |
-| `top_p` | OpenAI/Anthropic direct; Google `generationConfig.topP`; Codex skipped |
-| `frequency_penalty` | OpenAI direct; Google `generationConfig.frequencyPenalty`; Anthropic/Codex skipped |
-| `presence_penalty` | OpenAI direct; Google `generationConfig.presencePenalty`; Anthropic/Codex skipped |
-| `seed` | OpenAI direct; Google `generationConfig.seed`; Anthropic/Codex skipped |
-| `stop` | OpenAI direct; Anthropic `stop_sequences`; Google `generationConfig.stopSequences`; Codex skipped |
-| `response_format` | OpenAI direct (`text`, `json_object`, `json_schema`); others skipped |
-| `metadata` | OpenAI direct; others skipped (Anthropic only accepts `user_id` via `user` field) |
-| `prediction` | OpenAI direct; others skipped |
-| `usage` | pi `Usage` mapped to OpenAI usage fields |
-| `finish_reason` | pi `stop` -> `stop`, `length` -> `length`, `toolUse` -> `tool_calls` |
+Common commands:
 
-## Dev workflow
+```bash
+bun run typecheck
+bun run lint
+bun test
+bun run build
+```
 
-- Install deps: `bun install`
-- Run in dev: `bun run dev`
-- Build: `bun run build`
-- Typecheck: `bun run typecheck`
-- Lint: `bun run lint` (biome + oxlint with `.oxlintrc.json`)
-- Test: `bun test`
-- Pre-commit hooks: lefthook (oxlint-fix, biome format, lint, typecheck)
-- Conventional commits: enforced via commitlint
+Expected discipline in this repo:
 
-## Coding guidelines
+- Before committing, run **lint + tests**.
+- If types were affected, run `bun run typecheck` too.
+- If packaging/runtime entrypoints changed, run `bun run build`.
+- If only docs changed, skip code checks unless the change affects documented commands or behavior.
+- In your summary, state exactly what you ran and what you did **not** run.
 
-- Toolchain: Bun (dev/test), tsdown (npm build), Biome (format/lint), oxlint (type-aware lint with `.oxlintrc.json`)
-- Tabs, double quotes, semicolons, `import type` enforced, `node:` protocol
-- Import aliases: `@proxy/*` mapped to `src/*` — no relative imports, no `.js` extensions
-- Zod v4 for parsing untrusted/external data (HTTP request bodies, JSON.parse boundaries)
-- Zod namespace import: `import * as z from "zod"` — never named import
-- No `any`, no unsafe type assertions (`as Type`), no `@ts-ignore`
-- No `typeof x === 'string'` — use proper type guard functions
-- Type guards: `isRecord()` for narrowing `unknown` to `Record<string, unknown>`
-- Zod `safeParse()` for validating parsed JSON instead of `as` casts
-- Strict TS: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`
-- Typed `process.env` via `src/env.d.ts` — dot notation, no bracket access on env vars
-- Explicit null/undefined comparisons — no truthy coercion on nullable strings
-- `exactOptionalPropertyTypes`: optional properties must include `| undefined` in their type
+Hook-backed workflow already exists and should be preserved:
 
-## oxlint strict rules
+- `commit-msg` -> commitlint
+- `pre-commit` -> format, lint, typecheck
+- `pre-push` -> lockfile sync check, typecheck, lint, `bun run test:ci`
 
-The `.oxlintrc.json` enforces (matching pi-acp):
+Do not weaken these hooks unless the user asks.
 
-- `typescript/no-unsafe-*` (assignment, call, member-access, return, argument, type-assertion)
-- `typescript/strict-boolean-expressions`
-- `typescript/consistent-type-assertions`
-- `typescript/no-floating-promises`, `no-misused-promises`
-- `zod/*` rules (consistent-import, no-any-schema, require-error-message, etc.)
-- `@limegrass/import-alias` (enforces `@proxy/*` path aliases)
+## Git workflow
 
-## Source control
+Repository preference:
 
-- **DO NOT** commit unless explicitly asked
+- Make **frequent small commits** for logical slices.
+- Use **Conventional Commits**.
+- It is safe to **push automatically**, including `main`, when the task is complete and verified.
+- Normal collaboration model is **feature branches + PRs**.
 
-## References
+Practical guidance:
 
-- OpenAI API reference: https://platform.openai.com/docs/api-reference/chat/create
-- Pi SDK: `@mariozechner/pi-coding-agent` exports from `dist/index.d.ts`
-- Pi AI: `@mariozechner/pi-ai` exports from `dist/index.d.ts`
-- Pi mono repo: https://github.com/badlogic/pi-mono
-- Sister project: `pi-acp` (ACP adapter) — similar translation patterns, identical tooling config
+- Keep commits reviewable and scoped.
+- Prefer one logical concern per commit.
+- If the work changes behavior materially, update docs in the same slice.
+- Do not rewrite history unless the user asks.
+
+## Docs synchronization
+
+Keep durable docs aligned with implementation:
+
+- Update [`PLAN.md`](PLAN.md) when architecture, constraints, compatibility policy, or security boundaries change.
+- Update [`TODO.md`](TODO.md) when execution status or next tasks change.
+- Update [`ROADMAP.md`](ROADMAP.md) when the current phase summary changes.
+- Update [`README.md`](README.md) when user-facing behavior, installation, configuration, or public API examples change.
+- Prefer linking to those docs from here instead of copying large sections into `AGENTS.md`.
+
+## When to stop and ask
+
+Stop and confirm with the user before:
+
+- expanding the stable API surface beyond the documented endpoints
+- changing auth semantics or header contracts
+- altering model ID resolution behavior or exposure policy
+- loosening validation/security behavior
+- weakening hooks, lint/type-safety rules, or release workflow
+- making a broad refactor across server/openai/pi translation layers without clear acceptance criteria
+
+## Scope of this file
+
+A single repo-root `AGENTS.md` is enough for the current tree. Add nested `AGENTS.md` files only if a subtree develops a genuinely different workflow or safety boundary.
