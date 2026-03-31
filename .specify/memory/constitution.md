@@ -1,19 +1,19 @@
 <!--
 Sync Impact Report
-Version change: template → 1.0.0
-Modified principles: 
-- Template placeholders → Stable OpenAI Contract; Validate at Boundaries; Local-First Safety; Model and Header Discipline; Release Hygiene and Traceability
+Version change: 1.0.0 → 1.0.1
+Modified principles:
+- None (governance text unchanged; audit corrected downstream workflow alignment)
 Added sections:
-- API Compatibility and Security Boundaries
-- Development Workflow and Quality Gates
+- None
 Removed sections:
-- Template placeholder tokens and example comments
+- None
 Templates requiring updates:
-- ✅ .specify/templates/plan-template.md (reviewed; gate structure already compatible)
-- ✅ .specify/templates/spec-template.md (reviewed; mandatory sections already compatible)
-- ✅ .specify/templates/tasks-template.md (reviewed; task grouping rules already compatible)
-- ✅ .specify/templates/commands/*.md (reviewed; no stale agent-specific references found)
-- ✅ .specify/memory/pi-agent.md (updated)
+- ✅ .specify/templates/plan-template.md (native `/spec` references aligned)
+- ✅ .specify/templates/spec-template.md (reviewed; no changes required)
+- ✅ .specify/templates/tasks-template.md (native `/spec tasks` reference aligned)
+- ✅ .specify/templates/checklist-template.md (native `/spec checklist` reference aligned)
+- ✅ .specify/templates/commands/*.md (native `/spec` and `.specify/memory/pi-agent.md` guidance aligned)
+- ✅ .specify/memory/pi-agent.md (reviewed; no changes required)
 Follow-up TODOs: none
 -->
 
@@ -90,4 +90,4 @@ Compliance review expectations:
 - Any change to stable routes, auth semantics, model resolution, validation rules, or security defaults MUST explicitly call out the affected principle(s).
 - If implementation and docs disagree, the implementation MUST be corrected or the docs amended before release.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-31 | **Last Amended**: 2026-03-31
+**Version**: 1.0.1 | **Ratified**: 2026-03-31 | **Last Amended**: 2026-03-31
