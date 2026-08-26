@@ -194,6 +194,52 @@ describe("POST /v1/chat/completions - validation", () => {
 	});
 });
 
+describe("CORS preflight", () => {
+	test("returns 204 for chat completions preflight", async () => {
+		const requestedHeaders =
+			"authorization, content-type, x-stainless-lang, x-stainless-package-version";
+		const res = await app.request("/v1/chat/completions", {
+			method: "OPTIONS",
+			headers: {
+				Origin: "http://localhost:3000",
+				"Access-Control-Request-Method": "POST",
+				"Access-Control-Request-Headers": requestedHeaders,
+				"Access-Control-Request-Private-Network": "true",
+			},
+		});
+
+		expect(res.status).toBe(204);
+		expect(res.headers.get("access-control-allow-origin")).toBe("http://localhost:3000");
+		expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+		expect(res.headers.get("access-control-allow-headers")).toBe(requestedHeaders);
+		expect(res.headers.get("access-control-allow-private-network")).toBe("true");
+		expect(res.headers.get("access-control-expose-headers")).toContain("x-request-id");
+	});
+
+	test("does not require proxy auth for preflight", async () => {
+		const authedApp = testApp({
+			...testConfig(),
+			proxyAuthToken: "secret-token",
+		});
+
+		const res = await authedApp.request("/v1/chat/completions", {
+			method: "OPTIONS",
+			headers: {
+				Origin: "http://localhost:3000",
+				"Access-Control-Request-Method": "POST",
+			},
+		});
+
+		expect(res.status).toBe(204);
+	});
+
+	test("adds CORS headers to normal v1 responses", async () => {
+		const res = await app.request("/v1/models");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("access-control-allow-origin")).toBe("*");
+	});
+});
+
 describe("POST /v1/chat/completions - proxy auth", () => {
 	test("blocks requests when proxy auth is configured", async () => {
 		const authedApp = testApp({

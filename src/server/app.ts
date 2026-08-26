@@ -5,6 +5,7 @@
 import type { ServerConfig } from "@proxy/config/env";
 import {
 	bodySizeLimitMiddleware,
+	corsMiddleware,
 	disconnectMiddleware,
 	proxyAuthMiddleware,
 	requestIdMiddleware,
@@ -22,6 +23,7 @@ export function createApp(
 	// Global middleware
 	app.use("*", requestIdMiddleware());
 	app.use("*", disconnectMiddleware());
+	app.use("/v1/*", corsMiddleware());
 	app.use("*", bodySizeLimitMiddleware(config));
 	app.use("/v1/*", proxyAuthMiddleware(config));
 

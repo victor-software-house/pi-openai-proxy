@@ -67,6 +67,8 @@ Strict tooling, identical to pi-acp:
 - `GET /v1/models/{model}`
 - `POST /v1/chat/completions`
 
+CORS preflight (`OPTIONS /v1/*`) is supported for browser-based OpenAI-compatible clients. Preflight requests return `204`, include CORS headers, reflect browser-requested headers, support private-network preflight for localhost access, and bypass proxy authentication while preserving authentication on the actual request.
+
 ### Unsupported endpoints
 
 Return OpenAI-style errors for:

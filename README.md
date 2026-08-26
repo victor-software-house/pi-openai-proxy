@@ -100,6 +100,8 @@ curl http://localhost:4141/v1/chat/completions \
 | `GET /v1/models/{model}` | Model details by public ID or canonical ID (supports URL-encoded IDs with `/`) |
 | `POST /v1/chat/completions` | Chat completions (streaming and non-streaming) |
 
+Browser-based clients can also send CORS preflight requests (`OPTIONS /v1/*`). The proxy responds with `204`, reflects requested headers used by browser SDKs, supports private-network preflight for localhost access, and allows `Authorization`, `Content-Type`, `X-Client-Request-Id`, and `X-Pi-Upstream-Api-Key` by default.
+
 ## Supported Chat Completions Features
 
 | Feature | Notes |
