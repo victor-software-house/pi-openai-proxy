@@ -32,7 +32,12 @@ import {
 	type UpstreamErrorStatus,
 	unsupportedParameter,
 } from "@proxy/server/errors";
-import { type LogContext, logError, logUpstreamOverload } from "@proxy/server/logging";
+import {
+	type LogContext,
+	logChatRequest,
+	logError,
+	logUpstreamOverload,
+} from "@proxy/server/logging";
 import type { ProxyEnv } from "@proxy/server/types";
 import { Hono } from "hono";
 import { stream as honoStream } from "hono/streaming";
@@ -150,6 +155,21 @@ export function createRoutes(
 
 		const model = resolved.model;
 		const canonicalModelId = resolved.canonicalId;
+
+		logChatRequest(
+			{
+				requestId,
+				clientRequestId: c.get("clientRequestId"),
+				method: "POST",
+				path: "/v1/chat/completions",
+			},
+			{
+				requestedModel: request.model,
+				model: canonicalModelId,
+				provider: model.provider,
+				stream: request.stream === true,
+			},
+		);
 
 		// Convert messages
 		const conversion = convertMessages(request.messages);

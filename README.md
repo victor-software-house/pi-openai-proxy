@@ -9,6 +9,7 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 - **Self-hosted** — runs locally, no third-party proxy services
 - **Streaming** — full SSE streaming with token usage and cost tracking
 - **Strict validation** — unsupported parameters are rejected clearly, not silently ignored
+- **Structured request logs** — resolved chat model, provider, streaming mode, and request IDs are logged without request content or credentials
 
 ## Prerequisites
 

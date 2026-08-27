@@ -960,6 +960,7 @@ Minimum production observability:
 - accepted `X-Client-Request-Id`
 - upstream request ID capture where available
 - structured request logs
+- validated chat request model, resolved canonical model ID, provider, and streaming mode
 - latency logging
 - disconnect and abort logging
 - usage logging when available
