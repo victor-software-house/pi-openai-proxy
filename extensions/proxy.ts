@@ -27,12 +27,10 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import {
-	AuthStorage,
 	type ExtensionAPI,
 	type ExtensionCommandContext,
 	type ExtensionContext,
 	getSettingsListTheme,
-	ModelRegistry,
 	SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import {
@@ -93,15 +91,13 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	const extensionDir = dirname(fileURLToPath(import.meta.url));
 	const packageRoot = resolve(extensionDir, "..");
 
-	// --- Model registry access (cached, refreshed per call) ---
+	// --- Model registry access (provided by the active pi extension context) ---
 
-	const cachedAuth = AuthStorage.create();
-	const cachedRegistry = ModelRegistry.create(cachedAuth);
 	const settingsManager = SettingsManager.create(process.cwd());
 
-	function getAvailableModels(): Model<Api>[] {
-		cachedRegistry.refresh();
-		return cachedRegistry.getAvailable();
+	async function getAvailableModels(ctx: ExtensionContext): Promise<Model<Api>[]> {
+		await ctx.modelRegistry.refresh();
+		return ctx.modelRegistry.getAvailable();
 	}
 
 	async function getEnabledModels(): Promise<readonly string[] | undefined> {
@@ -544,7 +540,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		}
 
 		// Public ID preview (first 5 exposed models)
-		const models = getAvailableModels();
+		const models = await getAvailableModels(ctx);
 		const outcome = computeModelExposure(models, await buildExposureConfig());
 		if (outcome.ok && outcome.models.length > 0) {
 			const preview = outcome.models.slice(0, 5).map((m) => m.publicId);
@@ -564,7 +560,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	async function showModels(ctx: ExtensionContext): Promise<void> {
 		config = loadConfigFromFile();
-		const models = getAvailableModels();
+		const models = await getAvailableModels(ctx);
 		const outcome = computeModelExposure(models, await buildExposureConfig());
 
 		if (!outcome.ok) {
@@ -609,7 +605,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	async function verifyExposure(ctx: ExtensionContext): Promise<void> {
 		config = loadConfigFromFile();
-		const models = getAvailableModels();
+		const models = await getAvailableModels(ctx);
 		const issues: string[] = [];
 
 		// Check available models
@@ -652,8 +648,11 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	/**
 	 * Run Zed sync and return the result. Shared by the command and auto-sync.
 	 */
-	async function runZedSync(dryRun: boolean): Promise<{ ok: boolean; message: string }> {
-		const available = getAvailableModels();
+	async function runZedSync(
+		ctx: ExtensionContext,
+		dryRun: boolean,
+	): Promise<{ ok: boolean; message: string }> {
+		const available = await getAvailableModels(ctx);
 		const outcome = computeModelExposure(available, await buildExposureConfig());
 		if (!outcome.ok) {
 			return { ok: false, message: `Model exposure error: ${outcome.message}` };
@@ -682,7 +681,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	async function handleZedSync(ctx: ExtensionContext, args: string): Promise<void> {
 		config = loadConfigFromFile();
 		const dryRun = args.includes("--dry-run");
-		const result = await runZedSync(dryRun);
+		const result = await runZedSync(ctx, dryRun);
 		ctx.ui.notify(`Zed sync: ${result.message}`, result.ok ? "info" : "error");
 	}
 
@@ -691,7 +690,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	 */
 	async function maybeAutoSyncZed(ctx: ExtensionContext): Promise<void> {
 		if (!config.zed.autoSync) return;
-		const result = await runZedSync(false);
+		const result = await runZedSync(ctx, false);
 		if (result.ok) {
 			ctx.ui.notify(`Zed auto-sync: ${result.message}`, "info");
 		}
@@ -725,10 +724,10 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 	 * Shows all available models as a toggleable checklist.
 	 */
 	function buildModelSelectorSubmenu(
+		models: readonly Model<Api>[],
 		_currentValue: string,
 		done: (selectedValue?: string) => void,
 	): Component {
-		const models = getAvailableModels();
 		const selected = new Set(config.customModels);
 
 		// Build provider order from sorted model list
@@ -895,7 +894,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 		return "Require bearer token for all requests";
 	}
 
-	function buildSettingItems(): SettingItem[] {
+	function buildSettingItems(models: readonly Model<Api>[]): SettingItem[] {
 		return [
 			// --- Server ---
 			{
@@ -967,7 +966,12 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				label: "Select models",
 				description: customModelsDescription(),
 				currentValue: customModelsDisplay(),
-				...(config.modelExposureMode === "custom" ? { submenu: buildModelSelectorSubmenu } : {}),
+				...(config.modelExposureMode === "custom"
+					? {
+							submenu: (value: string, done: (selectedValue?: string) => void) =>
+								buildModelSelectorSubmenu(models, value, done),
+						}
+					: {}),
 			},
 			// --- Zed sync ---
 			{
@@ -1123,6 +1127,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 
 	async function openSettingsPanel(ctx: ExtensionCommandContext): Promise<void> {
 		config = loadConfigFromFile();
+		const models = await getAvailableModels(ctx);
 
 		await ctx.ui.custom<void>(
 			(tui, theme, _kb, done) => {
@@ -1130,7 +1135,7 @@ export default function proxyExtension(pi: ExtensionAPI): void {
 				container.addChild(new Text(theme.fg("accent", theme.bold("Proxy Settings")), 1, 0));
 				container.addChild(new Text(theme.fg("dim", getConfigPath()), 1, 0));
 
-				const items = buildSettingItems();
+				const items = buildSettingItems(models);
 				const settingsList = new SettingsList(
 					items,
 					12,

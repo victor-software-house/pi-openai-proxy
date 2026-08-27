@@ -13,8 +13,8 @@ import { isErrorLike, jsonBody, testApp } from "../helpers";
 let app: ReturnType<typeof testApp>;
 let modelId: string | undefined;
 
-beforeAll(() => {
-	initRegistry();
+beforeAll(async () => {
+	await initRegistry();
 	app = testApp();
 	const models = getAvailableModels();
 	const first = models[0];

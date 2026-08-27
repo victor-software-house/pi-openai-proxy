@@ -9,6 +9,46 @@ import { generateRequestId } from "@proxy/server/request-id";
 import type { ProxyEnv } from "@proxy/server/types";
 import type { MiddlewareHandler } from "hono";
 
+const DEFAULT_CORS_ALLOW_HEADERS = [
+	"authorization",
+	"content-type",
+	"x-client-request-id",
+	"x-pi-upstream-api-key",
+].join(", ");
+
+const CORS_EXPOSE_HEADERS = ["x-request-id", "x-client-request-id"].join(", ");
+
+/**
+ * CORS middleware for OpenAI-compatible browser clients.
+ * Handles preflight before proxy auth so Authorization-bearing clients can connect.
+ */
+export function corsMiddleware(): MiddlewareHandler<ProxyEnv> {
+	return async (c, next) => {
+		const origin = c.req.header("origin");
+		const requestedHeaders = c.req.header("access-control-request-headers");
+		const privateNetwork = c.req.header("access-control-request-private-network");
+
+		c.header("access-control-allow-origin", origin ?? "*");
+		c.header("access-control-allow-methods", "GET, POST, OPTIONS");
+		c.header("access-control-allow-headers", requestedHeaders ?? DEFAULT_CORS_ALLOW_HEADERS);
+		c.header("access-control-expose-headers", CORS_EXPOSE_HEADERS);
+		c.header("access-control-allow-credentials", "true");
+		c.header("access-control-max-age", "86400");
+		c.header("vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers");
+
+		if (privateNetwork === "true") {
+			c.header("access-control-allow-private-network", "true");
+		}
+
+		if (c.req.method === "OPTIONS") {
+			return c.body(null, 204);
+		}
+
+		await next();
+		return undefined;
+	};
+}
+
 /**
  * Inject request ID, upstream API key, and logging context into every request.
  */

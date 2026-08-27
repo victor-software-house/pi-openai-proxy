@@ -10,9 +10,9 @@ import { createTestClient, getCheapestModel, hasCredentials, setup } from "./hel
 
 describe("SDK models conformance", () => {
 	test("client.models.list() returns iterable model objects", async () => {
-		if (!hasCredentials()) return;
+		if (!(await hasCredentials())) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 		const response = await client.models.list();
 
@@ -31,10 +31,10 @@ describe("SDK models conformance", () => {
 	});
 
 	test("client.models.retrieve() returns a model object", async () => {
-		const model = getCheapestModel();
+		const model = await getCheapestModel();
 		if (model === undefined) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 		const result = await client.models.retrieve(model.id);
 

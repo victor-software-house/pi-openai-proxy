@@ -67,6 +67,8 @@ Strict tooling, identical to pi-acp:
 - `GET /v1/models/{model}`
 - `POST /v1/chat/completions`
 
+CORS preflight (`OPTIONS /v1/*`) is supported for browser-based OpenAI-compatible clients. Preflight requests return `204`, include CORS headers, reflect browser-requested headers, support private-network preflight for localhost access, and bypass proxy authentication while preserving authentication on the actual request.
+
 ### Unsupported endpoints
 
 Return OpenAI-style errors for:
@@ -209,13 +211,14 @@ Settings-panel requirements:
 
 Primary source:
 
-- pi `AuthStorage`
-- `ModelRegistry.getApiKeyAndHeaders(model)`
+- pi `ModelRuntime`
+- `ModelRuntime.getAuth(model)` for request preflight
+- `ModelRuntime.streamSimple()` / `completeSimple()` for provider-owned auth dispatch
 
-Request auth must be resolved per request and forwarded as both `apiKey` and
-`headers` where the Pi AI client supports it. This is required for current Pi
-because model-specific auth and headers can resolve dynamically on every
-request, including OAuth-backed providers and `authHeader`-driven providers.
+Request auth must be resolved per request by `ModelRuntime`. This preserves API
+keys, OAuth refresh, model-specific headers, provider environment, and endpoint
+overrides. Explicit `X-Pi-Upstream-Api-Key` values are passed as per-request
+stream options and take precedence over runtime-resolved credentials.
 
 ### Per-request override
 
@@ -721,8 +724,8 @@ src/
 │   ├── tools.ts                -- OpenAI function tools -> pi Tool[]
 │   └── json-schema-to-typebox.ts -- JSON Schema -> TypeBox conversion
 └── pi/
-    ├── registry.ts       -- AuthStorage + ModelRegistry init
-    └── complete.ts       -- completeSimple/streamSimple bridge
+    ├── registry.ts       -- async ModelRuntime + SettingsManager init
+    └── complete.ts       -- ModelRuntime completeSimple/streamSimple bridge
 ```
 
 ### Dead code
@@ -766,7 +769,7 @@ Deliverable:
 Build:
 
 - project scaffolding (Bun, Hono, Zod v4, tsdown, Biome, oxlint, lefthook, commitlint)
-- `AuthStorage` and `ModelRegistry` integration
+- `ModelRuntime` model/auth integration
 - model resolution (canonical + shorthand with ambiguity detection)
 - `GET /v1/models`
 - `GET /v1/models/{model}` with encoded slash support
@@ -957,6 +960,7 @@ Minimum production observability:
 - accepted `X-Client-Request-Id`
 - upstream request ID capture where available
 - structured request logs
+- validated chat request model, resolved canonical model ID, provider, and streaming mode
 - latency logging
 - disconnect and abort logging
 - usage logging when available

@@ -62,6 +62,8 @@ const FINISH_REASON_MAP: Record<StopReason, string> = {
 	toolUse: "tool_calls",
 	error: "stop",
 	aborted: "stop",
+	pending: "stop",
+	deferred: "stop",
 };
 
 /**

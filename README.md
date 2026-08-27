@@ -9,6 +9,7 @@ A local OpenAI-compatible HTTP proxy built on [pi](https://github.com/badlogic/p
 - **Self-hosted** — runs locally, no third-party proxy services
 - **Streaming** — full SSE streaming with token usage and cost tracking
 - **Strict validation** — unsupported parameters are rejected clearly, not silently ignored
+- **Structured request logs** — resolved chat model, provider, streaming mode, and request IDs are logged without request content or credentials
 
 ## Prerequisites
 
@@ -99,6 +100,8 @@ curl http://localhost:4141/v1/chat/completions \
 | `GET /v1/models` | List exposed models (filtered by exposure mode, only those with configured credentials) |
 | `GET /v1/models/{model}` | Model details by public ID or canonical ID (supports URL-encoded IDs with `/`) |
 | `POST /v1/chat/completions` | Chat completions (streaming and non-streaming) |
+
+Browser-based clients can also send CORS preflight requests (`OPTIONS /v1/*`). The proxy responds with `204`, reflects requested headers used by browser SDKs, supports private-network preflight for localhost access, and allows `Authorization`, `Content-Type`, `X-Client-Request-Id`, and `X-Pi-Upstream-Api-Key` by default.
 
 ## Supported Chat Completions Features
 
@@ -314,8 +317,8 @@ The extension detects externally running instances and shows their status via `/
               ├────────────────────────►│                                  │
               │                         │  ┌────────────────────────────┐  │
               │                         │  │        Pi SDK              │  │
-              │  SSE / JSON             │  │  ├─ ModelRegistry          │  │
-              │◄────────────────────────┤  │  ├─ AuthStorage            │  │
+              │  SSE / JSON             │  │  ├─ ModelRuntime           │  │
+              │◄────────────────────────┤  │  ├─ provider auth          │  │
               │                         │  │  ├─ streamSimple()         │  │
                                         │  │  └─ completeSimple()       │  │
                                         │  └────────────────────────────┘  │
@@ -324,8 +327,8 @@ The extension detects externally running instances and shows their status via `/
 
 ### Pi SDK layers used
 
-- **`@earendil-works/pi-ai`** — `streamSimple()`, `completeSimple()`, `Model`, `Usage`, `AssistantMessageEvent`
-- **`@earendil-works/pi-coding-agent`** — `ModelRegistry`, `AuthStorage`
+- **`@earendil-works/pi-ai`** — `Model`, `Usage`, `AssistantMessageEvent`, provider contracts
+- **`@earendil-works/pi-coding-agent`** — `ModelRuntime`, `SettingsManager`
 
 ## Security defaults
 

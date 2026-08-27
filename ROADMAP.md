@@ -19,7 +19,7 @@ Freeze the API and security decisions before implementation starts.
 Deliver the minimum production-capable proxy.
 
 - [x] Scaffold the project and core modules
-- [x] Integrate `AuthStorage` and `ModelRegistry`
+- [x] Integrate Pi `ModelRuntime` for model discovery and auth
 - [x] Implement `GET /v1/models`
 - [x] Implement `GET /v1/models/{model}`
 - [x] Implement non-streaming `POST /v1/chat/completions`

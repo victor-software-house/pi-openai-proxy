@@ -28,6 +28,31 @@ export function logRequest(ctx: LogContext): void {
 	console.error(JSON.stringify(entry));
 }
 
+export interface ChatRequestLogDetails {
+	readonly requestedModel: string;
+	readonly model: string;
+	readonly provider: string;
+	readonly stream: boolean;
+}
+
+/** Log the validated and resolved model selected for a chat request. */
+export function logChatRequest(ctx: LogContext, details: ChatRequestLogDetails): void {
+	const entry = {
+		ts: timestamp(),
+		level: "info",
+		event: "chat_request",
+		requestId: ctx.requestId,
+		clientRequestId: ctx.clientRequestId,
+		method: ctx.method,
+		path: ctx.path,
+		requestedModel: details.requestedModel,
+		model: details.model,
+		provider: details.provider,
+		stream: details.stream,
+	};
+	console.error(JSON.stringify(entry));
+}
+
 export function logResponse(ctx: LogContext, status: number, durationMs: number): void {
 	const entry = {
 		ts: timestamp(),

@@ -25,20 +25,20 @@ const weatherTool: OpenAI.ChatCompletionTool = {
 	},
 };
 
-function getToolModel(): string | undefined {
+async function getToolModel(): Promise<string | undefined> {
 	// Prefer mid-tier for tool calls, fall back to fast
-	const mid = getTestModels("mid");
+	const mid = await getTestModels("mid");
 	if (mid.length > 0) return mid[0]?.id;
-	const fast = getTestModels("fast");
+	const fast = await getTestModels("fast");
 	return fast[0]?.id;
 }
 
 describe("SDK tool call conformance", () => {
 	test("non-streaming tool call parses without SDK errors", async () => {
-		const modelId = getToolModel();
+		const modelId = await getToolModel();
 		if (modelId === undefined) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 
 		const completion = await client.chat.completions.create({
@@ -74,10 +74,10 @@ describe("SDK tool call conformance", () => {
 	});
 
 	test("streaming tool call parses all chunks without SDK errors", async () => {
-		const modelId = getToolModel();
+		const modelId = await getToolModel();
 		if (modelId === undefined) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 
 		const stream = await client.chat.completions.create({

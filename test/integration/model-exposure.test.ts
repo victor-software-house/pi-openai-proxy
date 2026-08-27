@@ -12,8 +12,8 @@ import { isRecord } from "@proxy/utils/guards";
 
 import { isErrorBody, isModelListBody, jsonBody, testApp, testConfig } from "../helpers";
 
-beforeAll(() => {
-	initRegistry();
+beforeAll(async () => {
+	await initRegistry();
 });
 
 function appWith(overrides: Partial<ServerConfig>): ReturnType<typeof testApp> {
