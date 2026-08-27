@@ -70,8 +70,7 @@ Read `PLAN.md` first. This file should track concrete work items and decisions n
 
 ### Core pi integration
 
-- [x] Create `AuthStorage` integration
-- [x] Create `ModelRegistry` integration
+- [x] Create `ModelRuntime` model/auth integration
 - [x] Surface model-registry load errors clearly at startup and in logs
 - [x] Implement model lookup by canonical ID
 - [x] Implement shorthand lookup with ambiguity detection

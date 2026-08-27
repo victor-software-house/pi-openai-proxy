@@ -50,9 +50,9 @@ let resolvedModels: Map<string, TestModel> | undefined;
 /**
  * Initialize the registry and app once.
  */
-export function setup(): { app: ReturnType<typeof testApp> } {
+export async function setup(): Promise<{ app: ReturnType<typeof testApp> }> {
 	if (!initialized) {
-		initRegistry();
+		await initRegistry();
 		app = testApp();
 
 		const available = new Set(getAvailableModels().map((m) => `${m.provider}/${m.id}`));
@@ -74,8 +74,8 @@ export function setup(): { app: ReturnType<typeof testApp> } {
 /**
  * Get all available test models, optionally filtered by category.
  */
-export function getTestModels(category?: TestModel["category"]): TestModel[] {
-	setup();
+export async function getTestModels(category?: TestModel["category"]): Promise<TestModel[]> {
+	await setup();
 	if (resolvedModels === undefined) return [];
 	const all = [...resolvedModels.values()];
 	if (category === undefined) return all;
@@ -86,12 +86,12 @@ export function getTestModels(category?: TestModel["category"]): TestModel[] {
  * Get the single cheapest available test model. Prefer "fast" category.
  * Returns undefined if no credentials are available.
  */
-export function getCheapestModel(): TestModel | undefined {
-	const fast = getTestModels("fast");
+export async function getCheapestModel(): Promise<TestModel | undefined> {
+	const fast = await getTestModels("fast");
 	if (fast.length > 0) return fast[0];
-	const mid = getTestModels("mid");
+	const mid = await getTestModels("mid");
 	if (mid.length > 0) return mid[0];
-	return getTestModels()[0];
+	return (await getTestModels())[0];
 }
 
 /**
@@ -138,6 +138,6 @@ export function createTestClient(proxyApp: ReturnType<typeof testApp>): OpenAI {
 /**
  * Returns true if at least one test model has credentials configured.
  */
-export function hasCredentials(): boolean {
-	return getTestModels().length > 0;
+export async function hasCredentials(): Promise<boolean> {
+	return (await getTestModels()).length > 0;
 }

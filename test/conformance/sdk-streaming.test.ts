@@ -11,10 +11,10 @@ import { createTestClient, getCheapestModel, setup } from "./helpers";
 
 describe("SDK streaming chat conformance", () => {
 	test("streaming text completion parses all chunks without SDK errors", async () => {
-		const model = getCheapestModel();
+		const model = await getCheapestModel();
 		if (model === undefined) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 
 		const stream = await client.chat.completions.create({
@@ -46,10 +46,10 @@ describe("SDK streaming chat conformance", () => {
 	});
 
 	test("stream_options.include_usage produces a usage chunk", async () => {
-		const model = getCheapestModel();
+		const model = await getCheapestModel();
 		if (model === undefined) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 
 		const stream = await client.chat.completions.create({

@@ -32,6 +32,14 @@ describe("finish reason mapping", () => {
 	test("aborted -> stop (graceful degradation)", () => {
 		expect(mapFinishReason("aborted")).toBe("stop");
 	});
+
+	test("pending -> stop (OpenAI has no deferred finish reason)", () => {
+		expect(mapFinishReason("pending")).toBe("stop");
+	});
+
+	test("deferred -> stop (OpenAI has no deferred finish reason)", () => {
+		expect(mapFinishReason("deferred")).toBe("stop");
+	});
 });
 
 describe("usage mapping", () => {

@@ -316,8 +316,8 @@ The extension detects externally running instances and shows their status via `/
               ├────────────────────────►│                                  │
               │                         │  ┌────────────────────────────┐  │
               │                         │  │        Pi SDK              │  │
-              │  SSE / JSON             │  │  ├─ ModelRegistry          │  │
-              │◄────────────────────────┤  │  ├─ AuthStorage            │  │
+              │  SSE / JSON             │  │  ├─ ModelRuntime           │  │
+              │◄────────────────────────┤  │  ├─ provider auth          │  │
               │                         │  │  ├─ streamSimple()         │  │
                                         │  │  └─ completeSimple()       │  │
                                         │  └────────────────────────────┘  │
@@ -326,8 +326,8 @@ The extension detects externally running instances and shows their status via `/
 
 ### Pi SDK layers used
 
-- **`@earendil-works/pi-ai`** — `streamSimple()`, `completeSimple()`, `Model`, `Usage`, `AssistantMessageEvent`
-- **`@earendil-works/pi-coding-agent`** — `ModelRegistry`, `AuthStorage`
+- **`@earendil-works/pi-ai`** — `Model`, `Usage`, `AssistantMessageEvent`, provider contracts
+- **`@earendil-works/pi-coding-agent`** — `ModelRuntime`, `SettingsManager`
 
 ## Security defaults
 

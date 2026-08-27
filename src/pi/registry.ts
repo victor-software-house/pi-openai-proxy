@@ -1,41 +1,34 @@
 /**
- * Pi ModelRegistry, AuthStorage, and SettingsManager integration.
+ * Pi ModelRuntime and SettingsManager integration.
  *
- * Initializes the model registry using pi's file-based auth and model storage,
+ * Initializes the model runtime using pi's file-based auth and model storage,
  * reads the global `enabledModels` setting from pi's SettingsManager,
  * and exposes lookup functions used by the proxy routes.
  */
 
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { AuthStorage, ModelRegistry, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 
-let registry: ModelRegistry | undefined;
-let authStorage: AuthStorage | undefined;
+let modelRuntime: ModelRuntime | undefined;
+let modelRuntimePromise: Promise<ModelRuntime> | undefined;
 let settingsManager: SettingsManager | undefined;
 
 /**
- * Initialize the registry and settings. Call once at startup.
+ * Initialize the model runtime and settings. Call once at startup.
  * Returns the load error if models.json failed to parse, or undefined on success.
  */
-export function initRegistry(): string | undefined {
-	authStorage = AuthStorage.create();
-	registry = ModelRegistry.create(authStorage);
-	settingsManager = SettingsManager.create(process.cwd());
-	return registry.getError();
+export async function initRegistry(): Promise<string | undefined> {
+	modelRuntimePromise ??= ModelRuntime.create();
+	modelRuntime = await modelRuntimePromise;
+	settingsManager ??= SettingsManager.create(process.cwd());
+	return modelRuntime.getError();
 }
 
-export function getRegistry(): ModelRegistry {
-	if (registry === undefined) {
-		throw new Error("ModelRegistry not initialized. Call initRegistry() first.");
+export function getModelRuntime(): ModelRuntime {
+	if (modelRuntime === undefined) {
+		throw new Error("ModelRuntime not initialized. Await initRegistry() first.");
 	}
-	return registry;
-}
-
-export function getAuthStorage(): AuthStorage {
-	if (authStorage === undefined) {
-		throw new Error("AuthStorage not initialized. Call initRegistry() first.");
-	}
-	return authStorage;
+	return modelRuntime;
 }
 
 export function getSettingsManager(): SettingsManager {
@@ -46,10 +39,10 @@ export function getSettingsManager(): SettingsManager {
 }
 
 /**
- * Get all models available (have auth configured).
+ * Get the initialized snapshot of models with configured auth.
  */
 export function getAvailableModels(): Model<Api>[] {
-	return getRegistry().getAvailable();
+	return [...getModelRuntime().getAvailableSnapshot()];
 }
 
 /**
@@ -60,7 +53,18 @@ export function getAvailableModels(): Model<Api>[] {
  * providers, authHeader handling, and dynamic models.json header resolution.
  */
 export async function getRequestAuth(model: Model<Api>) {
-	return getRegistry().getApiKeyAndHeaders(model);
+	try {
+		const result = await getModelRuntime().getAuth(model);
+		if (result === undefined) {
+			return { ok: false as const, error: "No configured authentication" };
+		}
+		return { ok: true as const };
+	} catch (error) {
+		return {
+			ok: false as const,
+			error: error instanceof Error ? error.message : "Authentication resolution failed",
+		};
+	}
 }
 
 /**

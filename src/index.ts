@@ -83,7 +83,7 @@ const main = defineCommand({
 		const config = loadConfig(cli);
 
 		// Initialize pi integration
-		const loadError = initRegistry();
+		const loadError = await initRegistry();
 		if (loadError !== undefined) {
 			console.error(`[warn] models.json load error: ${loadError}`);
 			console.error("[warn] Continuing with built-in models only.");

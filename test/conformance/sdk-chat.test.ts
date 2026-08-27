@@ -11,10 +11,10 @@ import { createTestClient, getCheapestModel, setup } from "./helpers";
 
 describe("SDK non-streaming chat conformance", () => {
 	test("simple text completion parses without SDK errors", async () => {
-		const model = getCheapestModel();
+		const model = await getCheapestModel();
 		if (model === undefined) return;
 
-		const { app } = setup();
+		const { app } = await setup();
 		const client = createTestClient(app);
 
 		const completion = await client.chat.completions.create({

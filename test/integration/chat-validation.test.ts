@@ -12,8 +12,8 @@ import { isErrorBody, isErrorLike, jsonBody, testApp, testConfig } from "../help
 
 let app: ReturnType<typeof testApp>;
 
-beforeAll(() => {
-	initRegistry();
+beforeAll(async () => {
+	await initRegistry();
 	app = testApp();
 });
 
