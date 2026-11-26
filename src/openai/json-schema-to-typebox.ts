@@ -13,13 +13,14 @@
  * - arrays with supported item schema
  * - nullable via type: [T, "null"]
  * - anyOf for nullable types and simple unions (max 10 branches)
+ * - oneOf for exclusive unions (max 10 branches)
+ * - additionalProperties as a boolean or supported schema
  * - description on any schema node
  *
  * Rejected:
  * - $ref
- * - oneOf, allOf
+ * - allOf
  * - recursive schemas
- * - additionalProperties as a schema (boolean true/false allowed)
  * - patternProperties
  * - if/then/else
  */
@@ -42,11 +43,10 @@ export type SchemaConversionResult = SchemaConversionSuccess | SchemaConversionE
 
 /**
  * Unsupported JSON Schema keywords that we reject explicitly.
- * Note: `anyOf` is handled separately for common patterns (nullable types, simple unions).
+ * `anyOf` and `oneOf` are converted recursively below.
  */
 const REJECTED_KEYWORDS = [
 	"$ref",
-	"oneOf",
 	"allOf",
 	"if",
 	"then",
@@ -86,11 +86,23 @@ export function jsonSchemaToTypebox(schema: unknown, path: string = ""): SchemaC
 		opts["description"] = description;
 	}
 
+	// Sibling constraints also apply to oneOf; convert them before adding its branches.
+	const oneOf = schema["oneOf"];
+	if (oneOf !== undefined) {
+		if (!Array.isArray(oneOf)) {
+			return { ok: false, message: `'oneOf' must be an array at ${path || "root"}`, path };
+		}
+		const { oneOf: _oneOf, ...siblings } = schema;
+		const base = jsonSchemaToTypebox(siblings, path);
+		if (!base.ok) return base;
+		return convertUnion(oneOf, "oneOf", path, { ...base.schema });
+	}
+
 	// Handle anyOf: common patterns like nullable types and simple type unions.
 	// Example: anyOf: [{type: "string"}, {type: "null"}] -> Union(String, Null)
 	const anyOf = schema["anyOf"];
 	if (Array.isArray(anyOf)) {
-		return convertAnyOf(anyOf, path, opts);
+		return convertUnion(anyOf, "anyOf", path, opts);
 	}
 
 	// Handle enum
@@ -147,31 +159,28 @@ export function jsonSchemaToTypebox(schema: unknown, path: string = ""): SchemaC
 }
 
 /**
- * Convert anyOf to a TypeBox Union.
- *
- * Supports:
- * - Nullable: anyOf: [{type: T}, {type: "null"}]
- * - Simple unions of supported types (max 10 branches)
+ * Convert union branches without changing their matching rules.
  */
-function convertAnyOf(
+function convertUnion(
 	branches: unknown[],
+	keyword: "anyOf" | "oneOf",
 	path: string,
 	opts: Record<string, unknown>,
 ): SchemaConversionResult {
 	if (branches.length === 0) {
-		return { ok: false, message: `Empty 'anyOf' at ${path || "root"}`, path };
+		return { ok: false, message: `Empty '${keyword}' at ${path || "root"}`, path };
 	}
 	if (branches.length > 10) {
 		return {
 			ok: false,
-			message: `'anyOf' with more than 10 branches is not supported at ${path || "root"}`,
+			message: `'${keyword}' with more than 10 branches is not supported at ${path || "root"}`,
 			path,
 		};
 	}
 
 	const converted: TSchema[] = [];
 	for (let i = 0; i < branches.length; i++) {
-		const branchPath = `${path || "root"}.anyOf[${String(i)}]`;
+		const branchPath = `${path || "root"}.${keyword}[${String(i)}]`;
 		const result = jsonSchemaToTypebox(branches[i], branchPath);
 		if (!result.ok) {
 			return result;
@@ -179,7 +188,14 @@ function convertAnyOf(
 		converted.push(result.schema);
 	}
 
-	return { ok: true, schema: Type.Union(converted, opts) };
+	// Type.Union emits anyOf. Keep oneOf intact so overlapping branches stay exclusive.
+	return {
+		ok: true,
+		schema:
+			keyword === "oneOf"
+				? Type.Unsafe({ ...opts, oneOf: converted })
+				: Type.Union(converted, opts),
+	};
 }
 
 function convertEnum(
@@ -253,13 +269,15 @@ function convertObject(
 	const rawRequired = schema["required"];
 	const additionalProperties = schema["additionalProperties"];
 
-	// Reject additionalProperties when it's a schema object (boolean is allowed)
-	if (additionalProperties !== undefined && typeof additionalProperties !== "boolean") {
-		return {
-			ok: false,
-			message: `'additionalProperties' as a schema is not supported at ${path || "root"}; only boolean values are allowed`,
-			path,
-		};
+	if (typeof additionalProperties === "boolean") {
+		opts["additionalProperties"] = additionalProperties;
+	} else if (additionalProperties !== undefined) {
+		const result = jsonSchemaToTypebox(
+			additionalProperties,
+			`${path || "root"}.additionalProperties`,
+		);
+		if (!result.ok) return result;
+		opts["additionalProperties"] = result.schema;
 	}
 
 	// Object with no properties -- just return an empty object type

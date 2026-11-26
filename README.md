@@ -128,6 +128,20 @@ curl http://localhost:4141/v1/chat/completions \
 
 **Not supported:** `n > 1`, `logprobs`, `logit_bias`, remote image URLs (disabled by default).
 
+### Tool parameter schemas
+
+Function tools support primitive types, objects with `properties` and `required`,
+arrays, string enums, nullable types, and descriptions. `anyOf` and `oneOf` accept
+up to 10 supported branches; `oneOf` retains its exactly-one-match rule. Objects
+support `additionalProperties` as a boolean or a supported schema, including
+dictionaries without named properties.
+
+For example, browser tools can use `oneOf: [{"type":"string"},{"type":"boolean"}]`
+for a session selector and `additionalProperties: {"type":"string"}` for MIME data.
+Unsupported constructs such as `$ref`, `allOf`, and `patternProperties` still return
+`422`, including when nested inside these schemas. See the full
+[tool schema policy](PLAN.md#tool-schema-policy) for the supported subset.
+
 ### Provider-aware field translation
 
 Fields are translated to each provider's native format, not blindly forwarded:

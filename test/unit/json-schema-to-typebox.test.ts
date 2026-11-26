@@ -93,15 +93,15 @@ describe("jsonSchemaToTypebox", () => {
 			expect(schemaValue(result.schema, "type")).toBe("object");
 		});
 
-		test("rejects additionalProperties as schema object", () => {
+		test("converts additionalProperties as schema object", () => {
 			const result = jsonSchemaToTypebox({
 				type: "object",
 				properties: { name: { type: "string" } },
 				additionalProperties: { type: "string" },
 			});
-			expect(result.ok).toBe(false);
-			if (result.ok) return;
-			expect(result.message).toContain("additionalProperties");
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(schemaValue(result.schema, "additionalProperties")).toEqual({ type: "string" });
 		});
 
 		test("allows additionalProperties as boolean", () => {
@@ -201,15 +201,6 @@ describe("jsonSchemaToTypebox", () => {
 			expect(result.ok).toBe(false);
 			if (result.ok) return;
 			expect(result.message).toContain("$ref");
-		});
-
-		test("rejects oneOf", () => {
-			const result = jsonSchemaToTypebox({
-				oneOf: [{ type: "string" }, { type: "number" }],
-			});
-			expect(result.ok).toBe(false);
-			if (result.ok) return;
-			expect(result.message).toContain("oneOf");
 		});
 
 		test("rejects allOf", () => {

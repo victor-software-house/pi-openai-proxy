@@ -341,17 +341,22 @@ Supported subset:
 - `enum` (string values only, mapped to TypeBox Union of literals)
 - nullable types via `type: [T, "null"]`
 - `description` on any schema node
-- `additionalProperties` as boolean (not as schema)
+- `additionalProperties` as a boolean or a supported schema, including objects without named properties
 - `anyOf` for nullable types and simple unions (max 10 branches)
+- `oneOf` for exclusive unions (max 10 branches); exactly one branch must match
+
+Supported sibling constraints still apply alongside `oneOf`. Both union forms and
+schema-valued `additionalProperties` are converted recursively; unsupported nested
+constructs return `422` with the failing schema path. Boolean `additionalProperties`
+values are preserved, including `false` to disallow undeclared properties.
 
 Rejected:
 
 - `$ref`
-- `oneOf` / `allOf`
+- `allOf`
 - `if` / `then` / `else`
 - `patternProperties`
 - `not`
-- `additionalProperties` as a schema object
 - recursive schemas
 - non-string enum values
 
